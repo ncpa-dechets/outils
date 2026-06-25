@@ -15,15 +15,16 @@
     }
 
     :root {
-      --rouge:       #B91E27;
-      --rouge-light: #f8eced;
-      --vert:        #B1B993;
-      --vert-light:  #eaecdf;
-      --bg:          #F6F5F1;
-      --surface:     #FFFFFF;
-      --text:        #1A1A1A;
-      --muted:       #666660;
-      --border:      #E0DDD5;
+      --rouge:        #B91E27;
+      --rouge-light:  #f8eced;
+      --vert:         #B1B993;
+      --vert-dark:    #6b7259;
+      --vert-light:   #eaecdf;
+      --bg:           #F6F5F1;
+      --surface:      #FFFFFF;
+      --text:         #1A1A1A;
+      --muted:        #666660;
+      --border:       #E0DDD5;
     }
 
     html, body {
@@ -83,29 +84,67 @@
       padding: 3.5rem 1.5rem 4rem;
     }
 
-    .section-eyebrow {
-      text-align: center;
+    .content {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* ── SECTION ── */
+    .section {
+      margin-bottom: 3.5rem;
+    }
+
+    .section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.6rem;
+    }
+
+    .section-header::before,
+    .section-header::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 0.22em;
       text-transform: uppercase;
       color: var(--muted);
-      margin-bottom: 2.5rem;
+      white-space: nowrap;
     }
+
+    .section-label .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .section-label.dim .dot  { background: var(--vert-dark); }
+    .section-label.suivi .dot { background: var(--rouge); }
 
     /* ── CARDS GRID ── */
     .cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-      max-width: 800px;
-      margin: 0 auto;
+      gap: 1.25rem;
     }
 
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-top: 4px solid var(--rouge);
       border-radius: 2px;
       padding: 2rem 1.75rem 1.75rem;
       text-decoration: none;
@@ -117,8 +156,8 @@
     }
 
     .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.09);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.09);
     }
 
     .card:focus-visible {
@@ -126,11 +165,14 @@
       outline-offset: 3px;
     }
 
+    /* Card accent (top border) */
+    .card.dim   { border-top: 4px solid var(--vert-dark); }
+    .card.suivi { border-top: 4px solid var(--rouge); }
+
     /* Icon */
     .card-icon {
-      width: 46px;
-      height: 46px;
-      background: var(--rouge-light);
+      width: 44px;
+      height: 44px;
       border-radius: 4px;
       display: flex;
       align-items: center;
@@ -139,26 +181,31 @@
       flex-shrink: 0;
     }
 
+    .card.dim   .card-icon { background: var(--vert-light); }
+    .card.suivi .card-icon { background: var(--rouge-light); }
+
     .card-icon svg {
-      width: 22px;
-      height: 22px;
-      stroke: var(--rouge);
+      width: 21px;
+      height: 21px;
       fill: none;
-      stroke-width: 1.6;
+      stroke-width: 1.65;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
 
+    .card.dim   .card-icon svg { stroke: var(--vert-dark); }
+    .card.suivi .card-icon svg { stroke: var(--rouge); }
+
     /* Content */
     .card h2 {
-      font-size: 16px;
+      font-size: 15.5px;
       font-weight: 700;
       line-height: 1.3;
       margin-bottom: 0.6rem;
     }
 
     .card p {
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 300;
       line-height: 1.65;
       color: var(--muted);
@@ -180,26 +227,28 @@
       letter-spacing: 0.04em;
       padding: 3px 9px;
       border-radius: 2px;
-      background: var(--vert-light);
-      color: #4f5438;
     }
+
+    .card.dim   .tag { background: var(--vert-light);  color: #4f5438; }
+    .card.suivi .tag { background: var(--rouge-light); color: #7a1018; }
 
     /* CTA */
     .card-cta {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 700;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.07em;
       text-transform: uppercase;
-      color: var(--rouge);
     }
 
+    .card.dim   .card-cta { color: var(--vert-dark); }
+    .card.suivi .card-cta { color: var(--rouge); }
+
     .card-cta svg {
-      width: 15px;
-      height: 15px;
-      stroke: var(--rouge);
+      width: 14px;
+      height: 14px;
       fill: none;
       stroke-width: 2.5;
       stroke-linecap: round;
@@ -207,8 +256,11 @@
       transition: transform 0.15s ease;
     }
 
+    .card.dim   .card-cta svg { stroke: var(--vert-dark); }
+    .card.suivi .card-cta svg { stroke: var(--rouge); }
+
     .card:hover .card-cta svg {
-      transform: translateX(5px);
+      transform: translateX(4px);
     }
 
     /* ── FOOTER ── */
@@ -252,75 +304,162 @@
   <header>
     <span class="header-eyebrow">Normandie Cabourg Pays d'Auge — Communauté de communes</span>
     <h1>Déploiement des équipements de collecte</h1>
-    <p class="tagline">Tableaux de bord et outils de suivi opérationnel</p>
+    <p class="tagline">Tableaux de bord et outils opérationnels</p>
   </header>
 
   <div class="accent-bar" role="presentation"></div>
 
   <main>
-    <p class="section-eyebrow">Outils disponibles</p>
+    <div class="content">
 
-    <div class="cards" role="list">
+      <!-- ── SECTION DIMENSIONNEMENT ── -->
+      <section class="section" aria-labelledby="label-dim">
+        <div class="section-header">
+          <div class="section-label dim" id="label-dim">
+            <span class="dot"></span>
+            Outils de dimensionnement
+          </div>
+        </div>
 
-      <!-- Carte 1 — Conteneurisation -->
-      <a href="https://ncpa-dechets.github.io/conteneurisation/"
-         class="card"
-         role="listitem"
-         aria-label="Accéder à l'outil Enquête de conteneurisation">
-        <div class="card-icon" aria-hidden="true">
-          <!-- Clipboard / survey icon -->
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-            <rect x="9" y="3" width="6" height="4" rx="1" ry="1"/>
-            <line x1="9" y1="12" x2="15" y2="12"/>
-            <line x1="9" y1="16" x2="12" y2="16"/>
-          </svg>
-        </div>
-        <h2>Enquête de conteneurisation</h2>
-        <p>Avancement de l'enquête terrain et de la dotation en bacs individuels par commune.</p>
-        <div class="card-tags">
-          <span class="tag">Dotation bacs</span>
-          <span class="tag">Enquête terrain</span>
-          <span class="tag">VIACOL</span>
-        </div>
-        <div class="card-cta" aria-hidden="true">
-          Accéder
-          <svg viewBox="0 0 24 24">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-            <polyline points="12 5 19 12 12 19"/>
-          </svg>
-        </div>
-      </a>
+        <div class="cards" role="list">
 
-      <!-- Carte 2 — Tableau de bord déploiement -->
-      <a href="https://ncpa-dechets.github.io/suivi-deploiement/"
-         class="card"
-         role="listitem"
-         aria-label="Accéder au tableau de bord déploiement">
-        <div class="card-icon" aria-hidden="true">
-          <!-- Bar chart icon -->
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <line x1="18" y1="20" x2="18" y2="10"/>
-            <line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6"  y1="20" x2="6"  y2="14"/>
-            <line x1="3"  y1="20" x2="21" y2="20"/>
-          </svg>
+          <!-- Carte — Implantation colonnes enterrées -->
+          <a href="outils/implantation-pav.html"
+             class="card dim"
+             role="listitem"
+             aria-label="Accéder à l'outil d'implantation colonnes enterrées">
+            <div class="card-icon" aria-hidden="true">
+              <!-- Layers / underground icon -->
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="3" width="7" height="7" rx="1"/>
+                <rect x="4" y="14" width="7" height="7" rx="1"/>
+                <rect x="13" y="3" width="7" height="7" rx="1"/>
+                <rect x="13" y="14" width="7" height="7" rx="1"/>
+              </svg>
+            </div>
+            <h2>Implantation colonnes enterrées</h2>
+            <p>Dimensionnement de l'emprise fouille et calage des colonnes sur plan cadastral, avec export GeoJSON.</p>
+            <div class="card-tags">
+              <span class="tag">PAV</span>
+              <span class="tag">Fouille</span>
+              <span class="tag">Carte</span>
+            </div>
+            <div class="card-cta" aria-hidden="true">
+              Ouvrir
+              <svg viewBox="0 0 24 24">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </div>
+          </a>
+
+          <!-- Carte — Configurateur dalle & claustra -->
+          <a href="outils/schemas_dalles_pdr.html"
+             class="card dim"
+             role="listitem"
+             aria-label="Accéder au configurateur de dalle et claustra">
+            <div class="card-icon" aria-hidden="true">
+              <!-- Grid / plan icon -->
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="18" height="18" rx="1"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="3" y1="15" x2="21" y2="15"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+                <line x1="15" y1="3" x2="15" y2="21"/>
+              </svg>
+            </div>
+            <h2>Dalle &amp; claustra — PDR</h2>
+            <p>Configuration de la dalle béton, placement des bacs et du claustra, avec schémas cotés et métrés.</p>
+            <div class="card-tags">
+              <span class="tag">Dalle</span>
+              <span class="tag">Claustra</span>
+              <span class="tag">PDR</span>
+            </div>
+            <div class="card-cta" aria-hidden="true">
+              Ouvrir
+              <svg viewBox="0 0 24 24">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </div>
+          </a>
+
         </div>
-        <h2>Tableau de bord — déploiement</h2>
-        <p>Avancement de la dotation, projets d'équipements nouveaux (PAV, PDR) et données par commune du territoire.</p>
-        <div class="card-tags">
-          <span class="tag">PAV / PDR</span>
-          <span class="tag">Communes</span>
-          <span class="tag">Indicateurs</span>
+      </section>
+
+      <!-- ── SECTION SUIVI ── -->
+      <section class="section" aria-labelledby="label-suivi">
+        <div class="section-header">
+          <div class="section-label suivi" id="label-suivi">
+            <span class="dot"></span>
+            Outils de suivi
+          </div>
         </div>
-        <div class="card-cta" aria-hidden="true">
-          Accéder
-          <svg viewBox="0 0 24 24">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-            <polyline points="12 5 19 12 12 19"/>
-          </svg>
+
+        <div class="cards" role="list">
+
+          <!-- Carte — Conteneurisation -->
+          <a href="https://ncpa-dechets.github.io/conteneurisation/"
+             class="card suivi"
+             role="listitem"
+             aria-label="Accéder à l'outil Enquête de conteneurisation">
+            <div class="card-icon" aria-hidden="true">
+              <!-- Clipboard / survey icon -->
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                <rect x="9" y="3" width="6" height="4" rx="1" ry="1"/>
+                <line x1="9" y1="12" x2="15" y2="12"/>
+                <line x1="9" y1="16" x2="12" y2="16"/>
+              </svg>
+            </div>
+            <h2>Enquête de conteneurisation</h2>
+            <p>Avancement de l'enquête terrain et de la dotation en bacs individuels par commune.</p>
+            <div class="card-tags">
+              <span class="tag">Dotation bacs</span>
+              <span class="tag">Enquête terrain</span>
+              <span class="tag">VIACOL</span>
+            </div>
+            <div class="card-cta" aria-hidden="true">
+              Accéder
+              <svg viewBox="0 0 24 24">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </div>
+          </a>
+
+          <!-- Carte — Tableau de bord déploiement -->
+          <a href="https://ncpa-dechets.github.io/suivi-deploiement/"
+             class="card suivi"
+             role="listitem"
+             aria-label="Accéder au tableau de bord déploiement">
+            <div class="card-icon" aria-hidden="true">
+              <!-- Bar chart icon -->
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6"  y1="20" x2="6"  y2="14"/>
+                <line x1="3"  y1="20" x2="21" y2="20"/>
+              </svg>
+            </div>
+            <h2>Tableau de bord — déploiement</h2>
+            <p>Avancement de la dotation, projets d'équipements nouveaux (PAV, PDR) et données par commune du territoire.</p>
+            <div class="card-tags">
+              <span class="tag">PAV / PDR</span>
+              <span class="tag">Communes</span>
+              <span class="tag">Indicateurs</span>
+            </div>
+            <div class="card-cta" aria-hidden="true">
+              Accéder
+              <svg viewBox="0 0 24 24">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </div>
+          </a>
+
         </div>
-      </a>
+      </section>
 
     </div>
   </main>
