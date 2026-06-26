@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suivi des chantiers PAV / PDR — NCPA</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --rouge:#B91E27; --vert:#B1B993; --ink:#1f1d18; --muted:#6d6a60;
+  --paper:#ffffff; --bg:#f6f5f1; --line:#e4e2da; --line2:#efeee8;
+  /* échelle des 8 phases : gris de départ -> vert profond (mise en service) */
+  --p0:#cfccc2; --p1:#c2c8a6; --p2:#aeb98a; --p3:#97a36d; --p4:#7e8d54;
+  --p5:#69793f; --p6:#54652c; --p7:#3f521c;
+  --alert:#B91E27;
+  --font-titre:'Avenir Next','Avenir','Segoe UI',-apple-system,Helvetica,Arial,sans-serif;
+  --font-corps:'Calibri','Segoe UI',-apple-system,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-corps);font-size:15px;line-height:1.45}
+h1,h2,h3,th,.tab,.kpi-num{font-family:var(--font-titre)}
+a{color:var(--rouge)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 18px}
+
+/* En-tête */
+header{background:var(--paper);border-top:4px solid var(--rouge);border-bottom:1px solid var(--line)}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px 0}
+.head h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.2px}
+.head .sub{color:var(--muted);font-size:13px;margin-top:2px}
+.head .right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fresh{font-size:12.5px;color:var(--muted)}
+.btn{font-family:var(--font-corps);font-size:13.5px;border:1px solid var(--line);background:var(--paper);
+     color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer}
+.btn:hover{border-color:#cfcdc4;background:#fafaf7}
+.btn.primary{background:var(--rouge);border-color:var(--rouge);color:#fff}
+.btn.primary:hover{background:#a51a22}
+
+/* Onglets */
+nav.tabs{background:var(--paper);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:500}
+.tabs .wrap{display:flex;gap:2px;overflow-x:auto}
+.tab{font-size:14px;padding:13px 16px;border:none;background:none;color:var(--muted);cursor:pointer;
+     border-bottom:3px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--rouge);border-bottom-color:var(--rouge);font-weight:600}
+
+main{padding:24px 0 60px}
+section.view{display:none}
+section.view.active{display:block}
+h2.vtitle{font-size:17px;margin:0 0 4px}
+p.vlead{color:var(--muted);margin:0 0 18px;font-size:13.5px}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.kpi{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.kpi-num{font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.kpi-lab{color:var(--muted);font-size:12.5px;margin-top:6px;text-transform:uppercase;letter-spacing:.4px}
+
+/* Échelle de phases (signature) */
+.ladder{display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--line);margin-bottom:8px}
+.ladder .step{flex:1;padding:12px 8px;color:#fff;min-width:0}
+.ladder .step .n{font-family:var(--font-titre);font-weight:700;font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+.ladder .step .l{font-size:11px;line-height:1.25;margin-top:5px;opacity:.95}
+.ladder-note{color:var(--muted);font-size:12px;margin:0 0 22px}
+
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:16px}
+.card h3{font-size:14px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.bars .bar{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13.5px}
+.bars .bar .lab{width:120px;color:var(--muted);flex:none}
+.bars .bar .track{flex:1;background:var(--line2);border-radius:4px;height:16px;overflow:hidden}
+.bars .bar .fill{height:100%;background:var(--vert)}
+.bars .bar .val{width:34px;text-align:right;font-variant-numeric:tabular-nums}
+.alerts .a{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line2);font-size:13.5px}
+.alerts .a:last-child{border:none}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+
+/* Tableaux */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.toolbar select,.toolbar input{font-family:var(--font-corps);font-size:13.5px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink)}
+.toolbar input{min-width:180px}
+.count{color:var(--muted);font-size:13px;margin-left:auto}
+.tablewrap{background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line2);white-space:nowrap}
+th{position:sticky;top:0;background:#faf9f6;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:600}
+tbody tr:hover{background:#fafaf7}
+td.num{font-variant-numeric:tabular-nums}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;color:#fff;font-weight:600;white-space:nowrap}
+.badge.ph{color:#fff}
+.badge.line{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:500}
+.badge.ok{background:var(--vert);color:#33361f}
+.badge.warn{background:var(--alert)}
+.badge.neutral{background:#dedcd3;color:#4a4840}
+.prio{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;
+      font-size:12px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.prio.p1{background:var(--alert)} .prio.p2{background:#d9772a} .prio.p3{background:#9b9d63} .prio.p4{background:#bcbab0}
+
+/* Kanban */
+.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
+.kcol{flex:0 0 220px;background:var(--paper);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;max-height:70vh}
+.kcol .kh{padding:10px 12px;border-bottom:1px solid var(--line);font-size:12.5px;display:flex;align-items:center;gap:8px}
+.kcol .kh .knum{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted)}
+.kcol .kbody{overflow:auto;padding:8px}
+.kcard{border:1px solid var(--line);border-left:4px solid var(--p0);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:13px}
+.kcard .c{font-weight:600} .kcard .t{color:var(--muted);font-size:12px;margin-top:2px}
+
+/* Carte */
+#map{height:560px;border:1px solid var(--line);border-radius:8px}
+.legend{background:var(--paper);padding:8px 10px;border-radius:6px;border:1px solid var(--line);font-size:12px;line-height:1.7}
+.legend .row{display:flex;align-items:center;gap:7px}
+
+/* Planning */
+.segbtns{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:16px}
+.segbtns button{border:none;background:var(--paper);padding:7px 14px;font-family:var(--font-corps);font-size:13.5px;cursor:pointer;color:var(--muted)}
+.segbtns button.active{background:var(--rouge);color:#fff}
+.gantt{background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:auto}
+.grow{display:grid;align-items:center;border-bottom:1px solid var(--line2);min-height:34px}
+.grow .gname{padding:6px 12px;font-size:13px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.gmonths{display:flex;border-bottom:1px solid var(--line);background:#faf9f6}
+.gmonths .gname{font-size:11px;text-transform:uppercase;color:var(--muted)}
+.gcell{border-left:1px solid var(--line2);height:100%;position:relative;font-size:10px;color:var(--muted);text-align:center;padding-top:7px}
+.gtrack{position:relative;height:34px;border-left:1px solid var(--line2)}
+.gbar{position:absolute;top:9px;height:16px;background:var(--vert);border-radius:8px;opacity:.85}
+.gbar.late{background:var(--alert);opacity:.6}
+
+.empty{background:var(--paper);border:1px dashed var(--line);border-radius:8px;padding:40px;text-align:center;color:var(--muted)}
+.loader{padding:60px;text-align:center;color:var(--muted)}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:46px;text-align:center;background:var(--paper);max-width:560px;margin:40px auto}
+.drop h2{margin:0 0 8px;font-size:18px}
+.drop p{color:var(--muted);margin:0 0 18px}
+@media(max-width:760px){
+  .cols2{grid-template-columns:1fr}
+  .head h1{font-size:17px}
+  th,td{padding:8px}
+}
+</style>
+</head>
+<body>
+
+<header><div class="wrap head">
+  <div>
+    <h1>Suivi des chantiers PAV / PDR</h1>
+    <div class="sub">Normandie Cabourg Pays d'Auge — Direction de la Maîtrise des Déchets</div>
+  </div>
+  <div class="right">
+    <span class="fresh" id="fresh"></span>
+    <button class="btn" id="reload">Rafraîchir</button>
+    <button class="btn" id="pick">Charger un fichier</button>
+    <input type="file" id="file" accept=".xlsx" style="display:none">
+  </div>
+</div></header>
+
+<nav class="tabs"><div class="wrap">
+  <button class="tab active" data-v="synthese">Synthèse</button>
+  <button class="tab" data-v="communes">Communes</button>
+  <button class="tab" data-v="emplacements">Emplacements</button>
+  <button class="tab" data-v="kanban">Avancement</button>
+  <button class="tab" data-v="carte">Carte</button>
+  <button class="tab" data-v="planning">Planning</button>
+</div></nav>
+
+<main class="wrap">
+  <div id="boot" class="loader">Chargement des données…</div>
+
+  <section class="view" id="v-synthese">
+    <h2 class="vtitle">Vue d'ensemble du déploiement</h2>
+    <p class="vlead">123 sites à équiper sur le territoire. Lecture seule — les statuts se mettent à jour dans le fichier Excel.</p>
+    <div class="kpis" id="kpis"></div>
+    <div class="ladder" id="ladder"></div>
+    <p class="ladder-note">Chaque chantier avance le long de cette séquence, de gauche (à cadrer) à droite (en service). Le nombre indique combien de sites se trouvent à chaque étape.</p>
+    <div class="cols2">
+      <div class="card"><h3>Sites par priorité</h3><div class="bars" id="byprio"></div></div>
+      <div class="card"><h3>Sites par type d'équipement</h3><div class="bars" id="bytype"></div></div>
+    </div>
+    <div style="height:18px"></div>
+    <div class="card"><h3>Points de vigilance</h3><div class="alerts" id="alerts"></div></div>
+  </section>
+
+  <section class="view" id="v-communes">
+    <h2 class="vtitle">Avancement par commune</h2>
+    <p class="vlead">Rencontre des élus, accord sur les emplacements et signature de la convention — étape clé avant tout chantier.</p>
+    <div class="tablewrap"><table id="tcomm"></table></div>
+  </section>
+
+  <section class="view" id="v-emplacements">
+    <h2 class="vtitle">Emplacements</h2>
+    <p class="vlead">Liste des sites avec commune, type, coordonnées GPS et étape d'avancement.</p>
+    <div class="toolbar">
+      <select id="f-comm"></select>
+      <select id="f-prio"></select>
+      <select id="f-type"></select>
+      <select id="f-phase"></select>
+      <input id="f-search" placeholder="Rechercher…">
+      <span class="count" id="c-empl"></span>
+    </div>
+    <div class="tablewrap"><table id="templ"></table></div>
+  </section>
+
+  <section class="view" id="v-kanban">
+    <h2 class="vtitle">Avancement par étape</h2>
+    <p class="vlead">Chaque carte est un site, classé dans sa colonne d'étape.</p>
+    <div class="kanban" id="kanban"></div>
+  </section>
+
+  <section class="view" id="v-carte">
+    <h2 class="vtitle">Carte des sites</h2>
+    <p class="vlead">Position des sites. La couleur indique l'étape d'avancement.</p>
+    <div id="map"></div>
+  </section>
+
+  <section class="view" id="v-planning">
+    <h2 class="vtitle">Planning prévisionnel</h2>
+    <p class="vlead">Rétroplanning calculé à rebours depuis la date de coulage prévue de chaque dalle.</p>
+    <div class="segbtns" id="planmode">
+      <button class="active" data-m="general">Général</button>
+      <button data-m="commune">Par commune</button>
+    </div>
+    <div id="plan-general">
+      <div class="card" style="margin-bottom:18px"><h3>Prochaines échéances</h3><div id="next"></div></div>
+      <div class="tablewrap"><table id="tplan"></table></div>
+    </div>
+    <div id="plan-commune" style="display:none">
+      <div class="gantt" id="gantt"></div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ---------- Réglages ---------- */
+// Noms de fichier testés automatiquement si le dashboard est publié (GitHub Pages).
+// En local, le bouton "Charger un fichier" fonctionne dans tous les cas.
+const CANDIDATS = ['./data.xlsx','./DT-DICT_-_DALLES_BETON_avec_RETROPLANNING.xlsx'];
+
+const PHASES = ['À cadrer','Emplacement validé','Convention signée','DT-DICT déposée',
+                'Récépissés OK','Travaux en cours','Travaux terminés','En service'];
+const PHCOL = ['--p0','--p1','--p2','--p3','--p4','--p5','--p6','--p7'].map(v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+
+let DATA = null;       // {sites, communes, retro}
+let map=null, layer=null;
+
+/* ---------- Utilitaires ---------- */
+const $ = s=>document.querySelector(s);
+const num = v=>parseFloat(String(v==null?'':v).replace(',','.').trim());
+const esc = s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fdate = d=> d instanceof Date && !isNaN(d) ? d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : '';
+const asDate = v=> v instanceof Date ? v : (typeof v==='number' ? new Date(Math.round((v-25569)*86400*1000)) : null);
+const TYPE_SHORT = {'Dalle PDR':'PDR','Dalle borne à verre':'Verre','Dalle cabane à cartons':'Cabane'};
+
+/* ---------- Chargement ---------- */
+async function autoload(){
+  for(const url of CANDIDATS){
+    try{
+      const r = await fetch(url+'?t='+Date.now(), {cache:'no-store'});
+      if(r.ok){ const buf = await r.arrayBuffer(); parse(buf, url.split('/').pop(), null); return true; }
+    }catch(e){}
+  }
+  return false;
+}
+function readFile(file){
+  const fr = new FileReader();
+  fr.onload = e => parse(e.target.result, file.name, file.lastModified);
+  fr.readAsArrayBuffer(file);
+}
+$('#file').addEventListener('change', e=>{ if(e.target.files[0]) readFile(e.target.files[0]); });
+$('#pick').addEventListener('click', ()=>$('#file').click());
+$('#reload').addEventListener('click', async ()=>{ if(!await autoload()) showDrop(); });
+
+function showDrop(){
+  $('#boot').innerHTML =
+    '<div class="drop"><h2>Charger le fichier de suivi</h2>'+
+    '<p>Sélectionnez le classeur Excel de suivi des chantiers (.xlsx). '+
+    'Aucune donnée n\'est envoyée : tout reste sur votre poste.</p>'+
+    '<button class="btn primary" onclick="document.getElementById(\'file\').click()">Choisir le fichier</button></div>';
+}
+
+/* ---------- Lecture du classeur ---------- */
+function parse(buf, fname, lastmod){
+  let wb;
+  try{ wb = XLSX.read(buf,{type:'array',cellDates:true}); }
+  catch(e){ $('#boot').innerHTML='<div class="empty">Fichier illisible : '+esc(e.message)+'</div>'; return; }
+
+  // CHANTIERS : en-têtes en ligne 2 (index 1)
+  const ch = XLSX.utils.sheet_to_json(wb.Sheets['CHANTIERS'],{header:1,range:1,defval:null});
+  // SYNTHESE : en-têtes en ligne 1
+  const sy = XLSX.utils.sheet_to_json(wb.Sheets['SYNTHESE_TRAVAUX'],{header:1,range:0,defval:null});
+  // RETROPLANNING : tableau à partir de la ligne 17 (index 16)
+  const rp = XLSX.utils.sheet_to_json(wb.Sheets['RETROPLANNING'],{header:1,range:16,defval:null});
+
+  // -- communes (statuts par commune, clé = INSEE) --
+  const communes = {}; // insee -> {nom,prio,rencontre,solutions,convention}
+  for(let i=1;i<sy.length;i++){
+    const r=sy[i]; if(!r) continue;
+    const insee=r[0], nom=r[1];
+    if(typeof insee!=='number' || nom==='TOTAL' || !nom) continue;
+    communes[insee]={nom:String(nom).trim(),prio:r[6],rencontre:r[7]||'',solutions:r[8]||'',convention:r[9]||''};
+  }
+
+  // -- sites (1 ligne = 1 site) --
+  const sites=[];
+  for(let i=1;i<ch.length;i++){
+    const r=ch[i]; if(!r||r[0]==null) continue;
+    const insee=r[0];
+    const conv = (communes[insee]||{}).convention||'';
+    const s={
+      insee, commune:String(r[1]||'').trim(), type:String(r[2]||'').trim(),
+      lat:num(r[3]), lng:num(r[4]), prio:Number(r[6])||4,
+      implantation:r[8]||'', dtdict:r[9]||'', retour:r[10]||'',
+      validation:r[11]||'', comm:r[12]||'',
+      debut:asDate(r[13]), fin:asDate(r[14]), equip:asDate(r[15]),
+      convention:conv
+    };
+    s.phase = phaseOf(s);
+    sites.push(s);
+  }
+
+  // -- rétroplanning (1 ligne = 1 site, ordre par priorité) --
+  const retro=[];
+  for(let i=1;i<rp.length;i++){
+    const r=rp[i]; if(!r||r[0]==null) continue;
+    retro.push({rang:r[0],prio:r[1],commune:String(r[2]||'').trim(),type:String(r[3]||'').trim(),
+      coulage:asDate(r[4]),recepisses:asDate(r[5]),depot:asDate(r[6]),conv:asDate(r[7]),
+      rencontre:asDate(r[8]),service:asDate(r[9]),statut:String(r[10]||'').trim()});
+  }
+
+  DATA={sites,communes,retro};
+  const when = lastmod ? new Date(lastmod) : new Date();
+  $('#fresh').textContent='Données : '+esc(fname)+' — '+when.toLocaleDateString('fr-FR')+' '+when.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  $('#boot').style.display='none';
+  renderAll();
+}
+
+function phaseOf(s){
+  if(s.equip) return 7;
+  if(s.fin)   return 6;
+  if(s.debut) return 5;
+  const d=String(s.dtdict).toLowerCase();
+  if(d.includes('récépiss')||d.includes('calé')) return 4;
+  if(d.includes('déposée')||d.includes('réseau')) return 3;
+  if(s.convention==='Signée') return 2;
+  if(s.implantation==='Validé') return 1;
+  return 0;
+}
+const hasReseau = s => String(s.dtdict).toLowerCase().includes('réseau') || String(s.retour).toLowerCase().includes('réseau');
+
+/* ---------- Rendu ---------- */
+function renderAll(){
+  renderSynthese(); renderCommunes(); buildFilters(); renderEmpl(); renderKanban(); renderPlanGeneral(); renderGantt();
+  // la carte est rendue à l'ouverture de l'onglet (sinon Leaflet calcule mal la taille)
+}
+
+function phBadge(p){ return '<span class="badge ph" style="background:'+PHCOL[p]+(p<2?';color:#3a382f':'')+'">'+esc(p+' '+PHASES[p])+'</span>'; }
+function prioPill(p){ return '<span class="prio p'+p+'">'+p+'</span>'; }
+
+function renderSynthese(){
+  const S=DATA.sites;
+  const phCounts=[0,0,0,0,0,0,0,0]; S.forEach(s=>phCounts[s.phase]++);
+  const communesAvecSites = new Set(S.map(s=>s.insee)).size;
+  const convSignees = Object.values(DATA.communes).filter(c=>c.convention==='Signée').length;
+  const enService = phCounts[7], enCours = phCounts[5];
+
+  $('#kpis').innerHTML = [
+    ['Sites au total', S.length],
+    ['Communes', communesAvecSites],
+    ['Conventions signées', convSignees],
+    ['Travaux en cours', enCours],
+    ['En service', enService]
+  ].map(k=>'<div class="kpi"><div class="kpi-num">'+k[1]+'</div><div class="kpi-lab">'+k[0]+'</div></div>').join('');
+
+  $('#ladder').innerHTML = PHASES.map((lab,i)=>
+    '<div class="step" style="background:'+PHCOL[i]+(i<2?';color:#3a382f':'')+'">'+
+    '<div class="n">'+phCounts[i]+'</div><div class="l">'+esc(lab)+'</div></div>').join('');
+
+  // par priorité
+  const prio=[0,0,0,0]; S.forEach(s=>{ if(s.prio>=1&&s.prio<=4) prio[s.prio-1]++; });
+  const maxP=Math.max(...prio,1);
+  const labels=['1 — Très urgent','2 — Urgent','3 — Programmé','4 — Au fil de l\'eau'];
+  $('#byprio').innerHTML = prio.map((v,i)=>bar(labels[i],v,maxP)).join('');
+
+  // par type
+  const ty={}; S.forEach(s=>ty[s.type]=(ty[s.type]||0)+1);
+  const maxT=Math.max(...Object.values(ty),1);
+  $('#bytype').innerHTML = Object.entries(ty).map(([k,v])=>bar(TYPE_SHORT[k]||k,v,maxT)).join('');
+
+  // vigilances
+  const amont = DATA.retro.filter(r=>r.statut.includes('Amont')).length;
+  const reseau = S.filter(hasReseau).length;
+  const aCadrer = phCounts[0];
+  $('#alerts').innerHTML = [
+    [reseau>0?'--alert':'--vert', reseau+' site'+(reseau>1?'s':'')+' avec réseau détecté dans l\'emprise'],
+    [amont>0?'--alert':'--vert', amont+' échéance'+(amont>1?'s':'')+' « amont à lancer » au rétroplanning'],
+    ['--p0', aCadrer+' site'+(aCadrer>1?'s':'')+' encore à cadrer (étape 0)']
+  ].map(a=>'<div class="a"><span class="dot" style="background:'+getComputedStyle(document.documentElement).getPropertyValue(a[0]).trim()+'"></span>'+esc(a[1])+'</div>').join('');
+}
+function bar(lab,v,max){
+  return '<div class="bar"><span class="lab">'+esc(lab)+'</span>'+
+    '<span class="track"><span class="fill" style="width:'+(100*v/max)+'%"></span></span>'+
+    '<span class="val">'+v+'</span></div>';
+}
+
+function renderCommunes(){
+  const S=DATA.sites;
+  // regroupe les sites par commune (INSEE)
+  const g={};
+  S.forEach(s=>{ (g[s.insee]=g[s.insee]||[]).push(s); });
+  const rows = Object.keys(g).map(insee=>{
+    const list=g[insee]; const c=DATA.communes[insee]||{};
+    const cnt={PDR:0,Verre:0,Cabane:0}; list.forEach(s=>cnt[TYPE_SHORT[s.type]]++);
+    const valides=list.filter(s=>s.implantation==='Validé').length;
+    return {nom:list[0].commune, prio:Math.min(...list.map(s=>s.prio)), n:list.length, cnt, valides,
+            rencontre:c.rencontre||'', solutions:c.solutions||'', convention:c.convention||''};
+  }).sort((a,b)=> a.prio-b.prio || a.nom.localeCompare(b.nom));
+
+  const sb=(txt,kind)=> txt? '<span class="badge '+kind+'">'+esc(txt)+'</span>' : '<span class="badge line">—</span>';
+  const head='<thead><tr><th>Commune</th><th>Prio.</th><th>Sites</th><th>Emplacements validés</th>'+
+             '<th>Rencontre élus</th><th>Solutions validées</th><th>Convention</th></tr></thead>';
+  const body=rows.map(r=>{
+    const detail=[r.cnt.PDR&&r.cnt.PDR+' PDR',r.cnt.Verre&&r.cnt.Verre+' verre',r.cnt.Cabane&&r.cnt.Cabane+' cabane'].filter(Boolean).join(' · ');
+    return '<tr><td><strong>'+esc(r.nom)+'</strong></td>'+
+      '<td>'+prioPill(r.prio)+'</td>'+
+      '<td class="num">'+r.n+'<span style="color:var(--muted)"> ('+esc(detail)+')</span></td>'+
+      '<td class="num">'+r.valides+' / '+r.n+'</td>'+
+      '<td>'+sb(r.rencontre, r.rencontre==='Faite'?'ok':'neutral')+'</td>'+
+      '<td>'+sb(r.solutions, r.solutions==='Oui'?'ok':'neutral')+'</td>'+
+      '<td>'+sb(r.convention, r.convention==='Signée'?'ok':'neutral')+'</td></tr>';
+  }).join('');
+  $('#tcomm').innerHTML=head+'<tbody>'+body+'</tbody>';
+}
+
+function buildFilters(){
+  const S=DATA.sites;
+  const opt=(arr,all)=>'<option value="">'+all+'</option>'+arr.map(v=>'<option>'+esc(v)+'</option>').join('');
+  $('#f-comm').innerHTML=opt([...new Set(S.map(s=>s.commune))].sort(),'Toutes les communes');
+  $('#f-prio').innerHTML=opt(['1','2','3','4'].map(p=>'Priorité '+p),'Toutes priorités');
+  $('#f-type').innerHTML=opt([...new Set(S.map(s=>s.type))],'Tous les types');
+  $('#f-phase').innerHTML='<option value="">Toutes les étapes</option>'+PHASES.map((l,i)=>'<option value="'+i+'">'+i+' — '+esc(l)+'</option>').join('');
+  ['#f-comm','#f-prio','#f-type','#f-phase','#f-search'].forEach(id=>$(id).addEventListener('input',renderEmpl));
+}
+function renderEmpl(){
+  const S=DATA.sites;
+  const fc=$('#f-comm').value, fp=$('#f-prio').value.replace('Priorité ',''), ft=$('#f-type').value,
+        fph=$('#f-phase').value, q=$('#f-search').value.toLowerCase().trim();
+  const rows=S.filter(s=>
+    (!fc||s.commune===fc)&&(!fp||String(s.prio)===fp)&&(!ft||s.type===ft)&&
+    (!fph||String(s.phase)===fph)&&
+    (!q||(s.commune+' '+s.type).toLowerCase().includes(q))
+  ).sort((a,b)=>a.prio-b.prio||a.commune.localeCompare(b.commune));
+
+  $('#c-empl').textContent=rows.length+' site'+(rows.length>1?'s':'')+' affiché'+(rows.length>1?'s':'');
+  const head='<thead><tr><th>Commune</th><th>Type</th><th>Prio.</th><th>Étape</th><th>DT-DICT</th><th>Implantation</th><th>Coordonnées</th><th></th></tr></thead>';
+  const body=rows.map(s=>{
+    const maps = (!isNaN(s.lat)&&!isNaN(s.lng)) ? '<a href="https://www.google.com/maps/search/?api=1&query='+s.lat+','+s.lng+'" target="_blank" rel="noopener">Voir</a>' : '';
+    const gps = (!isNaN(s.lat)&&!isNaN(s.lng)) ? s.lat.toFixed(5)+', '+s.lng.toFixed(5) : '—';
+    return '<tr><td><strong>'+esc(s.commune)+'</strong></td><td>'+esc(TYPE_SHORT[s.type]||s.type)+'</td>'+
+      '<td>'+prioPill(s.prio)+'</td><td>'+phBadge(s.phase)+'</td>'+
+      '<td>'+(s.dtdict?esc(s.dtdict):'<span style="color:var(--muted)">—</span>')+(hasReseau(s)?' <span class="badge warn">réseau</span>':'')+'</td>'+
+      '<td>'+(s.implantation?esc(s.implantation):'<span style="color:var(--muted)">—</span>')+'</td>'+
+      '<td class="num">'+gps+'</td><td>'+maps+'</td></tr>';
+  }).join('');
+  $('#templ').innerHTML=head+'<tbody>'+(body||'<tr><td colspan="8" style="color:var(--muted);padding:24px">Aucun site ne correspond aux filtres.</td></tr>')+'</tbody>';
+}
+
+function renderKanban(){
+  const cols=PHASES.map((lab,i)=>({lab,i,sites:DATA.sites.filter(s=>s.phase===i)}));
+  $('#kanban').innerHTML=cols.map(c=>
+    '<div class="kcol"><div class="kh"><span class="dot" style="background:'+PHCOL[c.i]+'"></span>'+
+    '<strong>'+c.i+' · '+esc(c.lab)+'</strong><span class="knum">'+c.sites.length+'</span></div>'+
+    '<div class="kbody">'+ (c.sites.length? c.sites
+        .sort((a,b)=>a.prio-b.prio||a.commune.localeCompare(b.commune))
+        .map(s=>'<div class="kcard" style="border-left-color:'+PHCOL[c.i]+'">'+
+          '<div class="c">'+esc(s.commune)+'</div>'+
+          '<div class="t">'+esc(TYPE_SHORT[s.type]||s.type)+' · priorité '+s.prio+(hasReseau(s)?' · ⚠ réseau':'')+'</div></div>').join('')
+        : '<div style="color:var(--muted);font-size:12px;padding:6px">—</div>')+
+    '</div></div>').join('');
+}
+
+/* ---- Carte ---- */
+function renderMap(){
+  if(!DATA) return;
+  if(!map){
+    map=L.map('map',{scrollWheelZoom:false});
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      {attribution:'© OpenStreetMap, © CARTO',maxZoom:19,subdomains:'abcd'}).addTo(map);
+    const lg=L.control({position:'bottomright'});
+    lg.onAdd=()=>{const d=L.DomUtil.create('div','legend');
+      d.innerHTML='<strong>Étape</strong>'+PHASES.map((l,i)=>'<div class="row"><span class="dot" style="background:'+PHCOL[i]+'"></span>'+i+' '+l+'</div>').join('');
+      return d;}; lg.addTo(map);
+  }
+  if(layer) layer.remove();
+  layer=L.layerGroup().addTo(map);
+  const pts=[];
+  DATA.sites.forEach(s=>{
+    if(isNaN(s.lat)||isNaN(s.lng)) return;
+    pts.push([s.lat,s.lng]);
+    L.circleMarker([s.lat,s.lng],{radius:6,weight:1.5,color:'#fff',fillColor:PHCOL[s.phase],fillOpacity:.95})
+     .bindPopup('<strong>'+esc(s.commune)+'</strong><br>'+esc(TYPE_SHORT[s.type]||s.type)+' · priorité '+s.prio+
+        '<br>Étape : '+s.phase+' '+esc(PHASES[s.phase])+
+        (hasReseau(s)?'<br><span style="color:#B91E27">⚠ réseau détecté</span>':'')+
+        '<br><a href="https://www.google.com/maps/search/?api=1&query='+s.lat+','+s.lng+'" target="_blank">Ouvrir dans Maps</a>')
+     .addTo(layer);
+  });
+  if(pts.length) map.fitBounds(pts,{padding:[30,30]}); else map.setView([49.27,-0.10],11);
+  setTimeout(()=>map.invalidateSize(),100);
+}
+
+/* ---- Planning ---- */
+function renderPlanGeneral(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const R=DATA.retro;
+  // prochaines échéances : coulages à venir (3 prochains) + amont à lancer
+  const aVenir=R.filter(r=>r.coulage&&r.coulage>=today).sort((a,b)=>a.coulage-b.coulage).slice(0,4);
+  const amont=R.filter(r=>r.statut.includes('Amont')).slice(0,6);
+  let html='';
+  if(aVenir.length){
+    html+='<div style="margin-bottom:10px"><strong>Prochains coulages</strong></div>';
+    html+=aVenir.map(r=>'<div class="a" style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--line2)">'+
+      '<span style="width:120px;color:var(--muted)">'+fdate(r.coulage)+'</span><span>'+esc(r.commune)+' — '+esc(TYPE_SHORT[r.type]||r.type)+'</span></div>').join('');
+  }
+  if(amont.length){
+    html+='<div style="margin:14px 0 8px"><strong style="color:var(--alert)">Amont à lancer rapidement</strong> '+
+      '<span style="color:var(--muted);font-size:12.5px">(la 1re action — rencontre élus — est déjà dépassée ou imminente)</span></div>';
+    html+=amont.map(r=>'<div class="a" style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--line2)">'+
+      '<span class="dot" style="background:var(--alert);margin-top:7px"></span><span>'+esc(r.commune)+' — '+esc(TYPE_SHORT[r.type]||r.type)+
+      ' · coulage prévu '+fdate(r.coulage)+'</span></div>').join('');
+  }
+  $('#next').innerHTML=html||'<span style="color:var(--muted)">Aucune échéance à venir.</span>';
+
+  const head='<thead><tr><th>Rang</th><th>Prio.</th><th>Commune</th><th>Type</th>'+
+    '<th>Rencontre élus</th><th>Convention</th><th>DT-DICT</th><th>Coulage</th><th>Mise en service</th><th>Statut</th></tr></thead>';
+  const body=R.map(r=>{
+    const stCls = r.statut.includes('Amont')?'warn':(r.statut.includes('Bientôt')?'neutral':'ok');
+    return '<tr><td class="num">'+r.rang+'</td><td>'+prioPill(r.prio)+'</td><td><strong>'+esc(r.commune)+'</strong></td>'+
+      '<td>'+esc(TYPE_SHORT[r.type]||r.type)+'</td>'+
+      '<td class="num">'+fdate(r.rencontre)+'</td><td class="num">'+fdate(r.conv)+'</td>'+
+      '<td class="num">'+fdate(r.depot)+'</td><td class="num"><strong>'+fdate(r.coulage)+'</strong></td>'+
+      '<td class="num">'+fdate(r.service)+'</td>'+
+      '<td><span class="badge '+stCls+'">'+esc(r.statut||'—')+'</span></td></tr>';
+  }).join('');
+  $('#tplan').innerHTML=head+'<tbody>'+body+'</tbody>';
+}
+
+function renderGantt(){
+  const R=DATA.retro.filter(r=>r.rencontre&&r.service);
+  if(!R.length){ $('#gantt').innerHTML='<div class="empty">Pas de dates exploitables.</div>'; return; }
+  const minD=new Date(Math.min(...R.map(r=>+r.rencontre)));
+  const maxD=new Date(Math.max(...R.map(r=>+r.service)));
+  // liste des mois
+  const months=[]; let d=new Date(minD.getFullYear(),minD.getMonth(),1);
+  while(d<=maxD){ months.push(new Date(d)); d.setMonth(d.getMonth()+1); }
+  const total=maxD-minD || 1;
+  const grid='220px repeat('+months.length+',1fr)';
+  const pct=dt=>100*(dt-minD)/total;
+
+  // regroupe par commune
+  const g={};
+  R.forEach(r=>{ (g[r.commune]=g[r.commune]||[]).push(r); });
+  const communes=Object.keys(g).map(nom=>{
+    const list=g[nom];
+    return {nom, n:list.length, prio:Math.min(...list.map(r=>r.prio)),
+      start:new Date(Math.min(...list.map(r=>+r.rencontre))),
+      end:new Date(Math.max(...list.map(r=>+r.service))),
+      late:list.some(r=>r.statut.includes('Amont'))};
+  }).sort((a,b)=>a.start-b.start);
+
+  let html='<div class="gmonths" style="display:grid;grid-template-columns:'+grid+'">'+
+    '<div class="gname">Commune ('+communes.length+')</div>'+
+    months.map(m=>'<div class="gcell">'+m.toLocaleDateString('fr-FR',{month:'short'}).replace('.','')+
+      (m.getMonth()===0?'<br>'+m.getFullYear():'')+'</div>').join('')+'</div>';
+
+  html+=communes.map(c=>{
+    const left=pct(c.start), width=Math.max(pct(c.end)-left,1.5);
+    return '<div class="grow" style="grid-template-columns:'+grid+'">'+
+      '<div class="gname">'+prioPill(c.prio)+' '+esc(c.nom)+' <span style="color:var(--muted)">('+c.n+')</span></div>'+
+      '<div class="gtrack" style="grid-column:2 / span '+months.length+'">'+
+        '<div class="gbar'+(c.late?' late':'')+'" title="'+fdate(c.start)+' → '+fdate(c.end)+'" '+
+        'style="left:'+left+'%;width:'+width+'%"></div></div></div>';
+  }).join('');
+  $('#gantt').innerHTML=html;
+}
+
+/* ---------- Navigation ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  const v=t.dataset.v; $('#v-'+v).classList.add('active');
+  if(v==='carte') renderMap();
+}));
+document.querySelectorAll('#planmode button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#planmode button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  const c=b.dataset.m==='commune';
+  $('#plan-commune').style.display=c?'block':'none';
+  $('#plan-general').style.display=c?'none':'block';
+}));
+
+/* ---------- Démarrage ---------- */
+(async()=>{ if(!await autoload()) showDrop(); document.querySelector('.view#v-synthese').classList.add('active'); })();
+</script>
+</body>
+</html>
