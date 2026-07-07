@@ -3,501 +3,204 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Suivi du déploiement — NCPA</title>
+  <title>Déploiement des équipements de collecte — NCPA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,300;6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    :root{
+      --red:#a52630; --red-2:#8c1d26; --red-3:#6f151d;
+      --bg:#f4f2ea; --ink:#2b2a26; --muted:#6f6a5e; --muted-2:#8a8578;
+      --card:#fff; --border:#ece4d6;
+      --display:'Bricolage Grotesque',sans-serif;
+      --body:'Hanken Grotesk',system-ui,sans-serif;
     }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;}
+    body{background:var(--bg);font-family:var(--body);color:var(--ink);-webkit-font-smoothing:antialiased;}
+    a{color:var(--red);text-decoration:none;}
 
-    :root {
-      --rouge:        #B91E27;
-      --rouge-light:  #f8eced;
-      --vert:         #B1B993;
-      --vert-dark:    #6b7259;
-      --vert-light:   #eaecdf;
-      --bg:           #F6F5F1;
-      --surface:      #FFFFFF;
-      --text:         #1A1A1A;
-      --muted:        #666660;
-      --border:       #E0DDD5;
-    }
+    /* HERO */
+    .hero{position:relative;overflow:hidden;color:#fff;
+      background:linear-gradient(135deg,var(--red) 0%,var(--red-2) 55%,var(--red-3) 100%);}
+    .hero__dots{position:absolute;inset:0;opacity:.9;
+      background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.09) 1.5px,transparent 0);
+      background-size:26px 26px;}
+    .hero__glow-1{position:absolute;top:-140px;right:-120px;width:420px;height:420px;border-radius:50%;
+      background:radial-gradient(circle,rgba(255,255,255,.10) 0%,transparent 68%);}
+    .hero__glow-2{position:absolute;bottom:-180px;left:-100px;width:360px;height:360px;border-radius:50%;
+      background:radial-gradient(circle,rgba(0,0,0,.16) 0%,transparent 70%);}
+    .hero__inner{position:relative;max-width:1120px;margin:0 auto;padding:34px 40px 58px;}
+    .eyebrow{display:flex;align-items:center;gap:12px;font-size:11.5px;font-weight:700;
+      letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.82);}
+    .eyebrow span{width:26px;height:2px;background:rgba(255,255,255,.55);display:inline-block;}
+    .hero h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,5vw,58px);
+      line-height:1.04;letter-spacing:-.02em;margin:26px 0 0;max-width:15ch;}
+    .hero p{font-size:clamp(16px,1.6vw,19px);line-height:1.5;color:rgba(255,255,255,.86);
+      margin:18px 0 0;max-width:52ch;}
+    .stats{display:flex;flex-wrap:wrap;gap:24px;margin-top:30px;}
+    .stat{display:flex;align-items:baseline;gap:9px;}
+    .stat b{font-family:var(--display);font-weight:700;font-size:26px;}
+    .stat span{font-size:13px;color:rgba(255,255,255,.78);}
+    .stat-sep{width:1px;background:rgba(255,255,255,.28);}
+    .hero__rule{height:5px;background:linear-gradient(90deg,#8b8f5c 0%,#c9a24b 45%,#8b8f5c 100%);}
 
-    html, body {
-      min-height: 100vh;
-    }
+    /* LAYOUT */
+    main{max-width:1120px;margin:0 auto;padding:64px 40px 40px;}
+    .section{margin-bottom:70px;}
+    .section:last-of-type{margin-bottom:0;}
+    .section__head{display:flex;align-items:center;gap:16px;margin-bottom:30px;}
+    .section__num{font-family:var(--display);font-weight:700;font-size:15px;color:var(--red);
+      background:#fff;border:1px solid #e6ddcf;width:38px;height:38px;border-radius:11px;
+      display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(120,60,30,.06);}
+    .section__head h2{font-family:var(--display);font-weight:700;font-size:23px;
+      letter-spacing:-.01em;margin:0;color:var(--ink);}
+    .section__head .sub{font-size:13.5px;color:var(--muted-2);margin:3px 0 0;}
 
-    body {
-      font-family: 'Nunito Sans', 'Calibri', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px;}
 
-    /* ── HEADER ── */
-    header {
-      background: var(--rouge);
-      color: #fff;
-      padding: 3rem 2rem 2.75rem;
-      text-align: center;
-    }
+    /* CARD — accent color set per-card via style="--c: #xxxxxx" */
+    .card{position:relative;display:flex;flex-direction:column;background:var(--card);
+      border:1px solid var(--border);border-radius:18px;padding:26px 26px 24px;color:inherit;
+      overflow:hidden;box-shadow:0 1px 2px rgba(90,50,20,.04);
+      transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;}
+    .card:hover{transform:translateY(-5px);box-shadow:0 18px 34px rgba(120,50,25,.13);border-color:var(--c);}
+    .card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--c);}
+    .card__icon{width:52px;height:52px;border-radius:14px;margin-bottom:20px;
+      display:flex;align-items:center;justify-content:center;
+      background:color-mix(in srgb,var(--c) 13%,#fff);}
+    .card__icon svg{stroke:var(--c);}
+    .card h3{font-family:var(--display);font-weight:600;font-size:19px;line-height:1.2;
+      margin:0 0 9px;color:#26251f;}
+    .card p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 18px;flex:1;}
+    .tags{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:20px;}
+    .tag{font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:999px;
+      color:color-mix(in srgb,var(--c) 70%,#000);background:color-mix(in srgb,var(--c) 12%,#fff);}
+    .cta{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;
+      letter-spacing:.09em;text-transform:uppercase;color:var(--c);}
+    .card:hover .cta svg{transform:translateX(4px);}
+    .cta svg{transition:transform .22s ease;}
 
-    .header-eyebrow {
-      display: inline-block;
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 0.20em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.62);
-      margin-bottom: 1.1rem;
-    }
+    /* FOOTER */
+    footer{border-top:1px solid #e6ddcf;margin-top:36px;}
+    .footer__inner{max-width:1120px;margin:0 auto;padding:26px 40px;display:flex;flex-wrap:wrap;
+      align-items:center;justify-content:space-between;gap:12px;}
+    .footer__inner .a{font-size:12.5px;color:var(--muted-2);letter-spacing:.02em;}
+    .footer__inner .b{font-size:12px;color:#a9a396;}
 
-    header h1 {
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      line-height: 1.2;
-      margin-bottom: 0.7rem;
-    }
-
-    header .tagline {
-      font-size: 14.5px;
-      font-weight: 300;
-      color: rgba(255,255,255,0.72);
-    }
-
-    /* ── ACCENT BAR ── */
-    .accent-bar {
-      height: 5px;
-      background: var(--vert);
-    }
-
-    /* ── MAIN ── */
-    main {
-      flex: 1;
-      padding: 3.5rem 1.5rem 4rem;
-    }
-
-    .content {
-      max-width: 860px;
-      margin: 0 auto;
-    }
-
-    /* ── SECTION ── */
-    .section {
-      margin-bottom: 3.5rem;
-    }
-
-    .section:last-child {
-      margin-bottom: 0;
-    }
-
-    .section-header {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1.6rem;
-    }
-
-    .section-header::before,
-    .section-header::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    .section-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-
-    .section-label .dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .section-label.dim .dot  { background: var(--vert-dark); }
-    .section-label.suivi .dot { background: var(--rouge); }
-
-    /* ── CARDS GRID ── */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.25rem;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      padding: 2rem 1.75rem 1.75rem;
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      flex-direction: column;
-      cursor: pointer;
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 28px rgba(0,0,0,0.09);
-    }
-
-    .card:focus-visible {
-      outline: 2px solid var(--rouge);
-      outline-offset: 3px;
-    }
-
-    /* Card accent (top border) */
-    .card.dim   { border-top: 4px solid var(--vert-dark); }
-    .card.suivi { border-top: 4px solid var(--rouge); }
-
-    /* Icon */
-    .card-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 1.4rem;
-      flex-shrink: 0;
-    }
-
-    .card.dim   .card-icon { background: var(--vert-light); }
-    .card.suivi .card-icon { background: var(--rouge-light); }
-
-    .card-icon svg {
-      width: 21px;
-      height: 21px;
-      fill: none;
-      stroke-width: 1.65;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .card.dim   .card-icon svg { stroke: var(--vert-dark); }
-    .card.suivi .card-icon svg { stroke: var(--rouge); }
-
-    /* Content */
-    .card h2 {
-      font-size: 15.5px;
-      font-weight: 700;
-      line-height: 1.3;
-      margin-bottom: 0.6rem;
-    }
-
-    .card p {
-      font-size: 13px;
-      font-weight: 300;
-      line-height: 1.65;
-      color: var(--muted);
-      flex: 1;
-    }
-
-    /* Tags */
-    .card-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 1.1rem;
-      margin-bottom: 1.4rem;
-    }
-
-    .tag {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      padding: 3px 9px;
-      border-radius: 2px;
-    }
-
-    .card.dim   .tag { background: var(--vert-light);  color: #4f5438; }
-    .card.suivi .tag { background: var(--rouge-light); color: #7a1018; }
-
-    /* CTA */
-    .card-cta {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-    }
-
-    .card.dim   .card-cta { color: var(--vert-dark); }
-    .card.suivi .card-cta { color: var(--rouge); }
-
-    .card-cta svg {
-      width: 14px;
-      height: 14px;
-      fill: none;
-      stroke-width: 2.5;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      transition: transform 0.15s ease;
-    }
-
-    .card.dim   .card-cta svg { stroke: var(--vert-dark); }
-    .card.suivi .card-cta svg { stroke: var(--rouge); }
-
-    .card:hover .card-cta svg {
-      transform: translateX(4px);
-    }
-
-    /* ── FOOTER ── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 1.25rem 2rem;
-      text-align: center;
-      font-size: 11.5px;
-      color: var(--muted);
-    }
-
-    footer a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    footer a:hover {
-      color: var(--rouge);
-      text-decoration: underline;
-    }
-
-    /* ── RESPONSIVE ── */
-    @media (max-width: 540px) {
-      header {
-        padding: 2.25rem 1.25rem 2rem;
-      }
-      header h1 {
-        font-size: 21px;
-      }
-      main {
-        padding: 2.5rem 1rem 3rem;
-      }
-      .cards {
-        grid-template-columns: 1fr;
-      }
+    @media(max-width:640px){
+      .hero__inner,main,.footer__inner{padding-left:22px;padding-right:22px;}
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <span class="header-eyebrow">Normandie Cabourg Pays d'Auge — Communauté de communes</span>
-    <h1>Déploiement des équipements de collecte</h1>
-    <p class="tagline">Tableaux de bord et outils opérationnels</p>
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero__dots"></div>
+    <div class="hero__glow-1"></div>
+    <div class="hero__glow-2"></div>
+    <div class="hero__inner">
+      <div class="eyebrow"><span></span>Normandie Cabourg Pays d'Auge — Communauté de communes</div>
+      <h1>Déploiement des équipements de collecte</h1>
+      <p>Le portail des tableaux de bord et outils opérationnels pour piloter le déploiement sur le territoire.</p>
+      <div class="stats">
+        <div class="stat"><b>5</b><span>outils disponibles</span></div>
+        <div class="stat-sep"></div>
+        <div class="stat"><b>2</b><span>familles : dimensionnement &amp; suivi</span></div>
+      </div>
+    </div>
+    <div class="hero__rule"></div>
   </header>
 
-  <div class="accent-bar" role="presentation"></div>
-
   <main>
-    <div class="content">
 
-      <!-- ── SECTION DIMENSIONNEMENT ── -->
-      <section class="section" aria-labelledby="label-dim">
-        <div class="section-header">
-          <div class="section-label dim" id="label-dim">
-            <span class="dot"></span>
-            Outils de dimensionnement
+    <!-- SECTION 1 -->
+    <section class="section">
+      <div class="section__head">
+        <span class="section__num">01</span>
+        <div>
+          <h2>Outils de dimensionnement</h2>
+          <p class="sub">Concevoir et calibrer les installations avant travaux</p>
+        </div>
+      </div>
+
+      <div class="grid">
+
+        <a class="card" style="--c:#c0562f" href="outils/implantation-pav.html">
+          <div class="card__icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           </div>
-        </div>
+          <h3>Implantation colonnes enterrées</h3>
+          <p>Dimensionnement de l'emprise fouille et calage des colonnes sur plan cadastral, avec export GeoJSON.</p>
+          <div class="tags"><span class="tag">PAV</span><span class="tag">Fouille</span><span class="tag">Carte</span></div>
+          <span class="cta">Ouvrir <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
 
-        <div class="cards" role="list">
-
-          <!-- Carte — Implantation colonnes enterrées -->
-          <a href="outils/implantation-pav.html"
-             class="card dim"
-             role="listitem"
-             aria-label="Accéder à l'outil d'implantation colonnes enterrées">
-            <div class="card-icon" aria-hidden="true">
-              <!-- Layers / underground icon -->
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <rect x="4" y="3" width="7" height="7" rx="1"/>
-                <rect x="4" y="14" width="7" height="7" rx="1"/>
-                <rect x="13" y="3" width="7" height="7" rx="1"/>
-                <rect x="13" y="14" width="7" height="7" rx="1"/>
-              </svg>
-            </div>
-            <h2>Implantation colonnes enterrées</h2>
-            <p>Dimensionnement de l'emprise fouille et calage des colonnes sur plan cadastral, avec export GeoJSON.</p>
-            <div class="card-tags">
-              <span class="tag">PAV</span>
-              <span class="tag">Fouille</span>
-              <span class="tag">Carte</span>
-            </div>
-            <div class="card-cta" aria-hidden="true">
-              Ouvrir
-              <svg viewBox="0 0 24 24">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
-              </svg>
-            </div>
-          </a>
-
-          <!-- Carte — Configurateur dalle & claustra -->
-          <a href="outils/schemas_dalles_pdr.html"
-             class="card dim"
-             role="listitem"
-             aria-label="Accéder au configurateur de dalle et claustra">
-            <div class="card-icon" aria-hidden="true">
-              <!-- Grid / plan icon -->
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <rect x="3" y="3" width="18" height="18" rx="1"/>
-                <line x1="3" y1="9" x2="21" y2="9"/>
-                <line x1="3" y1="15" x2="21" y2="15"/>
-                <line x1="9" y1="3" x2="9" y2="21"/>
-                <line x1="15" y1="3" x2="15" y2="21"/>
-              </svg>
-            </div>
-            <h2>Dalle &amp; claustra — PDR</h2>
-            <p>Configuration de la dalle béton, placement des bacs et du claustra, avec schémas cotés et métrés.</p>
-            <div class="card-tags">
-              <span class="tag">Dalle</span>
-              <span class="tag">Claustra</span>
-              <span class="tag">PDR</span>
-            </div>
-            <div class="card-cta" aria-hidden="true">
-              Ouvrir
-              <svg viewBox="0 0 24 24">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
-              </svg>
-            </div>
-          </a>
-
-          <!-- Carte — Visualiseur de réseaux souterrains -->
-          <a href="https://ncpa-dechets.github.io/visualiseur-reseaux/"
-             class="card dim"
-             role="listitem"
-             aria-label="Accéder au visualiseur de réseaux souterrains">
-            <div class="card-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="3"/>
-                <line x1="12" y1="3" x2="12" y2="9"/>
-                <line x1="12" y1="15" x2="12" y2="21"/>
-                <line x1="3" y1="12" x2="9" y2="12"/>
-                <line x1="15" y1="12" x2="21" y2="12"/>
-                <line x1="5.6" y1="5.6" x2="9.2" y2="9.2"/>
-                <line x1="14.8" y1="14.8" x2="18.4" y2="18.4"/>
-              </svg>
-            </div>
-            <h2>Visualiseur de réseaux souterrains</h2>
-            <p>Consultation des réseaux enterrés (eau, gaz, électricité…) sur fond de carte, pour anticiper les contraintes avant travaux.</p>
-            <div class="card-tags">
-              <span class="tag">Réseaux</span>
-              <span class="tag">Carte</span>
-              <span class="tag">Travaux</span>
-            </div>
-            <div class="card-cta" aria-hidden="true">
-              Accéder
-              <svg viewBox="0 0 24 24">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
-              </svg>
-            </div>
-          </a>
-
-        </div>
-      </section>
-
-      <!-- ── SECTION SUIVI ── -->
-      <section class="section" aria-labelledby="label-suivi">
-        <div class="section-header">
-          <div class="section-label suivi" id="label-suivi">
-            <span class="dot"></span>
-            Outils de suivi
+        <a class="card" style="--c:#b8862f" href="outils/schemas_dalles_pdr.html">
+          <div class="card__icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
           </div>
+          <h3>Dalle &amp; claustra — PDR</h3>
+          <p>Configuration de la dalle béton, placement des bacs et du claustra, avec schémas cotés et métrés.</p>
+          <div class="tags"><span class="tag">Dalle</span><span class="tag">Claustra</span><span class="tag">PDR</span></div>
+          <span class="cta">Ouvrir <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+
+        <a class="card" style="--c:#2f7d78" href="https://ncpa-dechets.github.io/visualiseur-reseaux/">
+          <div class="card__icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.6 7.8 10.6 15.6M16.4 7.8 13.4 15.6M8 6h8"/></svg>
+          </div>
+          <h3>Visualiseur de réseaux souterrains</h3>
+          <p>Consultation des réseaux enterrés (eau, gaz, électricité…) sur fond de carte, pour anticiper les contraintes avant travaux.</p>
+          <div class="tags"><span class="tag">Réseaux</span><span class="tag">Carte</span><span class="tag">Travaux</span></div>
+          <span class="cta">Accéder <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
+
+      </div>
+    </section>
+
+    <!-- SECTION 2 -->
+    <section class="section">
+      <div class="section__head">
+        <span class="section__num">02</span>
+        <div>
+          <h2>Outils de suivi</h2>
+          <p class="sub">Suivre l'avancement du déploiement sur le terrain</p>
         </div>
+      </div>
 
-        <div class="cards" role="list">
+      <div class="grid">
 
-          <!-- Carte — Conteneurisation -->
-          <a href="https://ncpa-dechets.github.io/conteneurisation/"
-             class="card suivi"
-             role="listitem"
-             aria-label="Accéder à l'outil Enquête de conteneurisation">
-            <div class="card-icon" aria-hidden="true">
-              <!-- Clipboard / survey icon -->
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-                <rect x="9" y="3" width="6" height="4" rx="1" ry="1"/>
-                <line x1="9" y1="12" x2="15" y2="12"/>
-                <line x1="9" y1="16" x2="12" y2="16"/>
-              </svg>
-            </div>
-            <h2>Enquête de conteneurisation</h2>
-            <p>Avancement de l'enquête terrain et de la dotation en bacs individuels par commune.</p>
-            <div class="card-tags">
-              <span class="tag">Dotation bacs</span>
-              <span class="tag">Enquête terrain</span>
-              <span class="tag">VIACOL</span>
-            </div>
-            <div class="card-cta" aria-hidden="true">
-              Accéder
-              <svg viewBox="0 0 24 24">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
-              </svg>
-            </div>
-          </a>
+        <a class="card" style="--c:#5c7a3f" href="https://ncpa-dechets.github.io/conteneurisation/">
+          <div class="card__icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6a1 1 0 0 1 1 1v1h2a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h2V5a1 1 0 0 1 1-1Z"/><path d="M9 6h6"/><path d="m9 13 2 2 4-4"/></svg>
+          </div>
+          <h3>Enquête de conteneurisation</h3>
+          <p>Avancement de l'enquête terrain et de la dotation en bacs individuels par commune.</p>
+          <div class="tags"><span class="tag">Dotation bacs</span><span class="tag">Enquête terrain</span><span class="tag">VIACOL</span></div>
+          <span class="cta">Accéder <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
 
-          <!-- Carte — Tableau de bord déploiement -->
-          <a href="https://ncpa-dechets.github.io/suivi-deploiement/"
-             class="card suivi"
-             role="listitem"
-             aria-label="Accéder au tableau de bord déploiement">
-            <div class="card-icon" aria-hidden="true">
-              <!-- Bar chart icon -->
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <line x1="18" y1="20" x2="18" y2="10"/>
-                <line x1="12" y1="20" x2="12" y2="4"/>
-                <line x1="6"  y1="20" x2="6"  y2="14"/>
-                <line x1="3"  y1="20" x2="21" y2="20"/>
-              </svg>
-            </div>
-            <h2>Tableau de bord — déploiement</h2>
-            <p>Avancement de la dotation, projets d'équipements nouveaux (PAV, PDR) et données par commune du territoire.</p>
-            <div class="card-tags">
-              <span class="tag">PAV / PDR</span>
-              <span class="tag">Communes</span>
-              <span class="tag">Indicateurs</span>
-            </div>
-            <div class="card-cta" aria-hidden="true">
-              Accéder
-              <svg viewBox="0 0 24 24">
-                <line x1="5" y1="12" x2="19" y2="12"/>
-                <polyline points="12 5 19 12 12 19"/>
-              </svg>
-            </div>
-          </a>
+        <a class="card" style="--c:#3f5c8a" href="https://ncpa-dechets.github.io/suivi-deploiement/">
+          <div class="card__icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6" rx="1"/><rect x="12" y="7" width="3" height="10" rx="1"/><rect x="17" y="13" width="3" height="4" rx="1"/></svg>
+          </div>
+          <h3>Tableau de bord — déploiement</h3>
+          <p>Avancement de la dotation, projets d'équipements nouveaux (PAV, PDR) et données par commune du territoire.</p>
+          <div class="tags"><span class="tag">PAV / PDR</span><span class="tag">Communes</span><span class="tag">Indicateurs</span></div>
+          <span class="cta">Accéder <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
 
-        </div>
-      </section>
-
-    </div>
+      </div>
+    </section>
   </main>
 
   <footer>
-    Normandie Cabourg Pays d'Auge — Communauté de communes
+    <div class="footer__inner">
+      <span class="a">Normandie Cabourg Pays d'Auge — Communauté de communes</span>
+      <span class="b">Portail des outils · Service Déchets</span>
+    </div>
   </footer>
 
 </body>
