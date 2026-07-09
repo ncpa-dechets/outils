@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Implantation colonnes enterrées</title>
+<title>Implantation — équipements de collecte</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   :root{
     --rouge:#B91E27; --rouge-fonce:#8f161d;
     --vert:#B1B993; --vert-clair:#e7eadd;
     --beton:#9a9a96; --beton-clair:#c7c7c2;
+    --carton:#c88a46; --carton-clair:#ead3b4;
     --encre:#23231f; --gris:#6b6b66; --cote:#5a5a55;
     --papier:#fbfbf8; --carte:#ffffff; --liseré:#e3e3dc;
   }
@@ -133,13 +134,21 @@
   </a>
   <header>
     <div class="eyebrow">Outil d'implantation</div>
-    <h1>Colonnes enterrées — dimensionnement &amp; calage terrain</h1>
+    <h1 id="h1title">Colonnes enterrées — dimensionnement &amp; calage terrain</h1>
   </header>
 
   <div class="main">
     <aside class="panel">
       <div class="grp">
-        <label>Nombre de colonnes</label>
+        <label>Type d'équipement</label>
+        <div class="segmented" id="equipBtns">
+          <button data-equip="colonnes" class="on">Colonnes enterrées</button>
+          <button data-equip="cabanes">Cabanes à cartons</button>
+        </div>
+      </div>
+
+      <div class="grp">
+        <label id="nbLabel">Nombre de colonnes</label>
         <div class="stepper"><button id="moins">−</button><div class="count" id="nb">3</div><button id="plus">+</button></div>
       </div>
 
@@ -156,21 +165,26 @@
         </div>
       </div>
 
-      <div class="grp">
+      <div class="grp" id="grpFlux">
         <label>Flux par colonne</label>
         <div class="fluxlist" id="fluxlist"></div>
       </div>
 
-      <div class="grp">
+      <div class="grp" id="grpAiles">
         <label class="toggle"><input type="checkbox" id="ailes"><span>Ailes béton (zone humide, +24 cm)</span></label>
       </div>
 
       <details>
         <summary>Réglages avancés (distances)</summary>
-        <div class="adv">
+        <div class="adv" id="advColonnes">
           <div><label>Cuvelage (cm)</label><input type="number" id="cuv" value="173"></div>
           <div><label>Entre cuvelages</label><input type="number" id="esp" value="20"></div>
           <div><label>Marge blindage</label><input type="number" id="marge" value="20"></div>
+        </div>
+        <div class="adv" id="advCabanes" style="display:none">
+          <div><label>Longueur (cm)</label><input type="number" id="cabLong" value="165"></div>
+          <div><label>Largeur (cm)</label><input type="number" id="cabLarg" value="145"></div>
+          <div><label>Espacement (cm)</label><input type="number" id="cabEsp" value="30"></div>
         </div>
       </details>
     </aside>
@@ -189,17 +203,13 @@
         <svg id="plan" class="drawing" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid meet"></svg>
         <div class="legend" id="legend"></div>
         <div class="stats">
-          <div class="stat major"><div class="k">Emprise fouille</div><div class="v" id="dim">—<span class="u"> cm</span></div></div>
-          <div class="stat"><div class="k">Surface chantier</div><div class="v" id="surf">—<span class="u"> m²</span></div></div>
-          <div class="stat"><div class="k">Emprise colonnes</div><div class="v" id="dimcol">—<span class="u"> cm</span></div></div>
+          <div class="stat major"><div class="k" id="dimK">Emprise fouille</div><div class="v" id="dim">—<span class="u"> cm</span></div></div>
+          <div class="stat"><div class="k" id="surfK">Surface chantier</div><div class="v" id="surf">—<span class="u"> m²</span></div></div>
+          <div class="stat"><div class="k" id="dimcolK">Emprise colonnes</div><div class="v" id="dimcol">—<span class="u"> cm</span></div></div>
         </div>
         <div class="notes">
           <h3>À garder en tête</h3>
-          <ul>
-            <li><b>Fouille &gt; 3 m</b> → blindage lourd + coordination SPS (3ᵉ catégorie). La marge de blindage est déjà incluse dans l'emprise.</li>
-            <li><b>Accès engins :</b> camion ~15 m, grue 35 T (~16 m de haut). Prévoir le dégagement au-delà de l'emprise fouille.</li>
-            <li><b>Distances mini SULO :</b> 20 cm entre cuvelages et jusqu'au blindage ; ≤ 30 cm sur un côté pour la pose des bornes.</li>
-          </ul>
+          <ul id="noteList"></ul>
         </div>
         <div class="actions">
           <button class="btn" id="copier">Copier le résumé</button>
@@ -243,8 +253,21 @@ const FLUX = {
   TEXTILE:{label:'Textile',             color:'#2f6f9e', full:'Textile'}
 };
 const CYCLE = ['OMR','EMB','VERRE','TEXTILE'];
+const CARTON = '#c88a46';   // teinte kraft pour les cabanes à cartons
 
-const state = {n:3, mode:'ligne', wings:false, rot:0, cuv:173, esp:20, marge:20, prows:2, pcols:2,
+const NOTES_COL = `
+  <li><b>Fouille &gt; 3 m</b> → blindage lourd + coordination SPS (3ᵉ catégorie). La marge de blindage est déjà incluse dans l'emprise.</li>
+  <li><b>Accès engins :</b> camion ~15 m, grue 35 T (~16 m de haut). Prévoir le dégagement au-delà de l'emprise fouille.</li>
+  <li><b>Distances mini SULO :</b> 20 cm entre cuvelages et jusqu'au blindage ; ≤ 30 cm sur un côté pour la pose des bornes.</li>`;
+const NOTES_CAB = `
+  <li><b>Dimensions unité (intérieures) :</b> 165 × 145 cm au sol, faîtage 194 cm. L'emprise réelle est un peu plus grande (épaisseur des parois) — ajuster les valeurs si besoin.</li>
+  <li><b>Côté porte</b> (mur gouttereau, <b style="color:#B91E27">repère rouge</b>) : double battant pour la collecte → réserver le dégagement d'accès de ce côté.</li>
+  <li><b>Côté fente</b> (pignon, petit côté) : dépôt des cartons par l'usager → laisser l'accès libre.</li>
+  <li><b>Sol :</b> surface plane et stabilisée (dalle béton ou platelage). Pas de fouille ni de blindage.</li>`;
+
+const state = {equip:'colonnes', n:3, mode:'ligne', wings:false, rot:0,
+               cuv:173, esp:20, marge:20, prows:2, pcols:2,
+               cabL:165, cabW:145, cabEsp:30,
                flux:['OMR','EMB','VERRE'], center:{lat:49.28649, lng:-0.11558}};
 
 function gridDims(){
@@ -253,12 +276,17 @@ function gridDims(){
   const c=Math.ceil(Math.sqrt(state.n)); return {r:Math.ceil(state.n/c), c};
 }
 function compute(){
-  const cw=state.cuv+(state.wings?24:0);
   const {r,c}=gridDims();
+  if(state.equip==='cabanes'){
+    const uL=state.cabL, uW=state.cabW, e=state.cabEsp;
+    const L=c*uL+(c-1)*e, W=r*uW+(r-1)*e;
+    return {equip:'cabanes', uL, uW, e, r, c, L, W, Lp:Math.ceil(L/10)*10, Wp:Math.ceil(W/10)*10};
+  }
+  const cw=state.cuv+(state.wings?24:0);
   const L=c*cw+(c-1)*state.esp+2*state.marge;
   const W=r*cw+(r-1)*state.esp+2*state.marge;
   const Lc=c*cw+(c-1)*state.esp, Wc=r*cw+(r-1)*state.esp;
-  return {cw,r,c,L,W,Lc,Wc,Lp:Math.ceil(L/10)*10,Wp:Math.ceil(W/10)*10};
+  return {equip:'colonnes', cw,r,c,L,W,Lc,Wc,Lp:Math.ceil(L/10)*10,Wp:Math.ceil(W/10)*10};
 }
 
 function buildFlux(){
@@ -275,12 +303,32 @@ function buildFlux(){
   });
 }
 
+/* ── Bascule d'équipement : ajuste panneau, libellés, titre ── */
+function applyEquip(){
+  const isCol = state.equip==='colonnes';
+  document.querySelectorAll('#equipBtns button').forEach(x=>x.classList.toggle('on', x.dataset.equip===state.equip));
+  $('h1title').textContent = isCol ? 'Colonnes enterrées — dimensionnement & calage terrain'
+                                   : 'Cabanes à cartons — dimensionnement & calage terrain';
+  $('nbLabel').textContent = isCol ? 'Nombre de colonnes' : 'Nombre de cabanes';
+  $('grpFlux').style.display     = isCol ? '' : 'none';
+  $('grpAiles').style.display    = isCol ? '' : 'none';
+  $('advColonnes').style.display = isCol ? '' : 'none';
+  $('advCabanes').style.display  = isCol ? 'none' : '';
+  if(isCol) buildFlux();
+  renderAll();
+}
+
 /* ── Mesures (SVG coté) ── */
 function rect(x,y,w,h,fill,stroke,sw,rx){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" rx="${rx}"/>`;}
 function dimH(x1,x2,y,l){return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="var(--cote)"/><line x1="${x1}" y1="${y-4}" x2="${x1}" y2="${y+4}" stroke="var(--cote)"/><line x1="${x2}" y1="${y-4}" x2="${x2}" y2="${y+4}" stroke="var(--cote)"/><text x="${(x1+x2)/2}" y="${y-6}" font-size="13" font-weight="600" fill="var(--cote)" text-anchor="middle">${l}</text>`;}
 function dimV(x,y1,y2,l){return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="var(--cote)"/><line x1="${x-4}" y1="${y1}" x2="${x+4}" y2="${y1}" stroke="var(--cote)"/><line x1="${x-4}" y1="${y2}" x2="${x+4}" y2="${y2}" stroke="var(--cote)"/><text x="${x+6}" y="${(y1+y2)/2}" font-size="13" font-weight="600" fill="var(--cote)" text-anchor="start" transform="rotate(90 ${x+6} ${(y1+y2)/2})">${l}</text>`;}
 
 function renderMeasures(){
+  if(state.equip==='cabanes') renderMeasuresCabanes();
+  else renderMeasuresColonnes();
+}
+
+function renderMeasuresColonnes(){
   const m=compute(), cw=m.cw;
   const padTop=46,padLeft=20,padRight=64, VW=800,VH=460, dW=VW-padLeft-padRight, dH=VH-padTop-20;
   const scale=Math.min(dW/m.L, dH/m.W);
@@ -301,9 +349,41 @@ function renderMeasures(){
   $('legend').innerHTML=used.map(k=>`<div class="it"><span class="sw" style="background:${FLUX[k].color}"></span>${FLUX[k].label}</div>`).join('');
   const noms={ligne:'En ligne',grille:'En carré / grille',perso:'Personnalisé'};
   $('tag').textContent=`${noms[state.mode]} · ${m.r}×${m.c} (${state.n} colonne${state.n>1?'s':''})`;
+  $('dimK').textContent='Emprise fouille'; $('surfK').textContent='Surface chantier'; $('dimcolK').textContent='Emprise colonnes';
   $('dim').innerHTML=`${m.Lp} × ${m.Wp}<span class="u"> cm</span>`;
   $('surf').innerHTML=`${(m.Lp*m.Wp/10000).toLocaleString('fr-FR',{maximumFractionDigits:1})}<span class="u"> m²</span>`;
   $('dimcol').innerHTML=`${Math.round(m.Lc)} × ${Math.round(m.Wc)}<span class="u"> cm</span>`;
+  $('noteList').innerHTML=NOTES_COL;
+}
+
+function renderMeasuresCabanes(){
+  const m=compute(), uL=m.uL, uW=m.uW, e=m.e;
+  const padTop=46,padLeft=20,padRight=64, VW=800,VH=460, dW=VW-padLeft-padRight, dH=VH-padTop-20;
+  const scale=Math.min(dW/m.L, dH/m.W);
+  const ox=padLeft+(dW-m.L*scale)/2, oy=padTop+(dH-m.W*scale)/2;
+  const X=cm=>ox+cm*scale, Y=cm=>oy+cm*scale;
+  let s=rect(X(0),Y(0),m.L*scale,m.W*scale,'var(--vert-clair)','var(--rouge)',2,4), d=0;
+  for(let i=0;i<m.r&&d<state.n;i++)for(let j=0;j<m.c&&d<state.n;j++){
+    const x=X(j*(uL+e)), y=Y(i*(uW+e)), w=uL*scale, h=uW*scale;
+    s+=rect(x,y,w,h,CARTON,'var(--encre)',1.2,3);
+    // côté porte = mur gouttereau (grand côté, bas) → repère rouge
+    s+=`<line x1="${x}" y1="${y+h}" x2="${x+w}" y2="${y+h}" stroke="var(--rouge)" stroke-width="3.5"/>`;
+    d++;
+    s+=`<text x="${x+w/2}" y="${y+h/2}" font-size="${Math.max(11,Math.min(20,h*0.3))}" font-weight="700" fill="#fff" stroke="rgba(0,0,0,.25)" stroke-width=".4" text-anchor="middle" dominant-baseline="central">${d}</text>`;
+  }
+  s+=dimH(X(0),X(m.L),Y(0)-16,`${m.Lp} cm`); s+=dimV(X(m.L)+16,Y(0),Y(m.W),`${m.Wp} cm`);
+  if(m.c>1){const xa=X(uL),xb=X(uL+e),yy=Y(uW/2);
+    s+=`<line x1="${xa}" y1="${yy}" x2="${xb}" y2="${yy}" stroke="var(--cote)"/><text x="${(xa+xb)/2}" y="${yy-5}" font-size="10" fill="var(--cote)" text-anchor="middle">${e}</text>`;}
+  $('plan').innerHTML=s;
+
+  $('legend').innerHTML=`<div class="it"><span class="sw" style="background:${CARTON}"></span>Cabane à cartons</div><div class="it"><span class="sw" style="background:var(--rouge)"></span>Côté porte (accès collecte)</div>`;
+  const noms={ligne:'En ligne',grille:'En carré / grille',perso:'Personnalisé'};
+  $('tag').textContent=`${noms[state.mode]} · ${m.r}×${m.c} (${state.n} cabane${state.n>1?'s':''})`;
+  $('dimK').textContent='Emprise au sol'; $('surfK').textContent='Surface au sol'; $('dimcolK').textContent='Dimensions unité';
+  $('dim').innerHTML=`${m.Lp} × ${m.Wp}<span class="u"> cm</span>`;
+  $('surf').innerHTML=`${(m.Lp*m.Wp/10000).toLocaleString('fr-FR',{maximumFractionDigits:1})}<span class="u"> m²</span>`;
+  $('dimcol').innerHTML=`${uL} × ${uW}<span class="u"> cm</span>`;
+  $('noteList').innerHTML=NOTES_CAB;
 }
 
 /* ── Implantation (carte) ── */
@@ -314,7 +394,7 @@ function ensureMap(){
   if(map) return;
   map=L.map('map',{center:[state.center.lat,state.center.lng],zoom:20,maxZoom:22});
   plan=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxNativeZoom:20,maxZoom:22,attribution:'© OpenStreetMap, © CARTO'}).addTo(map);
-  sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:22,errorTileUrl:blank,attribution:'© Esri'});
+  sat=L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image%2Fjpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',{maxNativeZoom:19,maxZoom:22,errorTileUrl:blank,attribution:'© IGN / Géoplateforme'});
   cadastre=L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS&STYLE=PCI%20vecteur&TILEMATRIXSET=PM&FORMAT=image/png&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',{maxNativeZoom:19,maxZoom:22,opacity:0.85,errorTileUrl:blank,attribution:'© IGN'});
   L.control.scale({metric:true,imperial:false,maxWidth:160}).addTo(map);
   handle=L.marker([state.center.lat,state.center.lng],{draggable:true,title:"Glissez pour déplacer l'implantation"}).addTo(map);
@@ -333,48 +413,86 @@ function ringGJ(xMin,yMin,w,h){const r=[placeGJ(xMin,yMin),placeGJ(xMin+w,yMin),
 
 function renderMap(){
   if(!map) return;
-  const m=compute(), cwM=m.cw/100, espM=state.esp/100, mgM=state.marge/100, Lm=m.L/100, Wm=m.W/100;
+  const m=compute();
+  const Lm=m.L/100, Wm=m.W/100;
   group.clearLayers();
   L.polygon(ringLL(-Lm/2,-Wm/2,Lm,Wm),{color:'#B91E27',weight:2,fillColor:'#B1B993',fillOpacity:0.2}).addTo(group);
-  let d=0;
-  for(let i=0;i<m.r&&d<state.n;i++)for(let j=0;j<m.c&&d<state.n;j++){
-    const xMin=-Lm/2+mgM+j*(cwM+espM), yMin=-Wm/2+mgM+i*(cwM+espM), f=state.flux[d]; d++;
-    L.polygon(ringLL(xMin,yMin,cwM,cwM),{color:'#23231f',weight:1.5,fillColor:FLUX[f].color,fillOpacity:0.85})
-      .bindTooltip(`Colonne ${d} — ${FLUX[f].label}`,{direction:'top'}).addTo(group);
+
+  if(state.equip==='cabanes'){
+    const uLm=m.uL/100, uWm=m.uW/100, eM=m.e/100;
+    let d=0;
+    for(let i=0;i<m.r&&d<state.n;i++)for(let j=0;j<m.c&&d<state.n;j++){
+      const xMin=-Lm/2+j*(uLm+eM), yMin=-Wm/2+i*(uWm+eM); d++;
+      L.polygon(ringLL(xMin,yMin,uLm,uWm),{color:'#23231f',weight:1.5,fillColor:CARTON,fillOpacity:0.85})
+        .bindTooltip(`Cabane ${d} — côté porte en rouge`,{direction:'top'}).addTo(group);
+      // côté porte = grand côté avant (yMin) → repère rouge
+      L.polyline([placeLL(xMin,yMin),placeLL(xMin+uLm,yMin)],{color:'#B91E27',weight:4}).addTo(group);
+    }
+    legendCtl._div.innerHTML=`<div class="it"><span class="sw" style="background:${CARTON}"></span>Cabane à cartons</div><div class="it"><span class="sw" style="background:#B91E27"></span>Côté porte</div>`;
+  } else {
+    const cwM=m.cw/100, espM=state.esp/100, mgM=state.marge/100;
+    let d=0;
+    for(let i=0;i<m.r&&d<state.n;i++)for(let j=0;j<m.c&&d<state.n;j++){
+      const xMin=-Lm/2+mgM+j*(cwM+espM), yMin=-Wm/2+mgM+i*(cwM+espM), f=state.flux[d]; d++;
+      L.polygon(ringLL(xMin,yMin,cwM,cwM),{color:'#23231f',weight:1.5,fillColor:FLUX[f].color,fillOpacity:0.85})
+        .bindTooltip(`Colonne ${d} — ${FLUX[f].label}`,{direction:'top'}).addTo(group);
+    }
+    const used=[...new Set(state.flux)];
+    legendCtl._div.innerHTML=used.map(k=>`<div class="it"><span class="sw" style="background:${FLUX[k].color}"></span>${FLUX[k].label}</div>`).join('');
   }
+
   if(etalonLayer){map.removeLayer(etalonLayer);etalonLayer=null;}
   if($('etalon').checked){
     const e=ringLL(-Lm/2-12,-5,10,10);
     etalonLayer=L.polygon(e,{color:'#000',weight:1.5,dashArray:'5 4',fill:false}).addTo(map);
     L.marker(e[0],{opacity:0}).bindTooltip('10 m',{permanent:true,direction:'top'}).addTo(etalonLayer);
   }
-  const used=[...new Set(state.flux)];
-  legendCtl._div.innerHTML=used.map(k=>`<div class="it"><span class="sw" style="background:${FLUX[k].color}"></span>${FLUX[k].label}</div>`).join('');
 }
 
 /* ── Export GeoJSON (WGS84 / EPSG:4326) ── */
 function exportGeoJSON(){
-  const m=compute(), cwM=m.cw/100, espM=state.esp/100, mgM=state.marge/100, Lm=m.L/100, Wm=m.W/100;
+  const m=compute();
+  const Lm=m.L/100, Wm=m.W/100;
   const features=[];
-  // emprise fouille
-  features.push({type:'Feature',
-    properties:{type:'emprise_fouille', longueur_cm:m.Lp, largeur_cm:m.Wp,
-                surface_m2:+(m.Lp*m.Wp/10000).toFixed(2), orientation_deg:state.rot, nb_colonnes:state.n},
-    geometry:{type:'Polygon', coordinates:[ringGJ(-Lm/2,-Wm/2,Lm,Wm)]}});
-  // colonnes
-  let d=0;
-  for(let i=0;i<m.r&&d<state.n;i++)for(let j=0;j<m.c&&d<state.n;j++){
-    const xMin=-Lm/2+mgM+j*(cwM+espM), yMin=-Wm/2+mgM+i*(cwM+espM), f=state.flux[d]; d++;
+  let filename;
+
+  if(state.equip==='cabanes'){
+    filename='implantation_cabanes.geojson';
     features.push({type:'Feature',
-      properties:{type:'colonne', numero:d, flux:f, flux_libelle:FLUX[f].full,
-                  flux_couleur:FLUX[f].color, cuvelage_cm:state.cuv, ailes_beton:state.wings},
-      geometry:{type:'Polygon', coordinates:[ringGJ(xMin,yMin,cwM,cwM)]}});
+      properties:{type:'emprise_sol', longueur_cm:m.Lp, largeur_cm:m.Wp,
+                  surface_m2:+(m.Lp*m.Wp/10000).toFixed(2), orientation_deg:state.rot, nb_cabanes:state.n},
+      geometry:{type:'Polygon', coordinates:[ringGJ(-Lm/2,-Wm/2,Lm,Wm)]}});
+    const uLm=m.uL/100, uWm=m.uW/100, eM=m.e/100;
+    let d=0;
+    for(let i=0;i<m.r&&d<state.n;i++)for(let j=0;j<m.c&&d<state.n;j++){
+      const xMin=-Lm/2+j*(uLm+eM), yMin=-Wm/2+i*(uWm+eM); d++;
+      features.push({type:'Feature',
+        properties:{type:'cabane_carton', numero:d, longueur_cm:m.uL, largeur_cm:m.uW,
+                    hauteur_gouttereau_cm:150, hauteur_faitage_cm:194},
+        geometry:{type:'Polygon', coordinates:[ringGJ(xMin,yMin,uLm,uWm)]}});
+    }
+  } else {
+    filename='implantation_colonnes.geojson';
+    const cwM=m.cw/100, espM=state.esp/100, mgM=state.marge/100;
+    features.push({type:'Feature',
+      properties:{type:'emprise_fouille', longueur_cm:m.Lp, largeur_cm:m.Wp,
+                  surface_m2:+(m.Lp*m.Wp/10000).toFixed(2), orientation_deg:state.rot, nb_colonnes:state.n},
+      geometry:{type:'Polygon', coordinates:[ringGJ(-Lm/2,-Wm/2,Lm,Wm)]}});
+    let d=0;
+    for(let i=0;i<m.r&&d<state.n;i++)for(let j=0;j<m.c&&d<state.n;j++){
+      const xMin=-Lm/2+mgM+j*(cwM+espM), yMin=-Wm/2+mgM+i*(cwM+espM), f=state.flux[d]; d++;
+      features.push({type:'Feature',
+        properties:{type:'colonne', numero:d, flux:f, flux_libelle:FLUX[f].full,
+                    flux_couleur:FLUX[f].color, cuvelage_cm:state.cuv, ailes_beton:state.wings},
+        geometry:{type:'Polygon', coordinates:[ringGJ(xMin,yMin,cwM,cwM)]}});
+    }
   }
+
   const fc={type:'FeatureCollection', features};
   const blob=new Blob([JSON.stringify(fc,null,2)],{type:'application/geo+json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='implantation_colonnes.geojson';
+  a.download=filename;
   a.click(); URL.revokeObjectURL(a.href);
 }
 
@@ -404,19 +522,26 @@ document.querySelectorAll('.tabs button').forEach(b=>{
   };
 });
 
-$('plus').onclick =()=>{if(state.n<12){state.n++;$('nb').textContent=state.n;buildFlux();renderAll();}};
-$('moins').onclick=()=>{if(state.n>1){state.n--;$('nb').textContent=state.n;buildFlux();renderAll();}};
+document.querySelectorAll('#equipBtns button').forEach(b=>{
+  b.onclick=()=>{state.equip=b.dataset.equip;applyEquip();};
+});
+
+$('plus').onclick =()=>{if(state.n<12){state.n++;$('nb').textContent=state.n;if(state.equip==='colonnes')buildFlux();renderAll();}};
+$('moins').onclick=()=>{if(state.n>1){state.n--;$('nb').textContent=state.n;if(state.equip==='colonnes')buildFlux();renderAll();}};
 document.querySelectorAll('#configBtns button').forEach(b=>{
   b.onclick=()=>{document.querySelectorAll('#configBtns button').forEach(x=>x.classList.remove('on'));b.classList.add('on');state.mode=b.dataset.mode;$('persoFields').classList.toggle('show',state.mode==='perso');renderAll();};
 });
 $('ailes').onchange=e=>{state.wings=e.target.checked;renderAll();};
-$('cuv').oninput  =e=>{state.cuv=+e.target.value||173;renderAll();};
-$('esp').oninput  =e=>{state.esp=+e.target.value||0;renderAll();};
-$('marge').oninput=e=>{state.marge=+e.target.value||0;renderAll();};
-$('rows').oninput =e=>{state.prows=+e.target.value||1;renderAll();};
-$('cols').oninput =e=>{state.pcols=+e.target.value||1;renderAll();};
-$('rot').oninput  =e=>{state.rot=+e.target.value;$('rotn').value=state.rot;renderMap();};
-$('rotn').oninput =e=>{state.rot=+e.target.value||0;$('rot').value=state.rot;renderMap();};
+$('cuv').oninput   =e=>{state.cuv=+e.target.value||173;renderAll();};
+$('esp').oninput   =e=>{state.esp=+e.target.value||0;renderAll();};
+$('marge').oninput =e=>{state.marge=+e.target.value||0;renderAll();};
+$('cabLong').oninput=e=>{state.cabL=+e.target.value||165;renderAll();};
+$('cabLarg').oninput=e=>{state.cabW=+e.target.value||145;renderAll();};
+$('cabEsp').oninput =e=>{state.cabEsp=+e.target.value||0;renderAll();};
+$('rows').oninput  =e=>{state.prows=+e.target.value||1;renderAll();};
+$('cols').oninput  =e=>{state.pcols=+e.target.value||1;renderAll();};
+$('rot').oninput   =e=>{state.rot=+e.target.value;$('rotn').value=state.rot;renderMap();};
+$('rotn').oninput  =e=>{state.rot=+e.target.value||0;$('rot').value=state.rot;renderMap();};
 $('etalon').onchange=()=>renderMap();
 $('go').onclick=geocode; $('q').addEventListener('keydown',e=>{if(e.key==='Enter')geocode();});
 $('bPlan').onclick=()=>{map.addLayer(plan);map.removeLayer(sat);$('bPlan').classList.add('on');$('bSat').classList.remove('on');};
@@ -426,19 +551,27 @@ $('geojson').onclick=exportGeoJSON;
 
 $('imprimer').onclick=()=>window.print();
 $('copier').onclick=()=>{
-  const m=compute(); const tally={}; state.flux.forEach(f=>tally[f]=(tally[f]||0)+1);
-  const det=Object.keys(tally).map(k=>`${tally[k]} × ${FLUX[k].label}`).join(', ');
-  const t=`Implantation colonnes enterrées
+  const m=compute(); let t;
+  if(state.equip==='cabanes'){
+    t=`Implantation cabanes à cartons
+${$('tag').textContent}
+Nombre : ${state.n} cabane${state.n>1?'s':''} (${m.uL} × ${m.uW} cm / unité)
+Emprise au sol : ${m.Lp} × ${m.Wp} cm (${(m.Lp*m.Wp/10000).toFixed(1)} m²)
+Espacement entre cabanes : ${m.e} cm`;
+  } else {
+    const tally={}; state.flux.forEach(f=>tally[f]=(tally[f]||0)+1);
+    const det=Object.keys(tally).map(k=>`${tally[k]} × ${FLUX[k].label}`).join(', ');
+    t=`Implantation colonnes enterrées
 ${$('tag').textContent}
 Flux : ${det}
 Emprise fouille : ${m.Lp} × ${m.Wp} cm (${(m.Lp*m.Wp/10000).toFixed(1)} m²)
 Emprise colonnes : ${Math.round(m.Lc)} × ${Math.round(m.Wc)} cm
 Cuvelage ${state.cuv} cm${state.wings?' + ailes (24 cm)':''} · espacement ${state.esp} cm · marge ${state.marge} cm`;
+  }
   navigator.clipboard.writeText(t).then(()=>{$('copier').textContent='Copié ✓';setTimeout(()=>$('copier').textContent='Copier le résumé',1500);});
 };
 
-buildFlux();
-renderMeasures();
+applyEquip();
 </script>
 </body>
 </html>
