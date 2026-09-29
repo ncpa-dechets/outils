@@ -59,6 +59,9 @@
 
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px;}
 
+    .grid--4{grid-template-columns:repeat(2,1fr);}
+    @media(max-width:720px){.grid--4{grid-template-columns:1fr;}}
+
     /* CARD — accent color set per-card via style="--c: #xxxxxx" */
     .card{position:relative;display:flex;flex-direction:column;background:var(--card);
       border:1px solid var(--border);border-radius:18px;padding:26px 26px 24px;color:inherit;
@@ -105,7 +108,7 @@
       <h1>Déploiement des équipements de collecte</h1>
       <p>Le portail des tableaux de bord et outils opérationnels pour piloter le déploiement sur le territoire.</p>
       <div class="stats">
-        <div class="stat"><b>6</b><span>outils disponibles</span></div>
+        <div class="stat"><b>7</b><span>outils disponibles</span></div>
         <div class="stat-sep"></div>
         <div class="stat"><b>2</b><span>familles : dimensionnement &amp; suivi</span></div>
       </div>
@@ -125,7 +128,17 @@
         </div>
       </div>
 
-      <div class="grid">
+      <div class="grid grid--4">
+
+        <a class="card" style="--c:#a8432a" href="outils/dimensionnement-pav-enterres.html">
+          <div class="card__icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M17 15.2a5 5 0 0 1 4 4.8v0"/></svg>
+          </div>
+          <h3>Dimensionnement des PAV enterrés</h3>
+          <p>Calcul du nombre de colonnes d'apport volontaire à installer selon la population à desservir.</p>
+          <div class="tags"><span class="tag">PAV</span><span class="tag">Population</span><span class="tag">Calcul</span></div>
+          <span class="cta">Ouvrir <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </a>
 
         <a class="card" style="--c:#c0562f" href="outils/implantation-pav.html">
           <div class="card__icon">
