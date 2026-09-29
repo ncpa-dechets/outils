@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dimensionnement des PAV enterrés — NCPA</title>
+<style>
+:root{
+  --bg:#F5F5F1; --surface:#FFFFFF; --ink:#23262A; --muted:#676C73; --line:#DADBD3;
+  --red:#B91E27; --red-hover:#9C1820; --green:#B1B993; --green-soft:#EEF0E5;
+  --omr:#5B5E63; --emb:#E0AD00; --verre:#3F8F4A;
+  --warn:#B96A00;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181A; --surface:#202326; --ink:#ECECE7; --muted:#A2A6AB; --line:#373B3F;
+    --red:#CF3A43; --red-hover:#E0525A; --green:#B1B993; --green-soft:#2A2E23;
+    --omr:#9DA1A7; --emb:#F2C230; --verre:#62B46D; --warn:#E39A3A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181A; --surface:#202326; --ink:#ECECE7; --muted:#A2A6AB; --line:#373B3F;
+  --red:#CF3A43; --red-hover:#E0525A; --green:#B1B993; --green-soft:#2A2E23;
+  --omr:#9DA1A7; --emb:#F2C230; --verre:#62B46D; --warn:#E39A3A;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:Calibri,Carlito,"Segoe UI",Candara,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 48px}
+header{border-top:6px solid var(--red);background:var(--surface);border-bottom:1px solid var(--line)}
+header .wrap{padding-top:18px;padding-bottom:16px}
+h1{margin:0;font-size:1.6rem;font-weight:700;letter-spacing:-.01em}
+header p{margin:4px 0 0;color:var(--muted)}
+h2{font-size:1.2rem;margin:32px 0 12px;font-weight:700}
+h2 small{font-weight:400;color:var(--muted);font-size:.9rem;margin-left:8px}
+
+/* Hypothèses */
+.hyp{display:grid;grid-template-columns:repeat(3,1fr) minmax(200px,.8fr);gap:14px}
+.flux{background:var(--surface);border:1px solid var(--line);border-left:8px solid var(--c);
+  border-radius:4px;padding:14px 16px}
+.flux h3{margin:0 0 10px;font-size:1.05rem}
+.flux.omr{--c:var(--omr)} .flux.emb{--c:var(--emb)} .flux.verre{--c:var(--verre)}
+.flux.gen{--c:var(--green)}
+.field{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0}
+.field label{color:var(--muted);font-size:.93rem}
+.field input{width:84px;text-align:right}
+.cap{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);font-size:.93rem}
+.cap strong{font-size:1.35rem;display:block;line-height:1.1}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);
+  border-radius:3px;padding:5px 7px;min-width:0}
+input:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+details.how{margin-top:12px;color:var(--muted);font-size:.93rem}
+details.how summary{cursor:pointer;color:var(--ink)}
+details.how p{margin:6px 0;max-width:80ch}
+code{font-family:inherit;background:var(--green-soft);padding:1px 5px;border-radius:3px}
+
+/* Barre d'outils */
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+button{font:inherit;cursor:pointer;border-radius:3px;padding:7px 14px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink)}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--red);border-color:var(--red);color:#fff}
+button.primary:hover{background:var(--red-hover)}
+button.ghost{margin-left:auto;color:var(--muted)}
+#toast{color:var(--verre);font-weight:700;align-self:center;opacity:0;transition:opacity .2s}
+#toast.on{opacity:1}
+
+/* Zone de collage */
+#pastebox{display:none;background:var(--surface);border:1px solid var(--line);border-radius:4px;
+  padding:12px 14px;margin-bottom:12px}
+#pastebox.on{display:block}
+#pastebox p{margin:0 0 8px;color:var(--muted);font-size:.93rem}
+textarea{width:100%;min-height:120px;font:inherit;color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:3px;padding:8px}
+#pastebox .bar{margin:8px 0 0}
+
+/* Tableau */
+.tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:4px}
+table{border-collapse:collapse;width:100%;min-width:980px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+thead th{font-size:.9rem;color:var(--muted);font-weight:700;background:var(--surface);white-space:nowrap}
+thead th.fx{color:var(--ink);border-bottom:4px solid var(--c);text-align:center}
+th.omr,td.omr{--c:var(--omr)} th.emb,td.emb{--c:var(--emb)} th.verre,td.verre{--c:var(--verre)}
+td input{width:100%}
+td input.n{text-align:right;width:88px}
+td.num{text-align:right;white-space:nowrap}
+td.num small{display:block;color:var(--muted);font-size:.8rem}
+td.res{text-align:center;white-space:nowrap}
+td.res b{font-size:1.25rem;display:block;line-height:1.1}
+td.res small{color:var(--muted);font-size:.8rem}
+td.res small.low{color:var(--warn)}
+td.tot{text-align:center;font-weight:700;font-size:1.25rem;background:var(--green-soft)}
+button.del{border:none;background:none;color:var(--muted);font-size:1.2rem;padding:2px 8px}
+button.del:hover{color:var(--red)}
+tfoot td{font-weight:700;border-bottom:none;background:var(--green-soft)}
+tfoot td.res b{font-size:1.3rem}
+.empty td{text-align:center;color:var(--muted);padding:24px}
+.legend{color:var(--muted);font-size:.88rem;margin-top:8px}
+.legend span.low{color:var(--warn);font-weight:700}
+
+@media (max-width:900px){
+  .hyp{grid-template-columns:1fr 1fr}
+}
+@media (max-width:560px){
+  .hyp{grid-template-columns:1fr}
+  .wrap{padding:0 12px 40px}
+  button.ghost{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Dimensionnement des points d'apport volontaire enterrés</h1>
+    <p>Nombre de colonnes OMR, emballages et papiers, et verre nécessaires pour chaque site</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <h2>Hypothèses <small>communes à tous les sites</small></h2>
+  <div class="hyp" id="hyp"></div>
+  <details class="how">
+    <summary>Comment c'est calculé</summary>
+    <p>Habitants retenus = habitants saisis, ou à défaut foyers × taille moyenne des ménages.</p>
+    <p>Volume à stocker (m³) = habitants × production (L/hab/jour) × jours entre deux vidages ÷ 1 000.</p>
+    <p>Volume utile d'une colonne = volume nominal × taux de remplissage maximal.</p>
+    <p>Nombre de colonnes = volume à stocker ÷ volume utile, arrondi à l'entier supérieur. Le pourcentage affiché sous chaque résultat est le remplissage attendu des colonnes au moment du vidage.</p>
+  </details>
+
+  <h2>Sites</h2>
+  <div class="bar">
+    <button class="primary" id="add">Ajouter un site</button>
+    <button id="pasteToggle">Coller depuis Excel</button>
+    <button id="copy">Copier les résultats</button>
+    <span id="toast" role="status"></span>
+    <button class="ghost" id="clear">Vider le tableau</button>
+  </div>
+
+  <div id="pastebox">
+    <p>Collez des lignes copiées depuis Excel, colonnes dans cet ordre : Site, Commune, Foyers, Habitants (facultatif). Une ligne d'en-tête est ignorée automatiquement.</p>
+    <textarea id="pasteArea" placeholder="Résidence Les Tamaris	Cabourg	48	&#10;Rue de la Mer	Houlgate	30	72"></textarea>
+    <div class="bar">
+      <button class="primary" id="pasteGo">Ajouter ces sites</button>
+      <button id="pasteCancel">Annuler</button>
+    </div>
+  </div>
+
+  <div class="tablebox">
+    <table>
+      <thead>
+        <tr>
+          <th>Site</th><th>Commune</th><th>Foyers</th><th>Habitants saisis</th><th>Habitants retenus</th>
+          <th class="fx omr">OMR</th><th class="fx emb">Emballages</th><th class="fx verre">Verre</th>
+          <th>Total colonnes</th><th><span class="sr" aria-label="Actions"></span></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+      <tfoot id="foot"></tfoot>
+    </table>
+  </div>
+  <p class="legend">Sous chaque nombre de colonnes : remplissage attendu au vidage. En <span class="low">orange</span> sous 50 % : la dernière colonne est peu utilisée, un espacement des vidages ou un regroupement de sites peut se discuter.</p>
+</main>
+
+<script>
+(function(){
+  var FLUX=[
+    {k:'omr',nom:'Ordures ménagères résiduelles'},
+    {k:'emb',nom:'Emballages et papiers'},
+    {k:'verre',nom:'Verre'}
+  ];
+  var DEFAULT={taille:2.1,taux:85,flux:{
+    omr:{vol:5,prod:5,jours:7},
+    emb:{vol:5,prod:5,jours:14},
+    verre:{vol:4,prod:0.6,jours:14}
+  }};
+  var KEY='ncpa-dimensionnement-pav-v1';
+  var state;
+
+  function clone(o){return JSON.parse(JSON.stringify(o))}
+  function num(v){var n=parseFloat(String(v==null?'':v).replace(/\s/g,'').replace(',','.'));return isFinite(n)?n:0}
+  function fr(n,d){return n.toLocaleString('fr-FR',{maximumFractionDigits:d==null?1:d})}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+  function load(){
+    try{var s=JSON.parse(localStorage.getItem(KEY));if(s&&s.params&&s.sites){state=s;return}}catch(e){}
+    state={params:clone(DEFAULT),sites:[{id:uid(),nom:'',commune:'',foyers:'',hab:''}]};
+  }
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+
+  /* ---------- Calculs ---------- */
+  function habitants(s){
+    var h=num(s.hab);
+    if(h>0) return {v:h,src:'saisi'};
+    return {v:num(s.foyers)*num(state.params.taille),src:'calc'};
+  }
+  function calcFlux(hab,f){
+    var p=state.params.flux[f], taux=num(state.params.taux)/100;
+    var vol=num(p.vol), stock=hab*num(p.prod)*num(p.jours)/1000, utile=vol*taux;
+    if(hab<=0||utile<=0) return {n:0,stock:stock,fill:0};
+    var n=Math.max(1,Math.ceil(stock/utile-1e-9));
+    return {n:n,stock:stock,fill:stock/(n*vol)};
+  }
+  function capacite(f){
+    var p=state.params.flux[f], taux=num(state.params.taux)/100;
+    var parJour=num(p.prod)*num(p.jours);
+    if(parJour<=0) return 0;
+    return num(p.vol)*taux*1000/parJour;
+  }
+
+  /* ---------- Hypothèses ---------- */
+  function field(label,path,val){
+    return '<div class="field"><label for="p-'+path+'">'+label+'</label>'+
+      '<input id="p-'+path+'" data-p="'+path+'" inputmode="decimal" value="'+esc(String(val).replace('.',','))+'"></div>';
+  }
+  function renderHyp(){
+    var h='';
+    FLUX.forEach(function(f){
+      var p=state.params.flux[f.k];
+      h+='<div class="flux '+f.k+'"><h3>'+f.nom+'</h3>'+
+        field('Volume colonne (m³)','flux.'+f.k+'.vol',p.vol)+
+        field('Production (L/hab/jour)','flux.'+f.k+'.prod',p.prod)+
+        field('Jours entre deux vidages','flux.'+f.k+'.jours',p.jours)+
+        '<div class="cap" id="cap-'+f.k+'"></div></div>';
+    });
+    h+='<div class="flux gen"><h3>Général</h3>'+
+      field('Personnes par foyer','taille',state.params.taille)+
+      field('Remplissage maximal (%)','taux',state.params.taux)+
+      '<div class="field" style="margin-top:14px"><button id="reset" type="button">Rétablir les valeurs par défaut</button></div></div>';
+    document.getElementById('hyp').innerHTML=h;
+    updateCaps();
+  }
+  function updateCaps(){
+    FLUX.forEach(function(f){
+      var c=capacite(f.k), t=num(state.params.taille);
+      document.getElementById('cap-'+f.k).innerHTML=c>0?
+        'Une colonne dessert jusqu\'à<strong>'+fr(Math.floor(c),0)+' habitants</strong>'+
+        (t>0?'soit environ '+fr(Math.floor(c/t),0)+' foyers':''):
+        'Renseignez une production et une durée';
+    });
+  }
+  document.getElementById('hyp').addEventListener('input',function(e){
+    var path=e.target.getAttribute('data-p'); if(!path) return;
+    var parts=path.split('.'), o=state.params;
+    for(var i=0;i<parts.length-1;i++) o=o[parts[i]];
+    o[parts[parts.length-1]]=num(e.target.value);
+    updateCaps(); updateResults(); save();
+  });
+  document.getElementById('hyp').addEventListener('click',function(e){
+    if(e.target.id==='reset'){state.params=clone(DEFAULT);renderHyp();updateResults();save()}
+  });
+
+  /* ---------- Tableau des sites ---------- */
+  function renderRows(){
+    var tb=document.getElementById('rows');
+    if(!state.sites.length){
+      tb.innerHTML='<tr class="empty"><td colspan="10">Aucun site. Ajoutez-en un ou collez une liste depuis Excel.</td></tr>';
+      updateResults(); return;
+    }
+    tb.innerHTML=state.sites.map(function(s){
+      return '<tr data-id="'+s.id+'">'+
+        '<td><input data-f="nom" value="'+esc(s.nom)+'" aria-label="Nom du site" placeholder="Nom du site"></td>'+
+        '<td><input data-f="commune" value="'+esc(s.commune)+'" aria-label="Commune" placeholder="Commune"></td>'+
+        '<td><input class="n" data-f="foyers" inputmode="decimal" value="'+esc(s.foyers)+'" aria-label="Foyers"></td>'+
+        '<td><input class="n" data-f="hab" inputmode="decimal" value="'+esc(s.hab)+'" aria-label="Habitants saisis" placeholder="auto"></td>'+
+        '<td class="num hab"></td>'+
+        FLUX.map(function(f){return '<td class="res '+f.k+'"></td>'}).join('')+
+        '<td class="tot"></td>'+
+        '<td><button class="del" title="Supprimer ce site" aria-label="Supprimer ce site">×</button></td></tr>';
+    }).join('');
+    updateResults();
+  }
+  function resCell(r){
+    if(!r.n) return '<b>–</b>';
+    var low=r.fill<0.5;
+    return '<b>'+r.n+'</b><small class="'+(low?'low':'')+'" title="Volume à stocker : '+fr(r.stock,2)+' m³">remplie à '+fr(r.fill*100,0)+' %</small>';
+  }
+  function updateResults(){
+    var tot={hab:0,foyers:0,omr:0,emb:0,verre:0,all:0};
+    state.sites.forEach(function(s){
+      var tr=document.querySelector('tr[data-id="'+s.id+'"]'); if(!tr) return;
+      var h=habitants(s), sum=0;
+      tr.querySelector('.hab').innerHTML=h.v>0?fr(h.v,0)+'<small>'+(h.src==='saisi'?'saisi':'calculé')+'</small>':'–';
+      FLUX.forEach(function(f){
+        var r=calcFlux(h.v,f.k);
+        tr.querySelector('td.'+f.k).innerHTML=resCell(r);
+        sum+=r.n; tot[f.k]+=r.n;
+      });
+      tr.querySelector('.tot').textContent=sum||'–';
+      tot.hab+=h.v; tot.foyers+=num(s.foyers); tot.all+=sum;
+    });
+    document.getElementById('foot').innerHTML=state.sites.length?
+      '<tr><td colspan="2">Total '+state.sites.length+' site'+(state.sites.length>1?'s':'')+'</td>'+
+      '<td class="num">'+fr(tot.foyers,0)+'</td><td></td><td class="num">'+fr(tot.hab,0)+'</td>'+
+      FLUX.map(function(f){return '<td class="res"><b>'+tot[f.k]+'</b></td>'}).join('')+
+      '<td class="tot">'+tot.all+'</td><td></td></tr>':'';
+  }
+  var rowsEl=document.getElementById('rows');
+  rowsEl.addEventListener('input',function(e){
+    var f=e.target.getAttribute('data-f'), tr=e.target.closest('tr'); if(!f||!tr) return;
+    var s=state.sites.find(function(x){return x.id===tr.getAttribute('data-id')});
+    s[f]=e.target.value; updateResults(); save();
+  });
+  rowsEl.addEventListener('click',function(e){
+    if(!e.target.classList.contains('del')) return;
+    var id=e.target.closest('tr').getAttribute('data-id');
+    state.sites=state.sites.filter(function(x){return x.id!==id});
+    renderRows(); save();
+  });
+
+  document.getElementById('add').onclick=function(){
+    var s={id:uid(),nom:'',commune:'',foyers:'',hab:''};
+    state.sites.push(s); renderRows(); save();
+    var inp=document.querySelector('tr[data-id="'+s.id+'"] input'); if(inp) inp.focus();
+  };
+  document.getElementById('clear').onclick=function(){
+    if(!state.sites.length) return;
+    if(confirm('Supprimer les '+state.sites.length+' sites du tableau ?')){state.sites=[];renderRows();save()}
+  };
+
+  /* ---------- Collage depuis Excel ---------- */
+  var box=document.getElementById('pastebox'), area=document.getElementById('pasteArea');
+  document.getElementById('pasteToggle').onclick=function(){box.classList.toggle('on');if(box.classList.contains('on'))area.focus()};
+  document.getElementById('pasteCancel').onclick=function(){box.classList.remove('on');area.value=''};
+  document.getElementById('pasteGo').onclick=function(){
+    var lines=area.value.split(/\r?\n/).filter(function(l){return l.trim()});
+    var added=0;
+    lines.forEach(function(l,i){
+      var c=l.split(/\t|;/).map(function(x){return x.trim()});
+      if(i===0 && c[2] && isNaN(parseFloat(c[2].replace(',','.')))) return; // en-tête
+      state.sites.push({id:uid(),nom:c[0]||'',commune:c[1]||'',foyers:c[2]||'',hab:c[3]||''});
+      added++;
+    });
+    // Retire la ligne vide initiale si elle n'a jamais été remplie
+    state.sites=state.sites.filter(function(s){return s.nom||s.commune||s.foyers||s.hab});
+    area.value=''; box.classList.remove('on'); renderRows(); save();
+    toast(added+' site'+(added>1?'s':'')+' ajouté'+(added>1?'s':''));
+  };
+
+  /* ---------- Copie des résultats (collable dans Excel) ---------- */
+  function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');
+    clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('on')},2200)}
+  document.getElementById('copy').onclick=function(){
+    var d=function(n){return String(Math.round(n*100)/100).replace('.',',')};
+    var rows=[['Site','Commune','Foyers','Habitants retenus',
+      'Colonnes OMR','Remplissage OMR (%)','Colonnes Emballages','Remplissage Emballages (%)',
+      'Colonnes Verre','Remplissage Verre (%)','Total colonnes'].join('\t')];
+    state.sites.forEach(function(s){
+      var h=habitants(s).v, line=[s.nom,s.commune,s.foyers,d(h)], sum=0;
+      FLUX.forEach(function(f){var r=calcFlux(h,f.k);line.push(r.n,d(r.fill*100));sum+=r.n});
+      line.push(sum); rows.push(line.join('\t'));
+    });
+    var p=state.params;
+    rows.push('');
+    rows.push('Hypothèses\tPersonnes/foyer\t'+d(p.taille)+'\tRemplissage max (%)\t'+d(p.taux));
+    FLUX.forEach(function(f){var q=p.flux[f.k];
+      rows.push(f.nom+'\tVolume (m³)\t'+d(q.vol)+'\tProduction (L/hab/j)\t'+d(q.prod)+'\tJours entre vidages\t'+d(q.jours))});
+    var txt=rows.join('\n');
+    function fallback(){
+      var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();
+      try{document.execCommand('copy');toast('Copié, collez dans Excel')}catch(e){toast('Copie impossible')}
+      document.body.removeChild(ta);
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){toast('Copié, collez dans Excel')},fallback);
+    } else fallback();
+  };
+
+  load(); renderHyp(); renderRows();
+})();
+</script>
+</body>
+</html>
