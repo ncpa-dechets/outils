@@ -40,6 +40,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #search-res li:hover{background:var(--fond)}
 #results{margin-top:12px}
 .loading{display:flex;gap:9px;align-items:center;font-size:13px;color:var(--gris);padding:10px 0 2px}
+.loading > div{flex:1;min-width:0}
+.prog{height:5px;background:#eceef0;border-radius:999px;overflow:hidden;margin:7px 0 4px}
+.prog i{display:block;height:100%;background:var(--rouge);border-radius:999px;transition:width .3s}
+.prog.ind i{width:30%;animation:ind 1.3s ease-in-out infinite}
+@keyframes ind{0%{margin-left:-30%}100%{margin-left:100%}}
+.step.off{opacity:.5}
 .loading.err{color:var(--rouge);align-items:flex-start}
 .spin{width:14px;height:14px;flex:0 0 14px;border:2px solid #d6d9dc;border-top-color:var(--rouge);border-radius:50%;animation:sp 0.9s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -205,13 +211,24 @@ const CONFIG = /*CONFIG_DEBUT*/{
         "nom": "Déchèterie de Cambremer",
         "lat": 49.146062,
         "lon": 0.044338,
-        "externe": true
+        "externe": true,
+        "communes_autorisees": [
+          "Beaufour-Druval",
+          "Beuvron-en-Auge",
+          "Hotot-en-Auge",
+          "Rumesnil",
+          "Victot-en-Auge"
+        ]
       },
       {
         "nom": "Déchèterie de Villers-sur-Mer",
         "lat": 49.308626,
         "lon": -0.019442,
-        "externe": true
+        "externe": true,
+        "communes_autorisees": [
+          "Auberville",
+          "Gonneville-sur-Mer"
+        ]
       }
     ]
   },
@@ -458,6 +475,22 @@ function inGeom(lon, lat, g){
   return false;
 }
 
+/* Résolution d'une liste de communes (noms ou codes INSEE) vers des codes INSEE du territoire */
+function normNom(s){ return String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+function resolveCommunes(list, communes){
+  const codes = new Set(), warnings = [];
+  for(const raw of list || []){
+    const v = String(raw).trim(); if(!v) continue;
+    let c = communes.find(x => x.code === v) || communes.find(x => normNom(x.nom) === normNom(v));
+    if(!c){
+      const first = normNom(v).split("-")[0];
+      const cand = communes.filter(x => normNom(x.nom).split("-")[0] === first);
+      if(cand.length === 1){ c = cand[0]; warnings.push(`« ${v} » associée à « ${c.nom} »`); }
+    }
+    if(c) codes.add(c.code); else warnings.push(`« ${v} » introuvable parmi les communes du territoire`);
+  }
+  return { codes, warnings };
+}
 /* Équipement hors territoire : colonne « externe » (oui/1/true) ou mention « (hors …) » dans le nom, retirée du libellé */
 function markExternal(it, flag){
   const m = /\s*\((hors [^)]*)\)\s*$/i.exec(it.nom);
@@ -489,6 +522,7 @@ function parseDestCSV(text){
   let iNom = head.findIndex(h => /^(nom|name|libelle|libellé|lib|nom_site|site|intitule)$/.test(h));
   if(iNom < 0) iNom = head.findIndex(h => /nom|name|lib/.test(h));
   const iExt = head.findIndex(h => /^(externe|exterieur|extérieur|hors_territoire|hors_ncpa)$/.test(h));
+  const iAcc = head.findIndex(h => /^(communes_autorisees|communes_autorisées|acces|accès|convention|communes)$/.test(h));
   if((iLat < 0 || iLon < 0) && iWkt < 0) throw new Error("Coordonnées introuvables. En-têtes attendus : nom ; lat ; lon (WGS84), ou une colonne WKT.");
   const out = [];
   for(const ln of lines.slice(1)){
@@ -498,8 +532,9 @@ function parseDestCSV(text){
     else { const m = /POINT\s*Z?M?\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)/i.exec(c[iWkt] || ""); if(m){ lo = parseFloat(m[1]); la = parseFloat(m[2]); } }
     if(!isFinite(la) || !isFinite(lo)) continue;
     if(Math.abs(la) > 90 || Math.abs(lo) > 180) throw new Error("Coordonnées hors WGS84 (probablement du Lambert-93). Exportez la couche en EPSG:4326 depuis QGIS.");
-    out.push(markExternal({ nom: iNom >= 0 && c[iNom] ? c[iNom] : "Équipement " + (out.length + 1), lat: la, lon: lo },
-      iExt >= 0 ? c[iExt] : null));
+    const it = markExternal({ nom: iNom >= 0 && c[iNom] ? c[iNom] : "Équipement " + (out.length + 1), lat: la, lon: lo }, iExt >= 0 ? c[iExt] : null);
+    if(iAcc >= 0 && c[iAcc]){ it.communes_autorisees = c[iAcc].split(/\s*[|,]\s*/).filter(Boolean); it.externe = true; }
+    out.push(it);
   }
   if(!out.length) throw new Error("Aucune ligne avec des coordonnées valides.");
   return out;
@@ -569,7 +604,7 @@ function contourSegments(f, W, H, level, inside){
   return segs;
 }
 
-if(typeof module !== "undefined") module.exports = { markExternal, CONFIG, PROFILS, makeForwardSolver, overpassToNetwork, buildGraph, buildIndex, nearestNode, dijkstra, tracePath, parseDestCSV, splitCSVLine, inGeom, wayDirection, blurField, contourSegments };
+if(typeof module !== "undefined") module.exports = { normNom, resolveCommunes, markExternal, CONFIG, PROFILS, makeForwardSolver, overpassToNetwork, buildGraph, buildIndex, nearestNode, dijkstra, tracePath, parseDestCSV, splitCSVLine, inGeom, wayDirection, blurField, contourSegments };
 </script>
 
 <script>
@@ -583,6 +618,7 @@ const S = {
   communes: null, net: null, G: null, IX: null, fwd: null, startNode: -1, startLabel: null,
   dest: loadDest(), editMode: false, mode: "from", useExt: true,
   per: [], near: null, raster: null, overlay: null, destMarkers: [],
+  acc: [], accWarnings: [], groups: null, comGroup: [], outGroup: null,
   sort: { col: "nom", asc: true }, tabRows: [], lastRows: []
 };
 function loadDest(){
@@ -673,19 +709,76 @@ function communesBBox(com){
   }
   return { s, w, n, e };
 }
+const fmtMo = n => (n / 1048576).toFixed(1).replace(".", ",") + " Mo";
+function showProgress(o){
+  const el = $("loading"); el.classList.remove("hidden", "err");
+  const sec = Math.round(o.elapsed);
+  let txt, bar;
+  if(!o.bytes){
+    txt = `Requête envoyée à <b>${esc(o.server)}</b>. Le serveur extrait les routes… <b>${sec} s</b>`;
+    bar = '<div class="prog ind"><i></i></div>';
+    if(o.elapsed > 45) txt += '<br><span class="muted">Ce délai est normal quand le serveur est chargé (il peut atteindre 2 à 3 min).</span>';
+  } else {
+    const pct = o.expected ? Math.min(99, Math.round(o.bytes / o.expected * 100)) : null;
+    txt = `Réception du réseau : <b>${fmtMo(o.bytes)}</b>${o.expected ? " sur ≈ " + fmtMo(o.expected) : ""} · <b>${sec} s</b>`;
+    if(o.idle > 8) txt += `<br><span class="muted">Aucune donnée depuis ${Math.round(o.idle)} s…</span>`;
+    bar = pct != null ? `<div class="prog"><i style="width:${pct}%"></i></div>` : '<div class="prog ind"><i></i></div>';
+  }
+  el.innerHTML = `<span class="spin"></span><div>${txt}${bar}` +
+    (o.canSwitch ? '<button class="link" id="btn-switch">Essayer l\'autre serveur</button>' : "") + "</div>";
+  const sw = $("btn-switch"); if(sw) sw.onclick = () => S.abort && S.abort("switch");
+}
 async function fetchRoads(b){
   const q = `[out:json][timeout:180];
 way["highway"~"${PROFIL.filtre}"]${PROFIL.exclusions}
 (${(b.s-BBOX_MARGIN).toFixed(4)},${(b.w-BBOX_MARGIN).toFixed(4)},${(b.n+BBOX_MARGIN).toFixed(4)},${(b.e+BBOX_MARGIN).toFixed(4)});
 out body;>;out skel qt;`;
+  const sizeKey = "iso-taille-" + CONFIG.profil + "-" + [b.s, b.w, b.n, b.e].map(v => v.toFixed(2)).join("_");
+  let expected = null; try{ expected = +localStorage.getItem(sizeKey) || null; }catch(e){}
   let lastErr;
-  for(const ep of OVERPASS){
+  for(let si = 0; si < OVERPASS.length; si++){
+    const ep = OVERPASS[si], server = new URL(ep).hostname;
+    const ctrl = new AbortController(); let reason = null;
+    S.abort = r => { reason = r; ctrl.abort(); };
+    const t0 = performance.now(); let bytes = 0, last = t0;
+    const st = () => ({ server, elapsed: (performance.now() - t0) / 1000, bytes, expected, idle: (performance.now() - last) / 1000, canSwitch: si < OVERPASS.length - 1 });
+    const tick = setInterval(() => {
+      const o = st(); showProgress(o);
+      if(!bytes && o.elapsed > 200) S.abort("timeout");      // pas de réponse du tout
+      if(bytes && o.idle > 60) S.abort("timeout");           // transfert bloqué
+    }, 500);
+    showProgress(st());
     try{
-      const r = await fetch(ep, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
-      if(!r.ok) throw new Error("Overpass " + r.status);
-      return await r.json();
-    }catch(e){ lastErr = e; }
+      const r = await fetch(ep, { method: "POST", signal: ctrl.signal, body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+      if(!r.ok) throw new Error(r.status === 429 || r.status === 504 ? `serveur ${server} saturé (${r.status})` : `${server} a répondu ${r.status}`);
+      const cl = +r.headers.get("Content-Length"); if(cl) expected = cl;
+      let text;
+      if(r.body && r.body.getReader){
+        const reader = r.body.getReader(), dec = new TextDecoder(), parts = [];
+        while(true){
+          const { done, value } = await reader.read();
+          if(done) break;
+          bytes += value.length; last = performance.now();
+          parts.push(dec.decode(value, { stream: true }));
+        }
+        parts.push(dec.decode()); text = parts.join("");
+      } else { text = await r.text(); bytes = text.length; }
+      clearInterval(tick);
+      $("loading").innerHTML = `<span class="spin"></span><div>Lecture des données reçues (${fmtMo(bytes)})…</div>`;
+      await new Promise(res => setTimeout(res, 20));
+      const json = JSON.parse(text);
+      if(json.remark && /error|runtime/i.test(json.remark) && !(json.elements || []).length) throw new Error("Overpass : " + json.remark);
+      try{ localStorage.setItem(sizeKey, String(bytes)); }catch(e){}
+      S.abort = null;
+      return json;
+    }catch(e){
+      clearInterval(tick);
+      lastErr = reason === "switch" ? new Error("changement de serveur demandé")
+              : reason === "timeout" ? new Error(`pas de réponse de ${server}`) : e;
+      console.warn(server, lastErr);
+    }
   }
+  S.abort = null;
   throw lastErr || new Error("Overpass indisponible");
 }
 async function loadFromInternet(){
@@ -693,7 +786,6 @@ async function loadFromInternet(){
     $("btn-save").disabled = true;
     setLoading("Téléchargement des communes…");
     const com = await fetchCommunes();
-    setLoading("Téléchargement du réseau OpenStreetMap… (20 à 60 s)");
     const b = communesBBox(com);
     for(const d of S.dest.items){ b.s = Math.min(b.s, d.lat); b.n = Math.max(b.n, d.lat); b.w = Math.min(b.w, d.lon); b.e = Math.max(b.e, d.lon); }
     const osm = await fetchRoads(b);
@@ -711,7 +803,7 @@ function installData(com, net, label){
   communesLayer.clearLayers();
   com.forEach(c => communesLayer.addData({ type: "Feature", properties: { nom: c.nom }, geometry: c.contour }));
   const fb = communesLayer.getBounds(); S.dest.items.forEach(d => fb.extend([d.lat, d.lon]));
-  map.fitBounds(fb, { paddingTopLeft: [window.innerWidth > 860 ? 360 : 10, 10], paddingBottomRight: [10, 40] });
+  map.fitBounds(fb, { paddingTopLeft: [window.innerWidth > 860 ? 360 : 10, 10], paddingBottomRight: [70, 60] });
   $("status").textContent = (label || "Réseau " + PROFIL.libelle + " prêt") + ` : ${com.length} communes, ${S.G.mainSize.toLocaleString("fr-FR")} nœuds.`;
   $("btn-save").disabled = false;
   setLoading(null);
@@ -726,17 +818,46 @@ function installData(com, net, label){
 /* ================================================================
    Calculs vers les équipements
    ================================================================ */
+/* Équipements accessibles depuis une commune (code INSEE, ou null hors territoire) */
+function allowedFor(code){
+  return S.dest.items.map((d, i) => i).filter(i => isActive(i) && (!S.dest.items[i].externe || !S.acc[i] || (code != null && S.acc[i].has(code))));
+}
+function resolveAccess(){
+  S.acc = []; const warn = [];
+  S.dest.items.forEach((d, i) => {
+    if(!d.externe || !d.communes_autorisees || !d.communes_autorisees.length){ S.acc[i] = null; return; }
+    const r = resolveCommunes(d.communes_autorisees, S.communes);
+    S.acc[i] = r.codes; r.warnings.forEach(w => warn.push(shortName(d.nom) + " : " + w));
+  });
+  S.accWarnings = warn;
+  if(warn.length) console.warn("Conventions :", warn);
+}
 function recomputeAll(){
   if(!S.G) return;
+  resolveAccess();
   const snaps = S.dest.items.map((d, k) => ({ k, node: isActive(k) ? nearestNode(S.G, S.IX, d.lat, d.lon, 20).node : -1 }));
-  S.near = dijkstra(S.G, snaps);
+  S.snaps = snaps;
+  // un calcul "le plus proche" par combinaison d'équipements accessibles (en pratique 2 à 4)
+  S.groups = new Map(); S.comGroup = [];
+  const groupOf = code => {
+    const idx = allowedFor(code), key = idx.join(",");
+    if(!S.groups.has(key)) S.groups.set(key, { idx, res: dijkstra(S.G, idx.map(i => snaps[i])) });
+    return S.groups.get(key);
+  };
+  S.outGroup = groupOf(null);
+  S.communes.forEach((c, k) => { S.comGroup[k] = groupOf(c.code); });
+  S.near = S.outGroup.res;
   S.per = S.dest.items.length <= MAX_DETAIL ? snaps.map(s => s.node >= 0 ? dijkstra(S.G, [s]) : null) : [];
   if(!["from", "near", "sect"].includes(S.mode) && !S.per[+S.mode]) S.mode = "from";
   const hasExt = S.dest.items.some(d => d.externe);
   $("row-ext").classList.toggle("hidden", !hasExt);
-  $("lbl-ext").textContent = `Inclure les ${plural(S.dest.type)} ${EXT()}`;
+  $("lbl-ext").textContent = `Inclure les ${plural(S.dest.type)} ${EXT()}` + (S.acc.some(Boolean) ? " (selon conventions)" : "");
+  if(S.accWarnings.length) $("status").innerHTML = esc($("status").textContent.split(" Conventions")[0]) +
+    `<br><span style="color:var(--rouge)">Conventions : ${S.accWarnings.map(esc).join(" ; ")}</span>`;
   drawDestMarkers(); drawDestList(); drawChips(); computeTable(); updatePoint(true);
 }
+const comIndexAt = (lat, lng) => S.communes.findIndex(c => inGeom(lng, lat, c.contour));
+const canUse = (i, comIdx) => !S.dest.items[i].externe || !S.acc[i] || (comIdx >= 0 && S.acc[i].has(S.communes[comIdx].code));
 
 /* ================================================================
    Carte des temps (grille de pixels, lissage, courbes)
@@ -766,9 +887,28 @@ function buildRaster(){
   }
   const md = mx.getImageData(0, 0, W, H).data, inside = new Uint8Array(W*H);
   for(let p = 0; p < W*H; p++) inside[p] = md[p*4+3] > 100 ? 1 : 0;
+  // commune de chaque pixel : chaque commune est peinte avec une couleur-index ; les pixels de bordure sont testés un par un
+  const ic = document.createElement("canvas"); ic.width = W; ic.height = H;
+  const ix = ic.getContext("2d");
+  S.communes.forEach((c, k) => {
+    const polys = c.contour.type === "Polygon" ? [c.contour.coordinates] : c.contour.coordinates;
+    ix.fillStyle = `rgb(${(k+1) & 255},${(k+1) >> 8},0)`; ix.beginPath();
+    for(const poly of polys) for(const ring of poly){
+      ring.forEach(([lo, la], q) => { const pp = crs.project(L.latLng(la, lo)); const x = (pp.x - p1.x)/res, y = (p2.y - pp.y)/res; q ? ix.lineTo(x, y) : ix.moveTo(x, y); });
+      ix.closePath();
+    }
+    ix.fill("evenodd");
+  });
+  const idd = ix.getImageData(0, 0, W, H).data, com = new Int16Array(W*H).fill(-1);
+  for(let p = 0; p < W*H; p++){
+    const k = idd[p*4] + idd[p*4+1] * 256 - 1;
+    if(idd[p*4+3] === 255 && k >= 0 && k < S.communes.length && idd[p*4+2] === 0) com[p] = k;
+    else if(inside[p]){ const j = Math.floor(p / W), i = p % W;
+      com[p] = S.communes.findIndex(c => inGeom(colLng[i], rowLat[j], c.contour)); }
+  }
   const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
   const bounds = L.latLngBounds(crs.unproject(L.point(p1.x, p2.y - H*res)), crs.unproject(L.point(p2.x, p2.y)));
-  S.raster = { W, H, node, acc, mask, inside, canvas, bounds, rowLat, colLng,
+  S.raster = { W, H, node, acc, mask, inside, com, canvas, bounds, rowLat, colLng,
     field: new Float32Array(W*H), tmp: new Float32Array(W*H), lut: null, lutKey: "" };
   if(S.overlay) map.removeLayer(S.overlay);
   S.overlay = new CanvasOverlay(canvas, bounds, { pane: "raster", opacity: $("opacity").value/100, interactive: false }).addTo(map);
@@ -793,7 +933,7 @@ const LUT = rampLUT(), CLASS_RGB = TIME_CLASSES.map(c => hexRGB(c.color));
 function currentTimes(){
   if(S.mode === "from") return (map.hasLayer(startMarker) && S.startNode >= 0)
     ? { time: S.fwd(S.startNode, (TIME_CLASSES[TIME_CLASSES.length-2].max * 60 / coef()) + 120) } : null;
-  if(S.mode === "near" || S.mode === "sect") return S.near;
+  if(S.mode === "near" || S.mode === "sect") return { grouped: true };
   return S.per[+S.mode] || null;
 }
 function renderRaster(){
@@ -802,22 +942,26 @@ function renderRaster(){
   const img = ctx.createImageData(R.W, R.H), d = img.data, N = R.W * R.H;
   const arr = currentTimes(), k = coef();
   contourLayer.clearLayers();
+  const resAt = p => R.com[p] >= 0 ? S.comGroup[R.com[p]].res : S.outGroup.res;
   if(arr && S.mode === "sect"){
     const destRGB = S.dest.items.map((_, i) => hexRGB(destColor(i)));
-    for(let p = 0; p < N; p++){ const nd = R.node[p]; if(nd < 0) continue; const s = S.near.src[nd]; if(s < 0) continue;
+    for(let p = 0; p < N; p++){ const nd = R.node[p]; if(nd < 0) continue; const s = resAt(p).src[nd]; if(s < 0) continue;
       const rgb = destRGB[s]; d[p*4] = rgb[0]; d[p*4+1] = rgb[1]; d[p*4+2] = rgb[2]; d[p*4+3] = 235; }
   } else if(arr){
     const F = R.field;
     for(let p = 0; p < N; p++){
-      const nd = R.node[p], t = nd >= 0 ? arr.time[nd] : Infinity;
+      const nd = R.node[p], t = nd < 0 ? Infinity : arr.grouped ? resAt(p).time[nd] : arr.time[nd];
       F[p] = isFinite(t) ? Math.min(CAPMIN, (t + R.acc[p]) * k / 60) : CAPMIN;
     }
+    // temps vers un équipement réservé à certaines communes : les autres communes sont estompées
+    const only = /^\d+$/.test(S.mode) && S.dest.items[+S.mode].externe && S.acc[+S.mode] ? +S.mode : -1;
     const smooth = $("chk-smooth").checked;
     if(smooth) blurField(F, R.W, R.H, 3, R.tmp);
     for(let p = 0; p < N; p++){
       const m = F[p];
       if(smooth){ const q = Math.min(255, Math.round(m / CAPMIN * 255)) * 4; d[p*4] = LUT[q]; d[p*4+1] = LUT[q+1]; d[p*4+2] = LUT[q+2]; d[p*4+3] = LUT[q+3]; }
       else { let ci = 0; while(m >= TIME_CLASSES[ci].max) ci++; const rgb = CLASS_RGB[ci]; d[p*4] = rgb[0]; d[p*4+1] = rgb[1]; d[p*4+2] = rgb[2]; d[p*4+3] = 255; }
+      if(only >= 0 && !canUse(only, R.com[p])) d[p*4+3] = Math.round(d[p*4+3] * 0.22);
     }
     if($("chk-contours").checked) drawContours(F);
   }
@@ -877,14 +1021,16 @@ function updatePoint(redraw){
   const sn = nearestNode(S.G, S.IX, ll.lat, ll.lng, 12);
   S.startNode = sn.node;
   if(redraw) renderRaster();
-  const com = S.communes.find(c => inGeom(ll.lng, ll.lat, c.contour));
+  const ci = comIndexAt(ll.lat, ll.lng), com = ci >= 0 ? S.communes[ci] : null;
   const place = S.startLabel || (com ? com.nom : "Hors du territoire");
   if(sn.node < 0){ $("results").innerHTML = `<div class="lbl">Départ</div><div class="place">${esc(place)}</div><p class="muted">Aucune voie trouvée à proximité.</p>`; return; }
   const acc = sn.dist / ACCESS_SPEED, k = coef();
-  let rows = S.per.length
-    ? S.per.map((r, i) => r && ({ i, t: (r.time[sn.node] + acc) * k, km: r.dist[sn.node] + sn.dist, res: r })).filter(Boolean)
-    : (S.near.src[sn.node] >= 0 ? [{ i: S.near.src[sn.node], t: (S.near.time[sn.node] + acc) * k, km: S.near.dist[sn.node] + sn.dist, res: S.near }] : []);
-  rows.sort((a, b) => a.t - b.t);
+  const G0 = ci >= 0 ? S.comGroup[ci].res : S.outGroup.res;
+  let all_rows = S.per.length
+    ? S.per.map((r, i) => r && ({ i, t: (r.time[sn.node] + acc) * k, km: r.dist[sn.node] + sn.dist, res: r, ok: canUse(i, ci) })).filter(Boolean)
+    : (G0.src[sn.node] >= 0 ? [{ i: G0.src[sn.node], t: (G0.time[sn.node] + acc) * k, km: G0.dist[sn.node] + sn.dist, res: G0, ok: true }] : []);
+  all_rows.sort((a, b) => a.t - b.t);
+  const rows = all_rows.filter(r => r.ok), refused = all_rows.filter(r => !r.ok);
   S.lastRows = rows;
   const all = $("chk-allroutes").checked;
   rows.slice().reverse().forEach(r => {
@@ -898,7 +1044,7 @@ function updatePoint(redraw){
   const showLbl = S.dest.items.length <= 6;
   S.destMarkers.forEach((m, i) => {
     const r = rows.find(x => x.i === i);
-    const txt = esc(shortName(S.dest.items[i].nom)) + (r ? " · " + fmtMin(r.t) : (S.dest.items[i].externe && !S.useExt ? " · non incluse" : ""));
+    const txt = esc(shortName(S.dest.items[i].nom)) + (r ? " · " + fmtMin(r.t) : (S.dest.items[i].externe && !S.useExt ? " · non incluse" : refused.some(x => x.i === i) ? " · sans convention" : ""));
     m.setTooltipContent(txt);
     if(showLbl && !m.isTooltipOpen()) m.openTooltip();
   });
@@ -914,7 +1060,9 @@ function updatePoint(redraw){
       ${badge(r.i)}
       <span>${esc(S.dest.items[r.i].nom)}${S.dest.items[r.i].externe ? `<span class="tag">${esc(EXT())}</span>` : ""}</span>
       <span class="t">${fmtMin(r.t)} · ${fmtKm(r.km)}</span></div>`).join("")}</div>
-    ${rows.length > 10 ? `<div class="muted">… et ${rows.length - 10} autres.</div>` : ""}`;
+    ${rows.length > 10 ? `<div class="muted">… et ${rows.length - 10} autres.</div>` : ""}
+    ${refused.length ? `<div class="steps">${refused.map(r => `<div class="step off" title="Pas de convention d'accès pour ${esc(com ? com.nom : "ce point")}">
+      ${badge(r.i)}<span>${esc(S.dest.items[r.i].nom)}<span class="tag">sans convention</span></span><span class="t">${fmtMin(r.t)}</span></div>`).join("")}</div>` : ""}`;
   const clr = $("btn-clear-addr");
   if(clr) clr.onclick = () => { S.startLabel = null; $("search").value = ""; updatePoint(false); };
 }
@@ -967,7 +1115,8 @@ function drawDestList(){
   $("eq-type").value = S.dest.type;
   const el = $("destlist");
   el.innerHTML = S.dest.items.length > 40 ? `<div class="muted">${S.dest.items.length} ${plural(S.dest.type)} chargé(e)s.</div>` :
-    S.dest.items.map((d, i) => `<div class="eqitem">${badge(i)}<input type="text" data-i="${i}" value="${esc(d.nom)}">${d.externe ? `<span class="tag" style="margin:0">${esc(EXT())}</span>` : ""}</div>`).join("");
+    S.dest.items.map((d, i) => `<div class="eqitem">${badge(i)}<input type="text" data-i="${i}" value="${esc(d.nom)}">${d.externe ? `<span class="tag" style="margin:0">${esc(EXT())}</span>` : ""}</div>` +
+      (d.externe && d.communes_autorisees && d.communes_autorisees.length ? `<div class="muted" style="margin:0 0 6px 27px">Accès réservé : ${esc(d.communes_autorisees.join(", "))}</div>` : "")).join("");
   el.querySelectorAll("input").forEach(inp => inp.addEventListener("change", () => { S.dest.items[+inp.dataset.i].nom = inp.value; saveDest(); drawDestMarkers(); drawChips(); computeTable(); updatePoint(false); }));
 }
 $("eq-type").addEventListener("change", e => { S.dest.type = e.target.value.trim() || "équipement"; saveDest(); drawDestMarkers(); drawChips(); computeTable(); updatePoint(false); });
@@ -992,7 +1141,7 @@ $("file-dest").addEventListener("change", async e => {
   }catch(err){ $("status").textContent = "Import impossible : " + err.message; }
 });
 $("btn-export-dest").addEventListener("click", () => {
-  const csv = "nom;lat;lon;externe\n" + S.dest.items.map(d => `${d.nom.replace(/;/g, ",")};${d.lat};${d.lon};${d.externe ? "oui" : ""}`).join("\n");
+  const csv = "nom;lat;lon;externe;communes_autorisees\n" + S.dest.items.map(d => `${d.nom.replace(/;/g, ",")};${d.lat};${d.lon};${d.externe ? "oui" : ""};${(d.communes_autorisees || []).join("|")}`).join("\n");
   download("equipements.csv", "\uFEFF" + csv, "text/csv");
 });
 
@@ -1002,13 +1151,13 @@ $("btn-export-dest").addEventListener("click", () => {
 function computeTable(){
   if(!S.G || !S.near) return;
   const k = coef();
-  S.tabRows = S.communes.map(c => {
+  S.tabRows = S.communes.map((c, ci) => {
     const [lo, la] = c.centre.coordinates;
-    const sn = nearestNode(S.G, S.IX, la, lo, 12);
+    const sn = nearestNode(S.G, S.IX, la, lo, 12), G0 = S.comGroup[ci].res;
     const acc = sn.node >= 0 ? sn.dist / ACCESS_SPEED : Infinity;
-    const t = sn.node >= 0 ? (S.near.time[sn.node] + acc) * k : Infinity;
-    const iNear = sn.node >= 0 ? S.near.src[sn.node] : -1;
-    const per = S.per.map(r => r && sn.node >= 0 ? (r.time[sn.node] + acc) * k : Infinity);
+    const t = sn.node >= 0 ? (G0.time[sn.node] + acc) * k : Infinity;
+    const iNear = sn.node >= 0 ? G0.src[sn.node] : -1;
+    const per = S.per.map((r, i) => r && sn.node >= 0 ? (canUse(i, ci) ? (r.time[sn.node] + acc) * k : NaN) : Infinity);
     return { nom: c.nom, code: c.code, pop: c.population, t, near: iNear >= 0 ? S.dest.items[iNear].nom : "–", per, lat: la, lon: lo };
   });
   let P = 0, p10 = 0, p15 = 0, sum = 0;
@@ -1021,13 +1170,13 @@ function computeTable(){
 function drawTable(){
   const cols = [["nom", "Commune"], ["pop", "Population"], ["near", "Le plus proche"], ["t", "Temps"]]
     .concat(S.per.length <= 6 ? S.per.map((r, i) => r ? ["p" + i, shortName(S.dest.items[i].nom)] : null).filter(Boolean) : []);
-  const val = (r, c) => /^p\d+$/.test(c) ? r.per[+c.slice(1)] : r[c];
+  const val = (r, c) => { const v = /^p\d+$/.test(c) ? r.per[+c.slice(1)] : r[c]; return Number.isNaN(v) ? Infinity : v; };
   const { col, asc } = S.sort;
   const rows = S.tabRows.slice().sort((a, b) => { const x = val(a, col), y = val(b, col);
     return (typeof x === "string" ? x.localeCompare(y, "fr") : x - y) * (asc ? 1 : -1); });
   $("tab").tHead.innerHTML = "<tr>" + cols.map(([c, t]) => `<th data-c="${c}">${esc(t)}${c === col ? (asc ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr>";
   $("tab").tBodies[0].innerHTML = rows.map(r => `<tr data-la="${r.lat}" data-lo="${r.lon}" data-n="${esc(r.nom)}"><td>${esc(r.nom)}</td><td class="n">${r.pop.toLocaleString("fr-FR")}</td><td>${esc(r.near)}</td><td class="n"><b>${fmtMin(r.t)}</b></td>` +
-    (S.per.length <= 6 ? r.per.map((t, i) => S.per[i] ? `<td class="n">${fmtMin(t)}</td>` : "").join("") : "") + "</tr>").join("");
+    (S.per.length <= 6 ? r.per.map((t, i) => S.per[i] ? (Number.isNaN(t) ? '<td class="n" style="color:var(--gris2)" title="Pas de convention">sans conv.</td>' : `<td class="n">${fmtMin(t)}</td>`) : "").join("") : "") + "</tr>").join("");
   $("tab").tHead.querySelectorAll("th").forEach(th => th.onclick = () => {
     const c = th.dataset.c; S.sort = { col: c, asc: S.sort.col === c ? !S.sort.asc : true }; drawTable(); });
   $("tab").tBodies[0].querySelectorAll("tr").forEach(tr => tr.onclick = () => {
@@ -1041,7 +1190,7 @@ $("btn-export-tab").addEventListener("click", () => {
   const keep = S.per.map((r, i) => !!r);
   const head = ["commune", "code_insee", "population", "plus_proche", "temps_min"].concat(S.per.map((_, i) => "min_" + S.dest.items[i].nom.replace(/[;\s]+/g, "_")).filter((_, i) => keep[i]));
   const lines = S.tabRows.map(r => [r.nom, r.code, r.pop, r.near, isFinite(r.t) ? (r.t/60).toFixed(1).replace(".", ",") : ""]
-    .concat(r.per.filter((_, i) => keep[i]).map(t => isFinite(t) ? (t/60).toFixed(1).replace(".", ",") : "")).join(";"));
+    .concat(r.per.filter((_, i) => keep[i]).map(t => Number.isNaN(t) ? "sans convention" : isFinite(t) ? (t/60).toFixed(1).replace(".", ",") : "")).join(";"));
   download("temps_acces_par_commune.csv", "\uFEFF" + head.join(";") + "\n" + lines.join("\n"), "text/csv");
 });
 
