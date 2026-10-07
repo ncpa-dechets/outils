@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temps d'accès aux équipements</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+<style>
+:root{
+  --rouge:#B91E27; --encre:#1d2125; --gris:#6b7078; --gris2:#9aa0a6; --trait:#e6e8ea; --fond:#f4f5f6;
+  --vert:#2f9e44; --ombre:0 6px 28px rgba(20,24,28,.14), 0 1px 3px rgba(20,24,28,.08);
+  font-family: Calibri, "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;color:var(--encre);background:#e9eaec;overflow:hidden}
+#map{position:absolute;inset:0}
+.leaflet-container{font-family:inherit;background:#eceeef}
+.card{position:absolute;z-index:1000;background:#fff;border-radius:14px;box-shadow:var(--ombre)}
+#card{top:14px;left:14px;width:340px;max-height:calc(100% - 28px);overflow-y:auto;padding:16px 18px 14px;border-top:3px solid var(--rouge)}
+.eyebrow{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--rouge);font-weight:700}
+h1{font-size:17px;line-height:1.2;margin:2px 0 12px;font-weight:700}
+.lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gris);font-weight:700;margin-bottom:3px}
+.sep{height:1px;background:var(--trait);margin:12px 0}
+.muted{color:var(--gris);font-size:12.5px;line-height:1.35}
+input[type=search],input[type=text],select{font:inherit;font-size:14px;width:100%;padding:8px 12px;border:1px solid var(--trait);border-radius:999px;background:var(--fond);color:var(--encre)}
+input[type=search]:focus,input[type=text]:focus,select:focus{outline:none;border-color:#c4c8cc;background:#fff}
+select{border-radius:8px;padding:6px 8px;font-size:13px}
+button{font:inherit;cursor:pointer;color:var(--encre)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--rouge);outline-offset:1px}
+.pill{border:1px solid #d6d9dc;background:#fff;border-radius:999px;padding:5px 12px;font-size:13px}
+.pill:hover{border-color:#b9bdc2;background:var(--fond)}
+.pill.on{background:var(--encre);border-color:var(--encre);color:#fff}
+.link{border:0;background:none;padding:0;color:var(--vert);font-size:13px;text-decoration:underline;text-underline-offset:2px}
+#search-res ul{list-style:none;margin:6px 0 0;padding:4px 0;background:#fff;border:1px solid var(--trait);border-radius:10px;max-height:220px;overflow:auto;box-shadow:var(--ombre)}
+#search-res li{padding:6px 12px;font-size:13px;cursor:pointer}
+#search-res li:hover{background:var(--fond)}
+#results{margin-top:12px}
+.loading{display:flex;gap:9px;align-items:center;font-size:13px;color:var(--gris);padding:10px 0 2px}
+.loading > div{flex:1;min-width:0}
+.prog{height:5px;background:#eceef0;border-radius:999px;overflow:hidden;margin:7px 0 4px}
+.prog i{display:block;height:100%;background:var(--rouge);border-radius:999px;transition:width .3s}
+.prog.ind i{width:30%;animation:ind 1.3s ease-in-out infinite}
+@keyframes ind{0%{margin-left:-30%}100%{margin-left:100%}}
+.step.off{opacity:.5}
+.loading.err{color:var(--rouge);align-items:flex-start}
+.spin{width:14px;height:14px;flex:0 0 14px;border:2px solid #d6d9dc;border-top-color:var(--rouge);border-radius:50%;animation:sp 0.9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.place{font-size:17px;font-weight:700;line-height:1.25}
+.headrow{display:flex;justify-content:space-between;align-items:baseline}
+.bigtime{font-size:34px;font-weight:700;letter-spacing:-.01em;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.bigtime small{font-size:15px;font-weight:400;color:var(--gris);margin-left:8px;letter-spacing:0}
+.steps{margin-top:10px}
+.step{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:5px 0;font-size:13.5px}
+.step .t{color:var(--gris);font-variant-numeric:tabular-nums;white-space:nowrap}
+.badge{width:20px;height:20px;border-radius:5px;color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips .pill{display:inline-flex;align-items:center;gap:6px}
+.chips .dot{width:9px;height:9px;border-radius:50%}
+.grad{height:10px;border-radius:999px;margin-top:10px}
+.ticks{display:flex;justify-content:space-between;font-size:11.5px;color:var(--gris);margin-top:3px;font-variant-numeric:tabular-nums}
+.sect-leg{display:flex;flex-direction:column;gap:3px;margin-top:10px;font-size:12.5px}
+.sect-leg span{display:flex;align-items:center;gap:7px}
+.sect-leg i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.foot{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+#settings{top:14px;right:14px;width:320px;max-height:calc(100% - 90px);overflow-y:auto;padding:14px 16px}
+#settings h2{font-size:15px;margin:0}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;margin:7px 0}
+.srow label{display:flex;gap:7px;align-items:center;cursor:pointer}
+.eqitem{display:flex;align-items:center;gap:7px;margin:4px 0}
+.eqitem input{padding:4px 10px;font-size:12.5px}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.btnrow .pill{font-size:12px;padding:4px 10px}
+#statsbar{position:absolute;z-index:900;left:50%;transform:translateX(-50%);bottom:14px;background:#fff;border-radius:999px;box-shadow:var(--ombre);padding:7px 16px;font-size:12.5px;color:var(--gris);white-space:nowrap}
+#statsbar b{color:var(--encre)}
+#sheet{left:368px;right:14px;bottom:14px;height:38vh;display:flex;flex-direction:column;overflow:hidden}
+.sheet-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--trait)}
+.sheet-head b{margin-right:auto;font-size:14px}
+.sheet-body{overflow:auto;flex:1}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:5px 10px;border-bottom:1px solid #f0f1f2;text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:#fff;cursor:pointer;user-select:none;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gris)}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--fond)}
+.hidden{display:none!important}
+/* éléments sur la carte */
+.startmark{width:20px;height:20px;border-radius:50%;background:#16191c;border:4px solid #fff;box-shadow:0 0 0 1.5px #16191c,0 2px 8px rgba(0,0,0,.35);cursor:grab}
+.dmark{width:24px;height:24px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
+.dmark.ext{background:#fff!important;border:2.5px dashed var(--c);color:var(--c)}
+.dmark.off{opacity:.45}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gris);border:1px solid #d6d9dc;border-radius:999px;padding:0 6px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.badge.ext{background:#fff!important;border:2px dashed var(--c);color:var(--c)}
+.dmark.edit{outline:2px dashed #16191c;outline-offset:2px;cursor:move}
+.leaflet-tooltip.tt-dark{background:#16191c;color:#fff;border:0;border-radius:7px;padding:4px 8px;font-weight:700;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.leaflet-tooltip.tt-dark:before{display:none}
+.leaflet-tooltip.tt-start{background:var(--vert);color:#fff;border:0;border-radius:7px;padding:3px 9px;font-weight:700;font-size:12.5px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.leaflet-tooltip.tt-start:before{border-top-color:var(--vert)}
+.iso-lbl{display:inline-block;transform:translate(-50%,-50%);background:rgba(255,255,255,.92);border-radius:999px;padding:1px 7px;font-size:11.5px;font-weight:700;color:#16191c;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.leaflet-control-zoom,.leaflet-control-layers{border:0!important;box-shadow:var(--ombre)!important;border-radius:10px!important;overflow:hidden}
+@media (max-width:860px){
+  #card{width:auto;right:14px;max-height:52vh}
+  #settings{left:14px;right:14px;width:auto;top:auto;bottom:60px;max-height:55vh}
+  #sheet{left:14px}
+  #statsbar{font-size:11.5px;padding:6px 12px}
+}
+
+/* ---- couches, modes, suivi des données ---- */
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.chips .pill .cnt{font-size:11.5px;color:var(--gris);font-variant-numeric:tabular-nums;margin-left:1px}
+.chips .pill.on .cnt{color:#c9cdd1}
+.spin.sm{width:10px;height:10px;flex-basis:10px;border-width:1.5px;display:inline-block;vertical-align:-1px}
+.data{margin:0 0 12px;padding:9px 11px;border-radius:10px;background:var(--fond);font-size:13px}
+.data.err{background:#fdf1f1}
+.dsum{display:flex;align-items:center;gap:8px}
+.dsum > span:nth-child(2){flex:1;min-width:0}
+.jobs{margin-top:8px;border-top:1px solid var(--trait);padding-top:4px}
+.job{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #eceef0}
+.job:last-child{border-bottom:0}
+.job > .spin, .job > .ji{margin-top:2px}
+.jb{flex:1;min-width:0}
+.jh{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.jt{color:var(--gris);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.jd{color:var(--gris);font-size:12px;line-height:1.4;margin-top:1px}
+.jd b{color:var(--encre)}
+.job.s-todo{opacity:.75}
+.job .link{font-size:12px;margin-top:3px}
+.ji{width:16px;height:16px;flex:0 0 16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#fff}
+.ji.ok{background:var(--vert)} .ji.warn{background:#e8a100} .ji.err{background:var(--rouge)}
+.ji.todo{background:#fff;border:1.5px solid #c4c8cc}
+.diag{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.drow{display:grid;grid-template-columns:12px 1fr auto;gap:9px;align-items:center;width:100%;text-align:left;border:0;background:none;border-radius:8px;padding:5px 7px;margin:0 -7px;width:calc(100% + 14px)}
+.drow:hover{background:var(--fond)}
+.drow.on{background:var(--fond);box-shadow:inset 3px 0 0 var(--encre)}
+.drow .badge{width:12px;height:12px;border-radius:3px}
+.dn{display:flex;flex-direction:column;min-width:0;font-size:13px;line-height:1.25}
+.dn > span{color:var(--gris);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dt{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.smark{width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45)}
+.smark.ext{background:#fff!important;border:2px dashed var(--c)}
+.smark.edit{outline:2px dashed #16191c;outline-offset:1px;cursor:move}
+details.reseaux{margin-top:8px;font-size:12.5px}
+details.reseaux summary{cursor:pointer}
+details.reseaux label{display:flex;gap:6px;align-items:flex-start;margin:4px 0;line-height:1.25}
+#st-lbl{color:var(--encre);font-weight:700;margin-right:6px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="card" class="card">
+  <div class="eyebrow" id="h-eyebrow"></div>
+  <h1 id="h-titre"></h1>
+  <div id="data" class="data"></div>
+  <div class="lbl">Équipements</div>
+  <div id="layers" class="chips"></div>
+  <div class="lbl" style="margin-top:10px">Mode de déplacement</div>
+  <div id="profils" class="seg"></div>
+  <div class="sep"></div>
+  <input id="search" type="search" placeholder="Rechercher une adresse du territoire…" autocomplete="off">
+  <div id="search-res"></div>
+  <div id="results"></div>
+  <div class="sep"></div>
+  <div class="lbl">Carte des temps</div>
+  <div id="chips" class="chips"></div>
+  <div id="legend"></div>
+  <div class="foot">
+    <button id="btn-settings" class="pill">Réglages</button>
+    <button id="btn-table" class="pill">Tableau par commune</button>
+  </div>
+</div>
+
+<div id="settings" class="card hidden">
+  <div class="headrow"><h2>Réglages</h2><button class="link" id="btn-close-settings">Fermer</button></div>
+  <div class="sep"></div>
+  <div class="lbl">Affichage</div>
+  <div class="srow" id="row-coef"><span>Circulation</span>
+    <select id="coef" style="width:auto">
+      <option value="1">Fluide (×1)</option>
+      <option value="1.15" selected>Normale (×1,15)</option>
+      <option value="1.3">Chargée, été (×1,3)</option>
+    </select></div>
+  <div class="srow"><span>Opacité</span><input id="opacity" type="range" min="0" max="100" value="70" style="width:140px"></div>
+  <div class="srow"><label><input type="checkbox" id="chk-smooth" checked> Zones lissées</label></div>
+  <div class="srow"><label><input type="checkbox" id="chk-contours" checked> Courbes isochrones</label></div>
+  <div class="srow"><label><input type="checkbox" id="chk-allroutes" checked> Itinéraire vers chaque site listé</label></div>
+  <p class="muted" id="note-temps" style="margin:6px 0 0"></p>
+  <div class="sep"></div>
+  <div class="lbl" id="lbl-sites">Sites</div>
+  <div id="layerinfo"></div>
+  <div class="btnrow">
+    <button id="btn-edit" class="pill">Déplacer sur la carte</button>
+    <label class="pill" style="cursor:pointer" title="Remplacer les sites de cette couche : CSV (nom;lat;lon ou colonne WKT) ou GeoJSON de points en WGS84">Importer…<input id="file-dest" type="file" accept=".csv,.txt,.geojson,.json" class="hidden"></label>
+    <button id="btn-export-dest" class="pill">Exporter</button>
+    <button id="btn-reset-dest" class="pill">Réinitialiser</button>
+  </div>
+  <p class="muted" style="margin:6px 0 0">Positions, noms et imports sont mémorisés dans ce navigateur.</p>
+  <div class="sep"></div>
+  <div class="lbl">Fichier de travail</div>
+  <p class="muted" style="margin:2px 0 4px">Réseaux chargés et couches dans un seul fichier, pour un collègue ou un poste sans connexion.</p>
+  <div class="btnrow">
+    <label class="pill" style="cursor:pointer">Ouvrir…<input id="file-net" type="file" accept=".json" class="hidden"></label>
+    <button id="btn-save" class="pill" disabled>Enregistrer</button>
+  </div>
+</div>
+
+<div id="statsbar"><span id="st-lbl"></span>Population à moins de 10 min <b id="st-10">–</b> · 15 min <b id="st-15">–</b> · temps moyen <b id="st-mean">–</b> <span style="color:var(--gris2)">(centres de communes)</span></div>
+
+<div id="sheet" class="card hidden">
+  <div class="sheet-head"><b id="sheet-title">Temps par commune</b><button id="btn-export-tab" class="pill">Exporter (CSV)</button><button id="btn-close-sheet" class="link">Fermer</button></div>
+  <div class="sheet-body"><table id="tab"><thead></thead><tbody></tbody></table></div>
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+   CONFIGURATION
+   ================================================================ */
+const CONFIG = /*CONFIG_DEBUT*/{
+  "titre": "Temps d'accès aux équipements",
+  "surtitre": "NCPA · Connaissance du territoire",
+  "territoire": { "epci_siren": "200065563", "communes_insee": [] },
+  "profil_defaut": "voiture",
+  "couche_defaut": "ecole",
+  "couches": [
+    { "id": "decheterie", "court": "Déchèteries", "libelle": "Déchèteries", "type": "déchèterie", "source": "fichier", "couleur": "#4E8F3A",
+      "note": "Positions issues du relevé des déchèteries ; Cambremer et Villers-sur-Mer accessibles aux seules communes conventionnées.",
+      "items": [
+        { "nom": "Déchèterie de Bréville-les-Monts", "lat": 49.224488, "lon": -0.228139 },
+        { "nom": "Déchèterie de Merville-Franceville-Plage", "lat": 49.277661, "lon": -0.201604 },
+        { "nom": "Déchèterie de Périers-en-Auge", "lat": 49.25823, "lon": -0.09976 },
+        { "nom": "Déchèterie de Cambremer", "lat": 49.146062, "lon": 0.044338, "externe": true,
+          "communes_autorisees": ["Beaufour-Druval", "Beuvron-en-Auge", "Hotot-en-Auge", "Rumesnil", "Victot-en-Auge"] },
+        { "nom": "Déchèterie de Villers-sur-Mer", "lat": 49.308626, "lon": -0.019442, "externe": true,
+          "communes_autorisees": ["Auberville", "Gonneville-sur-Mer", "Saint-Vaast-en-Auge"] }
+      ] },
+    { "id": "ecole", "court": "Écoles", "libelle": "Écoles (maternelles, élémentaires)", "type": "école", "source": "education", "filtre": "ecole", "couleur": "#D9822B" },
+    { "id": "college", "court": "Collèges", "libelle": "Collèges", "type": "collège", "source": "education", "filtre": "college", "couleur": "#7B4FA0" },
+    { "id": "arret", "court": "Arrêts de bus", "libelle": "Arrêts de bus et de car", "type": "arrêt", "source": "gtfs", "couleur": "#2E6DA4" }
+  ]
+}/*CONFIG_FIN*/;
+
+/* Profils de déplacement : réseau OSM retenu, vitesses (km/h), sens uniques, largeur des tranches (min) */
+const PROFILS = {
+  voiture: {
+    libelle: "en voiture", court: "Voiture", pas: 5,
+    filtre: "^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|road)$",
+    exclusions: '["access"!~"^(no|private)$"]["motor_vehicle"!~"^(no|private)$"]["service"!~"^(parking_aisle|driveway|drive-through|emergency_access)$"]',
+    vitesses: { motorway:110, motorway_link:60, trunk:90, trunk_link:50, primary:75, primary_link:45, secondary:65, secondary_link:40,
+      tertiary:55, tertiary_link:35, unclassified:45, road:40, residential:30, living_street:15, service:20 },
+    vitesse_defaut: 30, maxspeed: true, sens_uniques: true, acces_kmh: 15, coef_trafic: true
+  },
+  velo: {
+    libelle: "à vélo", court: "Vélo", pas: 5,
+    filtre: "^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|road|cycleway|track|path|pedestrian)$",
+    exclusions: '["access"!~"^(no|private)$"]["bicycle"!~"^(no|dismount)$"]',
+    vitesses: { cycleway:16, track:12, path:12, pedestrian:8, living_street:12 },
+    vitesse_defaut: 15, maxspeed: false, sens_uniques: true, acces_kmh: 5, coef_trafic: false
+  },
+  pied: {
+    libelle: "à pied", court: "À pied", pas: 3,
+    filtre: "^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service|road|footway|pedestrian|steps|path|track|cycleway)$",
+    exclusions: '["access"!~"^(no|private)$"]["foot"!~"^no$"]',
+    vitesses: { steps: 2 },
+    vitesse_defaut: 4.5, maxspeed: false, sens_uniques: false, acces_kmh: 4, coef_trafic: false
+  }
+};
+const BBOX_MARGIN = 0.03;   // marge (degrés, ~3 km) autour du territoire pour le réseau et les équipements
+const RASTER_WIDTH = 520;   // résolution horizontale de la carte des temps (pixels)
+const PER_MAX = 8;          // au-delà, pas de carte « temps vers un site donné »
+const LIST_MAX = 8;         // nombre de sites listés depuis le point
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+/* Courbes isochrones : majeures (étiquetées, toutes les 2 tranches) et mineures */
+const CONTOUR_STYLE = { couleur: "#3a3f45", majeure: { epaisseur: 0.9, opacite: 0.35 }, mineure: { epaisseur: 0.6, opacite: 0.18 } };
+const DEST_COLORS = ["#2E6DA4","#D9822B","#4E8F3A","#7B4FA0","#C0392B","#16838C","#8C6D1F","#C2477E","#4A5A6A","#5C8DD6"];
+function timeClasses(p){
+  const cols = ["#1a9641","#a6d96a","#ffffbf","#fdae61","#e2543a","#8b1a1a"];
+  return cols.map((color, i) => i < 5
+    ? { max: p*(i+1), color, label: i === 0 ? `moins de ${p} min` : `${p*i} à ${p*(i+1)} min` }
+    : { max: Infinity, color, label: `plus de ${p*5} min` });
+}
+
+/* ================================================================
+   Fonctions de calcul (indépendantes de l'affichage)
+   ================================================================ */
+function haversine(lat1, lon1, lat2, lon2){
+  const R = 6371000, r = Math.PI/180;
+  const dLat = (lat2-lat1)*r, dLon = (lon2-lon1)*r;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+function parseMaxspeed(v){
+  if(!v) return null;
+  v = String(v).trim().toLowerCase();
+  if(v === "fr:urban") return 50; if(v === "fr:rural") return 80;
+  if(v === "fr:motorway") return 130; if(v === "fr:zone30") return 30;
+  if(v === "walk") return 6;
+  if(v.includes("mph")) return null;
+  const n = parseFloat(v); return isFinite(n) && n > 0 ? n : null;
+}
+function wayDirection(tags, key){
+  // 3 = double sens, 1 = sens de numérisation, 2 = sens inverse
+  const P = PROFILS[key];
+  if(!P.sens_uniques) return 3;
+  if(key === "velo" && (tags["oneway:bicycle"] === "no" || tags.highway === "cycleway" && !tags.oneway)) return 3;
+  const ow = (tags.oneway || "").toLowerCase();
+  if(ow === "-1" || ow === "reverse") return 2;
+  if(ow === "yes" || ow === "1" || ow === "true") return 1;
+  if(ow === "no" || ow === "false" || ow === "0") return 3;
+  if(tags.junction === "roundabout" || tags.junction === "circular") return 1;
+  if(key === "voiture" && (tags.highway === "motorway" || tags.highway === "motorway_link")) return 1;
+  return 3;
+}
+function wayLinkSpeed(tags, key){
+  const P = PROFILS[key], hw = tags.highway, def = P.vitesses[hw] || P.vitesse_defaut;
+  const mx = P.maxspeed ? parseMaxspeed(tags.maxspeed) : null;
+  return mx ? Math.min(mx*0.85, def*1.3) : def;   // km/h
+}
+
+/* Transforme la réponse Overpass en réseau compact (noeuds + tronçons) pour un profil */
+function overpassToNetwork(json, key){
+  const coords = new Map();
+  for(const el of json.elements) if(el.type === "node") coords.set(el.id, [el.lat, el.lon]);
+  const idx = new Map(); const lat = [], lon = [];
+  const ea = [], eb = [], len = [], cost = [], dir = [];
+  const getIdx = id => {
+    let i = idx.get(id);
+    if(i === undefined){ const c = coords.get(id); if(!c) return -1; i = lat.length; idx.set(id, i); lat.push(c[0]); lon.push(c[1]); }
+    return i;
+  };
+  for(const el of json.elements){
+    if(el.type !== "way" || !el.tags || !el.nodes) continue;
+    const d = wayDirection(el.tags, key); const v = wayLinkSpeed(el.tags, key) / 3.6;
+    for(let k = 0; k < el.nodes.length - 1; k++){
+      const a = getIdx(el.nodes[k]), b = getIdx(el.nodes[k+1]);
+      if(a < 0 || b < 0 || a === b) continue;
+      const L = haversine(lat[a], lon[a], lat[b], lon[b]);
+      ea.push(a); eb.push(b); len.push(Math.round(L*10)/10); cost.push(Math.round(L/v*100)/100); dir.push(d);
+    }
+  }
+  return { lat, lon, ea, eb, len, cost, dir };
+}
+
+/* Bilan d'un réseau : nombre de voies et longueur totale (km), pour vérifier que le téléchargement est complet */
+function networkStats(net, nWays){
+  let km = 0; for(let e = 0; e < net.len.length; e++) km += net.len[e];
+  return { nodes: net.lat.length, edges: net.ea.length, ways: nWays, km: Math.round(km / 1000) };
+}
+
+/* Graphe "inversé" (temps de chaque noeud VERS un équipement) + graphe "aller" (temps DEPUIS un point) */
+function buildGraph(net){
+  const n = net.lat.length, m = net.ea.length;
+  const lat = Float64Array.from(net.lat), lon = Float64Array.from(net.lon);
+  const deg = new Int32Array(n + 1);
+  for(let e = 0; e < m; e++){ const d = net.dir[e]; if(d & 1) deg[net.eb[e]]++; if(d & 2) deg[net.ea[e]]++; }
+  const start = new Int32Array(n + 1);
+  for(let i = 0; i < n; i++) start[i+1] = start[i] + deg[i];
+  const fill = start.slice(0, n);
+  const to = new Int32Array(start[n]), c = new Float32Array(start[n]), l = new Float32Array(start[n]);
+  for(let e = 0; e < m; e++){
+    const a = net.ea[e], b = net.eb[e], d = net.dir[e];
+    if(d & 1){ const p = fill[b]++; to[p] = a; c[p] = net.cost[e]; l[p] = net.len[e]; }
+    if(d & 2){ const p = fill[a]++; to[p] = b; c[p] = net.cost[e]; l[p] = net.len[e]; }
+  }
+  const fdeg = new Int32Array(n + 1);
+  for(let e = 0; e < m; e++){ const d = net.dir[e]; if(d & 1) fdeg[net.ea[e]]++; if(d & 2) fdeg[net.eb[e]]++; }
+  const fstart = new Int32Array(n + 1);
+  for(let i = 0; i < n; i++) fstart[i+1] = fstart[i] + fdeg[i];
+  const ffill = fstart.slice(0, n);
+  const fto = new Int32Array(fstart[n]), fc = new Float32Array(fstart[n]);
+  for(let e = 0; e < m; e++){
+    const a = net.ea[e], b = net.eb[e], d = net.dir[e];
+    if(d & 1){ const p = ffill[a]++; fto[p] = b; fc[p] = net.cost[e]; }
+    if(d & 2){ const p = ffill[b]++; fto[p] = a; fc[p] = net.cost[e]; }
+  }
+  const par = new Int32Array(n); for(let i = 0; i < n; i++) par[i] = i;
+  const find = x => { while(par[x] !== x){ par[x] = par[par[x]]; x = par[x]; } return x; };
+  for(let e = 0; e < m; e++){ const ra = find(net.ea[e]), rb = find(net.eb[e]); if(ra !== rb) par[ra] = rb; }
+  const size = new Int32Array(n); let best = 0, bestR = 0;
+  for(let i = 0; i < n; i++){ const r = find(i); size[r]++; if(size[r] > best){ best = size[r]; bestR = r; } }
+  const main = new Uint8Array(n); for(let i = 0; i < n; i++) if(find(i) === bestR) main[i] = 1;
+  return { n, lat, lon, start, to, c, l, fstart, fto, fc, main, mainSize: best };
+}
+
+function buildIndex(G){
+  const cell = 0.004, cells = new Map();
+  for(let i = 0; i < G.n; i++){
+    if(!G.main[i]) continue;
+    const k = Math.floor(G.lat[i]/cell) * 100000 + Math.floor(G.lon[i]/cell);
+    let a = cells.get(k); if(!a){ a = []; cells.set(k, a); } a.push(i);
+  }
+  return { cell, cells };
+}
+function nearestNode(G, IX, la, lo, maxRings = 8){
+  const cy = Math.floor(la/IX.cell), cx = Math.floor(lo/IX.cell);
+  let best = -1, bd = Infinity;
+  for(let r = 0; r <= maxRings; r++){
+    for(let dy = -r; dy <= r; dy++) for(let dx = -r; dx <= r; dx++){
+      if(Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const a = IX.cells.get((cy+dy)*100000 + (cx+dx)); if(!a) continue;
+      for(const i of a){
+        const d = (G.lat[i]-la)**2 + ((G.lon[i]-lo)*0.655)**2; // 0.655 ≈ cos(49°)
+        if(d < bd){ bd = d; best = i; }
+      }
+    }
+    if(best >= 0 && Math.sqrt(bd) < r * IX.cell * 0.655) break;
+  }
+  if(best < 0) return { node: -1, dist: Infinity };
+  return { node: best, dist: haversine(la, lo, G.lat[best], G.lon[best]) };
+}
+
+/* Dijkstra multi-sources sur le graphe inversé : temps de chaque noeud vers la source la plus proche */
+function dijkstra(G, sources){
+  const n = G.n;
+  const time = new Float64Array(n).fill(Infinity), dist = new Float32Array(n);
+  const next = new Int32Array(n).fill(-1), src = new Int32Array(n).fill(-1);
+  let hk = [], hv = [];
+  const push = (k, v) => { let i = hk.length; hk.push(k); hv.push(v);
+    while(i > 0){ const p = (i-1) >> 1; if(hk[p] <= k) break; hk[i] = hk[p]; hv[i] = hv[p]; i = p; } hk[i] = k; hv[i] = v; };
+  const pop = () => { const v = hv[0], lk = hk.pop(), lv = hv.pop(); const N = hk.length;
+    if(N){ let i = 0; while(true){ let l = 2*i+1; if(l >= N) break; const r = l+1; if(r < N && hk[r] < hk[l]) l = r;
+      if(hk[l] >= lk) break; hk[i] = hk[l]; hv[i] = hv[l]; i = l; } hk[i] = lk; hv[i] = lv; } return v; };
+  for(const s of sources){ if(s.node < 0 || time[s.node] === 0) continue; time[s.node] = 0; src[s.node] = s.k; push(0, s.node); }
+  while(hk.length){
+    const t = hk[0], u = pop();
+    if(t > time[u]) continue;
+    for(let e = G.start[u], E = G.start[u+1]; e < E; e++){
+      const v = G.to[e], nt = t + G.c[e];
+      if(nt < time[v]){ time[v] = nt; dist[v] = dist[u] + G.l[e]; next[v] = u; src[v] = src[u]; push(nt, v); }
+    }
+  }
+  return { time, dist, next, src };
+}
+/* Dijkstra "aller" depuis un noeud, plafonné à maxSec, tableaux réutilisés ; garde les prédécesseurs pour les itinéraires */
+function makeForwardSolver(G){
+  const time = new Float64Array(G.n).fill(Infinity), prev = new Int32Array(G.n).fill(-1);
+  let touched = new Int32Array(1 << 16), nt = 0;
+  const hk = [], hv = [];
+  const out = { time, prev, src: -1 };
+  return function run(src, maxSec){
+    for(let i = 0; i < nt; i++){ time[touched[i]] = Infinity; prev[touched[i]] = -1; }
+    nt = 0; hk.length = 0; hv.length = 0; out.src = src;
+    const mark = v => { if(nt === touched.length){ const t2 = new Int32Array(nt * 2); t2.set(touched); touched = t2; } touched[nt++] = v; };
+    const push = (k, v) => { let i = hk.length; hk.push(k); hv.push(v);
+      while(i > 0){ const p = (i-1) >> 1; if(hk[p] <= k) break; hk[i] = hk[p]; hv[i] = hv[p]; i = p; } hk[i] = k; hv[i] = v; };
+    const pop = () => { const v = hv[0], lk = hk.pop(), lv = hv.pop(); const N = hk.length;
+      if(N){ let i = 0; while(true){ let l = 2*i+1; if(l >= N) break; const r = l+1; if(r < N && hk[r] < hk[l]) l = r;
+        if(hk[l] >= lk) break; hk[i] = hk[l]; hv[i] = hv[l]; i = l; } hk[i] = lk; hv[i] = lv; } return v; };
+    if(src < 0) return out;
+    time[src] = 0; mark(src); push(0, src);
+    while(hk.length){
+      const t = hk[0], u = pop();
+      if(t > time[u]) continue;
+      if(t > maxSec) break;
+      for(let e = G.fstart[u], E = G.fstart[u+1]; e < E; e++){
+        const v = G.fto[e], x = t + G.fc[e];
+        if(x < time[v]){ if(time[v] === Infinity) mark(v); time[v] = x; prev[v] = u; push(x, v); }
+      }
+    }
+    return out;
+  };
+}
+function tracePath(G, res, node){
+  const pts = []; let u = node, guard = 0;
+  while(u >= 0 && guard++ < 200000){ pts.push([G.lat[u], G.lon[u]]); u = res.next[u]; }
+  return pts;
+}
+/* Itinéraire depuis le point (solveur aller) jusqu'au noeud cible */
+function traceForward(G, fw, node){
+  const pts = []; let u = node, guard = 0;
+  while(u >= 0 && guard++ < 200000){ pts.push([G.lat[u], G.lon[u]]); if(u === fw.src) break; u = fw.prev[u]; }
+  return pts.reverse();
+}
+function pathLength(pts){ let s = 0; for(let i = 1; i < pts.length; i++) s += haversine(pts[i-1][0], pts[i-1][1], pts[i][0], pts[i][1]); return s; }
+
+/* Point dans polygone (GeoJSON Polygon / MultiPolygon) */
+function inRing(x, y, ring){
+  let ins = false;
+  for(let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if(((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) ins = !ins;
+  }
+  return ins;
+}
+function inGeom(lon, lat, g){
+  const polys = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+  for(const p of polys){ if(inRing(lon, lat, p[0])){ let hole = false; for(let h = 1; h < p.length; h++) if(inRing(lon, lat, p[h])) hole = true; if(!hole) return true; } }
+  return false;
+}
+
+/* ================================================================
+   Lecture des fichiers et des sources open data
+   ================================================================ */
+const r6 = v => Math.round(v * 1e6) / 1e6;
+function normTxt(s){ return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
+
+/* Résolution d'une liste de communes (noms ou codes INSEE) vers des codes INSEE du territoire */
+function normNom(s){ return String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+function resolveCommunes(list, communes){
+  const codes = new Set(), warnings = [];
+  for(const raw of list || []){
+    const v = String(raw).trim(); if(!v) continue;
+    let c = communes.find(x => x.code === v) || communes.find(x => normNom(x.nom) === normNom(v));
+    if(!c){
+      const first = normNom(v).split("-")[0];
+      const cand = communes.filter(x => normNom(x.nom).split("-")[0] === first);
+      if(cand.length === 1){ c = cand[0]; warnings.push(`« ${v} » associée à « ${c.nom} »`); }
+    }
+    if(c) codes.add(c.code); else warnings.push(`« ${v} » introuvable parmi les communes du territoire`);
+  }
+  return { codes, warnings };
+}
+/* Équipement hors territoire : colonne « externe » (oui/1/true) ou mention « (hors …) » dans le nom, retirée du libellé */
+function markExternal(it, flag){
+  const m = /\s*\((hors [^)]*)\)\s*$/i.exec(it.nom);
+  if(m){ it.nom = it.nom.slice(0, m.index); it.externe = true; }
+  if(flag != null && /^(1|oui|o|yes|y|true|vrai|x)$/i.test(String(flag).trim())) it.externe = true;
+  return it;
+}
+/* Lecture CSV d'équipements (séparateur ; , ou tabulation ; colonnes lat/lon OU colonne WKT « POINT (x y) ») */
+function splitCSVLine(line, sep){
+  const out = []; let cur = "", q = false;
+  for(let i = 0; i < line.length; i++){
+    const ch = line[i];
+    if(q){ if(ch === '"'){ if(line[i+1] === '"'){ cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if(ch === '"') q = true;
+    else if(ch === sep){ out.push(cur.trim()); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur.trim()); return out;
+}
+function parseDestCSV(text){
+  text = text.replace(/^\uFEFF/, "");
+  const lines = text.split(/\r?\n/).filter(s => s.trim());
+  if(lines.length < 2) throw new Error("Le fichier ne contient pas de lignes de données.");
+  const sep = [";", "\t", ","].map(s => [s, splitCSVLine(lines[0], s).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const head = splitCSVLine(lines[0], sep).map(h => h.toLowerCase());
+  const iLat = head.findIndex(h => /^(lat|latitude|y|wgs84_lat|lat_wgs84)$/.test(h));
+  const iLon = head.findIndex(h => /^(lon|lng|long|longitude|x|wgs84_lon|lon_wgs84)$/.test(h));
+  const iWkt = head.findIndex(h => /^(wkt|geom|geometry|the_geom|geometrie)$/.test(h));
+  let iNom = head.findIndex(h => /^(nom|name|libelle|libellé|lib|nom_site|site|intitule)$/.test(h));
+  if(iNom < 0) iNom = head.findIndex(h => /nom|name|lib/.test(h));
+  const iExt = head.findIndex(h => /^(externe|exterieur|extérieur|hors_territoire|hors_ncpa)$/.test(h));
+  const iAcc = head.findIndex(h => /^(communes_autorisees|communes_autorisées|acces|accès|convention|communes)$/.test(h));
+  if((iLat < 0 || iLon < 0) && iWkt < 0) throw new Error("Coordonnées introuvables. En-têtes attendus : nom ; lat ; lon (WGS84), ou une colonne WKT.");
+  const out = [];
+  for(const ln of lines.slice(1)){
+    const c = splitCSVLine(ln, sep);
+    let la, lo;
+    if(iLat >= 0 && iLon >= 0){ la = parseFloat((c[iLat] || "").replace(",", ".")); lo = parseFloat((c[iLon] || "").replace(",", ".")); }
+    else { const m = /POINT\s*Z?M?\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)/i.exec(c[iWkt] || ""); if(m){ lo = parseFloat(m[1]); la = parseFloat(m[2]); } }
+    if(!isFinite(la) || !isFinite(lo)) continue;
+    if(Math.abs(la) > 90 || Math.abs(lo) > 180) throw new Error("Coordonnées hors WGS84 (probablement du Lambert-93). Exportez la couche en EPSG:4326 depuis QGIS.");
+    const it = markExternal({ nom: iNom >= 0 && c[iNom] ? c[iNom] : "Site " + (out.length + 1), lat: r6(la), lon: r6(lo) }, iExt >= 0 ? c[iExt] : null);
+    if(iAcc >= 0 && c[iAcc]){ it.communes_autorisees = c[iAcc].split(/\s*[|,]\s*/).filter(Boolean); it.externe = true; }
+    out.push(it);
+  }
+  if(!out.length) throw new Error("Aucune ligne avec des coordonnées valides.");
+  return out;
+}
+function parseDestGeoJSON(gj){
+  const feats = gj.type === "FeatureCollection" ? gj.features : [gj];
+  const out = [];
+  for(const f of feats){
+    if(!f.geometry || f.geometry.type !== "Point") continue;
+    const p = f.properties || {};
+    const key = Object.keys(p).find(k => /^(nom|name|libelle|libellé|lib)$/i.test(k)) || Object.keys(p).find(k => /nom|name|lib/i.test(k));
+    const [lo, la] = f.geometry.coordinates;
+    if(Math.abs(la) > 90) throw new Error("Coordonnées hors WGS84 : exportez le GeoJSON en EPSG:4326.");
+    const ek = Object.keys(p).find(k => /^(externe|exterieur|extérieur|hors_territoire|hors_ncpa)$/i.test(k));
+    out.push(markExternal({ nom: key ? String(p[key]) : "Site " + (out.length + 1), lat: r6(la), lon: r6(lo) }, ek ? p[ek] : null));
+  }
+  if(!out.length) throw new Error("Aucun point trouvé dans le GeoJSON.");
+  return out;
+}
+
+
+/* Flou "boîte" séparable (2 passes ≈ flou gaussien) appliqué au champ des temps, pour lisser les isochrones */
+function blurField(f, W, H, r, tmp){
+  const n = 2*r + 1;
+  for(let pass = 0; pass < 2; pass++){
+    for(let j = 0; j < H; j++){            // horizontal f -> tmp
+      const o = j*W; let acc = 0;
+      for(let i = -r; i <= r; i++) acc += f[o + Math.min(W-1, Math.max(0, i))];
+      for(let i = 0; i < W; i++){
+        tmp[o+i] = acc / n;
+        acc += f[o + Math.min(W-1, i+r+1)] - f[o + Math.max(0, i-r)];
+      }
+    }
+    for(let i = 0; i < W; i++){            // vertical tmp -> f
+      let acc = 0;
+      for(let j = -r; j <= r; j++) acc += tmp[Math.min(H-1, Math.max(0, j))*W + i];
+      for(let j = 0; j < H; j++){
+        f[j*W+i] = acc / n;
+        acc += tmp[Math.min(H-1, j+r+1)*W + i] - tmp[Math.max(0, j-r)*W + i];
+      }
+    }
+  }
+  return f;
+}
+/* Courbes de niveau (marching squares) : renvoie des segments [x1,y1,x2,y2] en coordonnées pixel */
+function contourSegments(f, W, H, level, inside){
+  const segs = [];
+  const lerp = (a, b) => (level - a) / (b - a);
+  for(let j = 0; j < H-1; j++) for(let i = 0; i < W-1; i++){
+    if(inside && !inside[j*W+i]) continue;
+    const a = f[j*W+i], b = f[j*W+i+1], c = f[(j+1)*W+i+1], d = f[(j+1)*W+i];
+    const k = (a >= level ? 8 : 0) | (b >= level ? 4 : 0) | (c >= level ? 2 : 0) | (d >= level ? 1 : 0);
+    if(k === 0 || k === 15) continue;
+    const T = [i + lerp(a, b), j], R = [i+1, j + lerp(b, c)], B = [i + lerp(d, c), j+1], L = [i, j + lerp(a, d)];
+    const add = (p, q) => segs.push(p[0], p[1], q[0], q[1]);
+    switch(k){
+      case 1: case 14: add(L, B); break;
+      case 2: case 13: add(B, R); break;
+      case 3: case 12: add(L, R); break;
+      case 4: case 11: add(T, R); break;
+      case 6: case 9:  add(T, B); break;
+      case 7: case 8:  add(L, T); break;
+      case 5:  add(L, T); add(B, R); break;
+      case 10: add(T, R); add(L, B); break;
+    }
+  }
+  return segs;
+}
+
+
+/* Annuaire de l'éducation (data.education.gouv.fr) : accepte les formats des API v2.1 (exports ou records) et v1 */
+function eduRecords(data){
+  if(Array.isArray(data)) return data;
+  if(data && Array.isArray(data.results)) return data.results;
+  if(data && Array.isArray(data.records)) return data.records.map(r => r.fields || (r.record && r.record.fields) || r);
+  return [];
+}
+function eduLatLon(r){
+  const la = parseFloat(r.latitude), lo = parseFloat(r.longitude);
+  if(isFinite(la) && isFinite(lo)) return [la, lo];
+  const p = r.position || r.geo_point_2d || r.geolocalisation || r.coordonnees;
+  if(Array.isArray(p) && p.length >= 2) return [+p[0], +p[1]];
+  if(p && typeof p === "object" && isFinite(p.lat)) return [+p.lat, +(p.lon !== undefined ? p.lon : p.lng)];
+  return null;
+}
+function parseEducation(data, bbox){
+  const out = { ecole: [], college: [] }, seen = new Set();
+  for(const r of eduRecords(data)){
+    const typ = normTxt(r.type_etablissement);
+    const cle = typ.startsWith("ecole") ? "ecole" : typ.startsWith("college") ? "college" : null;
+    if(!cle) continue;
+    const etat = normTxt(r.etat);
+    if(etat === "ferme") continue;
+    const ll = eduLatLon(r); if(!ll || !isFinite(ll[0]) || !isFinite(ll[1])) continue;
+    if(bbox && (ll[0] < bbox.s || ll[0] > bbox.n || ll[1] < bbox.w || ll[1] > bbox.e)) continue;
+    const id = r.identifiant_de_l_etablissement || (r.nom_etablissement + "|" + ll.join(","));
+    if(seen.has(id)) continue; seen.add(id);
+    let nom = String(r.nom_etablissement || (cle === "ecole" ? "École" : "Collège")).trim();
+    if(r.nom_commune && !normTxt(nom).includes(normTxt(r.nom_commune))) nom += " (" + r.nom_commune + ")";
+    const niv = cle === "ecole" ? [+r.ecole_maternelle ? "maternelle" : null, +r.ecole_elementaire ? "élémentaire" : null].filter(Boolean).join(" + ") : "";
+    const info = [r.statut_public_prive, niv].filter(Boolean).join(" · ");
+    out[cle].push({ nom, lat: r6(ll[0]), lon: r6(ll[1]), info, uai: r.identifiant_de_l_etablissement || "" });
+  }
+  out.ecole.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  out.college.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  return out;
+}
+
+/* Arrêts : regroupe les arrêts de même nom à moins de `rayon` m (quais opposés, doublons entre fichiers GTFS) */
+function mergeStops(raw, rayon = 150){
+  const groups = new Map(), out = [];
+  for(const s of raw){
+    const k = normTxt(s.nom).replace(/[^a-z0-9]+/g, " ").trim();
+    let arr = groups.get(k); if(!arr){ arr = []; groups.set(k, arr); }
+    let g = arr.find(g => haversine(g.lat, g.lon, s.lat, s.lon) < rayon);
+    if(!g){ g = { nom: s.nom, lat: s.lat, lon: s.lon, n: 0, sl: 0, so: 0, reseaux: new Set() }; arr.push(g); }
+    g.n++; g.sl += s.lat; g.so += s.lon; g.lat = g.sl / g.n; g.lon = g.so / g.n; g.reseaux.add(s.reseau);
+  }
+  for(const arr of groups.values()) for(const g of arr) out.push({ nom: g.nom, lat: r6(g.lat), lon: r6(g.lon), reseaux: [...g.reseaux].sort() });
+  out.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  return out;
+}
+/* API « gtfs-stops » de transport.data.gouv.fr (GeoJSON) */
+function parseGtfsStops(fc){
+  const raw = [];
+  for(const f of (fc && fc.features) || []){
+    const g = f.geometry; if(!g || g.type !== "Point") continue;
+    const p = f.properties || {};
+    const lt = p.location_type;
+    if(lt !== undefined && lt !== null && lt !== "" && +lt !== 0) continue;   // on garde les points d'arrêt, pas les zones
+    const [lo, la] = g.coordinates;
+    if(!isFinite(la) || !isFinite(lo)) continue;
+    raw.push({ nom: String(p.stop_name || "Arrêt sans nom").trim(), lat: la, lon: lo,
+      reseau: String(p.dataset_title || p.resource_title || "Réseau non précisé").trim() });
+  }
+  return mergeStops(raw);
+}
+/* Secours : arrêts de bus d'OpenStreetMap (Overpass) */
+function parseOverpassStops(json){
+  const raw = [];
+  for(const el of (json && json.elements) || []){
+    if(el.type !== "node" || !el.tags) continue;
+    raw.push({ nom: el.tags.name || "Arrêt sans nom", lat: el.lat, lon: el.lon, reseau: el.tags.network || el.tags.operator || "OpenStreetMap" });
+  }
+  return mergeStops(raw);
+}
+
+if(typeof module !== "undefined") module.exports = { CONFIG, PROFILS, timeClasses, networkStats, blurField, contourSegments, resolveCommunes, markExternal, splitCSVLine, makeForwardSolver, overpassToNetwork, buildGraph, buildIndex,
+  nearestNode, dijkstra, tracePath, traceForward, pathLength, parseDestCSV, parseDestGeoJSON, inGeom, wayDirection,
+  parseEducation, parseGtfsStops, parseOverpassStops, mergeStops };
+</script>
+
+<script>
+"use strict";
+if(typeof window !== "undefined" && window.L){ (function(){
+
+/* ================================================================
+   État
+   ================================================================ */
+const T = CONFIG.territoire;
+const K = "ncpa-acces-" + (T.epci_siren || (T.communes_insee || []).join("-")).slice(0, 80);
+const hashParams = new URLSearchParams(location.hash.slice(1));
+const S = {
+  communes: null, bbox: null, ebbox: null, grid: null, overlay: null,
+  profil: PROFILS[hashParams.get("mode")] ? hashParams.get("mode") : CONFIG.profil_defaut,
+  couche: CONFIG.couches.some(c => c.id === hashParams.get("couche")) ? hashParams.get("couche") : CONFIG.couche_defaut,
+  mode: "from",                // carte : from | near | sect | index d'un site
+  prof: {}, loading: {},       // par profil : { net, G, IX, fwd, rnode, racc, date, from, stats, res: {} }
+  layers: {},                  // par couche : { def, items, exclus, source, date, statut, msg }
+  startNode: -1, startLabel: null, fw: null, editMode: false, markers: [],
+  jobsOpen: null, sort: { col: "nom", asc: true }, tabRows: []
+};
+const $ = id => document.getElementById(id);
+const fmtMin = s => !isFinite(s) ? "–" : (s < 60 ? "< 1 min" : Math.round(s/60) + " min");
+const fmtKm = m => !isFinite(m) ? "–" : (m/1000).toFixed(1).replace(".", ",") + " km";
+const fmtMo = n => n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " Ko" : (n / 1048576).toFixed(1).replace(".", ",") + " Mo";
+const fmtInt = n => Math.round(n).toLocaleString("fr-FR");
+const P = () => PROFILS[S.profil];
+const cur = () => { const p = S.prof[S.profil]; return p && p.G ? p : null; };
+const coef = () => P().coef_trafic ? parseFloat($("coef").value) : 1;
+const classes = () => timeClasses(P().pas);
+const destColor = k => DEST_COLORS[k % DEST_COLORS.length];
+const today = () => new Date().toISOString().slice(0, 10);
+const frDate = d => d ? d.split("-").reverse().join("/") : "";
+const tick = () => new Promise(r => setTimeout(r, 30));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const plural = s => /s$|x$/.test(s) ? s : s + "s";
+function shortName(nom, type){
+  const t = normTxt(type), n = nom.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const m = new RegExp("^" + t + "s?\\s+(de\\s+la\\s+|de\\s+l'|du\\s+|des\\s+|de\\s+|d')?", "i").exec(n);
+  const rest = m ? nom.slice(m[0].length) : nom;
+  return /^[A-ZÀ-Ý]/.test(rest) ? rest : nom;   // « Déchèterie de Périers » → « Périers » ; « Ecole primaire », « Arrêt 20 » restent entiers
+}
+const nb = (n, type) => `${n} ${n > 1 ? plural(type) : type}`;
+const isExt = it => !!(it.externe || it.hors);
+
+/* Stockage : petites données dans localStorage, réseaux dans IndexedDB (mémoire du navigateur) */
+const lsGet = k => { try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } };
+const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+const IDB = (() => {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open("ncpa-temps-acces", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  return {
+    async get(k){ try{ const db = await open(); return await new Promise((res, rej) => { const q = db.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }catch(e){ return undefined; } },
+    async set(k, v){ try{ const db = await open(); await new Promise((res, rej) => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); return true; }catch(e){ return false; } }
+  };
+})();
+
+/* ================================================================
+   Suivi des chargements : une ligne par source, avec état, détail et progression
+   ================================================================ */
+const JOB_ORDER = ["communes", "net:voiture", "net:velo", "net:pied", "decheterie", "edu", "gtfs"];
+const JOBS = {};
+let jobTimer = 0, jobRaf = 0;
+function job(id, patch){
+  const j = JOBS[id] = JOBS[id] || { id };
+  if(patch.state === "run" && j.state !== "run") j.t0 = performance.now();
+  if(patch.state === "err") S.jobsOpen = null;   // une erreur rouvre le détail
+  if(patch.state && patch.state !== "run") j.t1 = performance.now();
+  Object.assign(j, patch);
+  const running = Object.values(JOBS).some(x => x.state === "run");
+  if(running && !jobTimer) jobTimer = setInterval(renderJobs, 500);
+  if(!running && jobTimer){ clearInterval(jobTimer); jobTimer = 0; }
+  if(!jobRaf) jobRaf = requestAnimationFrame(() => { jobRaf = 0; renderJobs(); });
+}
+const ICON = {
+  run: '<span class="spin"></span>',
+  ok: '<span class="ji ok">✓</span>', cache: '<span class="ji ok">✓</span>',
+  warn: '<span class="ji warn">!</span>', err: '<span class="ji err">✕</span>', todo: '<span class="ji todo"></span>'
+};
+function renderJobs(){
+  const list = JOB_ORDER.map(id => JOBS[id]).filter(Boolean);
+  if(!list.length) return;
+  const run = list.filter(j => j.state === "run"), err = list.filter(j => j.state === "err"), warn = list.filter(j => j.state === "warn");
+  const needed = list.filter(j => j.state !== "todo"), done = needed.filter(j => j.state !== "run");
+  let sum;
+  if(run.length) sum = `<span class="spin"></span><span>Récupération des données… <b>${done.length}/${needed.length}</b></span>`;
+  else if(err.length) sum = `<span class="ji err">✕</span><span style="color:var(--rouge)">Échec : ${err.map(j => esc(j.label)).join(", ")}</span>`;
+  else if(warn.length) sum = `<span class="ji warn">!</span><span>Données chargées, ${warn.length} point${warn.length > 1 ? "s" : ""} à vérifier</span>`;
+  else sum = `<span class="ji ok">✓</span><span>Données chargées et vérifiées</span>`;
+  const open = S.jobsOpen != null ? S.jobsOpen : run.length > 0 || err.length > 0;   // ouvert d'office pendant un chargement ou en cas d'échec
+  const now = performance.now();
+  const rows = list.map(j => {
+    const secs = j.state === "run" ? Math.round((now - j.t0) / 1000) : null;
+    const right = j.state === "run" ? `${secs} s` : (j.right || "");
+    const bar = j.state !== "run" ? "" : j.pct != null ? `<div class="prog"><i style="width:${Math.max(3, j.pct)}%"></i></div>` : '<div class="prog ind"><i></i></div>';
+    return `<div class="job s-${j.state}">${ICON[j.state] || ""}<div class="jb">
+      <div class="jh"><b>${esc(j.label)}</b><span class="jt">${right}</span></div>
+      ${j.text ? `<div class="jd">${j.text}</div>` : ""}${bar}
+      ${j.action ? `<button class="link" data-a="${j.id}">${esc(j.action.label)}</button>` : ""}</div></div>`;
+  }).join("");
+  $("data").innerHTML = `<div class="dsum">${sum}<button class="link" id="btn-jobs">${open ? "Masquer" : "Détails"}</button></div>` +
+    (open ? `<div class="jobs">${rows}</div>` : "");
+  $("data").className = "data" + (err.length && !run.length ? " err" : "");
+}
+$("data").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  if(b.id === "btn-jobs"){ S.jobsOpen = !$("data").querySelector(".jobs"); renderJobs(); return; }
+  const j = JOBS[b.dataset.a]; if(j && j.action) j.action.fn();
+});
+
+/* Lecture d'une réponse HTTP par morceaux, pour afficher les octets reçus */
+async function readBody(r, onBytes){
+  if(!r.body || !r.body.getReader){ const t = await r.text(); onBytes(t.length); return t; }
+  const reader = r.body.getReader(), dec = new TextDecoder(), parts = []; let n = 0;
+  while(true){ const { done, value } = await reader.read(); if(done) break; n += value.length; onBytes(n); parts.push(dec.decode(value, { stream: true })); }
+  parts.push(dec.decode()); return parts.join("");
+}
+async function fetchJSONProgress(url, jobId, prefix){
+  const t0 = performance.now();
+  const r = await fetch(url);
+  if(!r.ok) throw new Error(new URL(url).hostname + " a répondu " + r.status);
+  const txt = await readBody(r, n => job(jobId, { text: `${prefix} · réception <b>${fmtMo(n)}</b>` }));
+  return JSON.parse(txt);
+}
+
+/* ================================================================
+   Carte
+   ================================================================ */
+const map = L.map("map", { zoomControl: false }).setView([49.25, -0.13], 11);
+L.control.zoom({ position: "bottomright" }).addTo(map);
+const plan = L.maplibreGL({ style: "https://tiles.openfreemap.org/styles/positron",
+  attribution: '© <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">contributeurs OpenStreetMap</a>' }).addTo(map);
+const ortho = L.tileLayer("https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image%2Fjpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+  { maxZoom: 20, maxNativeZoom: 19, attribution: "© IGN / Géoplateforme" });
+L.control.layers({ "Plan": plan, "Photo aérienne IGN": ortho }, {}, { position: "bottomright" }).addTo(map);
+L.control.scale({ imperial: false, position: "bottomright" }).addTo(map);
+map.createPane("raster").style.zIndex = 380;  map.getPane("raster").style.pointerEvents = "none";
+map.createPane("contours").style.zIndex = 400; map.getPane("contours").style.pointerEvents = "none";
+map.createPane("routes").style.zIndex = 420;
+map.createPane("isolbl").style.zIndex = 430;   map.getPane("isolbl").style.pointerEvents = "none";
+const contourRenderer = L.canvas({ pane: "contours", padding: 0.3 });
+const CanvasOverlay = L.ImageOverlay.extend({
+  _initImage: function(){
+    const el = this._image = this._url;
+    L.DomUtil.addClass(el, "leaflet-image-layer");
+    if(this._zoomAnimated) L.DomUtil.addClass(el, "leaflet-zoom-animated");
+    el.onselectstart = L.Util.falseFn; el.onmousemove = L.Util.falseFn;
+  }
+});
+const communesLayer = L.geoJSON(null, { style: { color: "#5f6670", weight: 0.8, fill: false, opacity: 0.55 }, interactive: false }).addTo(map);
+const contourLayer = L.layerGroup().addTo(map);
+const routesLayer = L.layerGroup().addTo(map);
+const destLayer = L.layerGroup().addTo(map);
+const startMarker = L.marker([49.26, -0.12], { draggable: true, zIndexOffset: 1000, keyboard: false,
+  icon: L.divIcon({ className: "", html: '<div class="startmark"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }) });
+startMarker.bindTooltip("Départ", { permanent: true, direction: "top", offset: [0, -12], className: "tt-start" });
+setTimeout(() => map.invalidateSize(), 50);
+
+/* ================================================================
+   Territoire et grille de la carte des temps
+   ================================================================ */
+async function fetchCommunes(){
+  const f = "fields=nom,code,centre,population,contour";
+  let list;
+  if(T.epci_siren){
+    list = await fetchJSONProgress(`https://geo.api.gouv.fr/epcis/${T.epci_siren}/communes?${f}`, "communes", "API Géo (geo.api.gouv.fr)");
+  } else {
+    list = await Promise.all((T.communes_insee || []).map(async code => {
+      const r = await fetch(`https://geo.api.gouv.fr/communes/${code}?${f}`);
+      if(!r.ok) throw new Error("Commune " + code + " introuvable dans l'API Géo"); return r.json(); }));
+  }
+  if(!list.length) throw new Error("aucune commune trouvée pour ce territoire");
+  return list.map(c => ({ nom: c.nom, code: c.code, population: c.population || 0, centre: c.centre, contour: c.contour }));
+}
+function communesBBox(com){
+  let s = 90, w = 180, n = -90, e = -180;
+  for(const c of com){
+    const polys = c.contour.type === "Polygon" ? [c.contour.coordinates] : c.contour.coordinates;
+    for(const p of polys) for(const [lo, la] of p[0]){ if(la < s) s = la; if(la > n) n = la; if(lo < w) w = lo; if(lo > e) e = lo; }
+  }
+  return { s, w, n, e };
+}
+function installCommunes(com){
+  S.communes = com; S.bbox = communesBBox(com);
+  const b = S.bbox, m = BBOX_MARGIN;
+  S.ebbox = { s: +(b.s - m).toFixed(4), w: +(b.w - m).toFixed(4), n: +(b.n + m).toFixed(4), e: +(b.e + m).toFixed(4) };
+  communesLayer.clearLayers();
+  com.forEach(c => communesLayer.addData({ type: "Feature", properties: { nom: c.nom }, geometry: c.contour }));
+  map.fitBounds(communesLayer.getBounds(), { paddingTopLeft: [window.innerWidth > 860 ? 380 : 10, 10], paddingBottomRight: [70, 60] });
+  buildGrid();
+}
+const inTerritory = (la, lo) => S.communes ? S.communes.some(c => inGeom(lo, la, c.contour)) : true;
+const comIndexAt = (lat, lng) => S.communes.findIndex(c => inGeom(lng, lat, c.contour));
+
+/* Grille de pixels commune à tous les modes : masque du territoire et commune de chaque pixel */
+function buildGrid(){
+  const b = S.bbox, crs = L.CRS.EPSG3857;
+  const p1 = crs.project(L.latLng(b.s, b.w)), p2 = crs.project(L.latLng(b.n, b.e));
+  const W = RASTER_WIDTH, res = (p2.x - p1.x) / W, H = Math.ceil((p2.y - p1.y) / res);
+  const rowLat = new Float64Array(H), colLng = new Float64Array(W);
+  for(let j = 0; j < H; j++) rowLat[j] = crs.unproject(L.point(p1.x, p2.y - (j+0.5)*res)).lat;
+  for(let i = 0; i < W; i++) colLng[i] = crs.unproject(L.point(p1.x + (i+0.5)*res, p2.y)).lng;
+  const paint = (ctx, styleOf) => S.communes.forEach((c, k) => {
+    const polys = c.contour.type === "Polygon" ? [c.contour.coordinates] : c.contour.coordinates;
+    ctx.fillStyle = styleOf(k); ctx.beginPath();
+    for(const poly of polys) for(const ring of poly){
+      ring.forEach(([lo, la], q) => { const pp = crs.project(L.latLng(la, lo)); const x = (pp.x - p1.x)/res, y = (p2.y - pp.y)/res; q ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.closePath();
+    }
+    ctx.fill("evenodd");
+  });
+  const mask = document.createElement("canvas"); mask.width = W; mask.height = H;
+  const mx = mask.getContext("2d"); paint(mx, () => "#000");
+  const md = mx.getImageData(0, 0, W, H).data, inside = new Uint8Array(W*H);
+  for(let p = 0; p < W*H; p++) inside[p] = md[p*4+3] > 100 ? 1 : 0;
+  const ic = document.createElement("canvas"); ic.width = W; ic.height = H;
+  const ix = ic.getContext("2d"); paint(ix, k => `rgb(${(k+1) & 255},${(k+1) >> 8},0)`);
+  const idd = ix.getImageData(0, 0, W, H).data, com = new Int16Array(W*H).fill(-1);
+  for(let p = 0; p < W*H; p++){
+    const k = idd[p*4] + idd[p*4+1] * 256 - 1;
+    if(idd[p*4+3] === 255 && k >= 0 && k < S.communes.length && idd[p*4+2] === 0) com[p] = k;
+    else if(inside[p]){ const j = Math.floor(p / W), i = p % W; com[p] = S.communes.findIndex(c => inGeom(colLng[i], rowLat[j], c.contour)); }
+  }
+  const canvas = document.createElement("canvas"); canvas.width = W; canvas.height = H;
+  const bounds = L.latLngBounds(crs.unproject(L.point(p1.x, p2.y - H*res)), crs.unproject(L.point(p2.x, p2.y)));
+  S.grid = { W, H, mask, inside, com, canvas, bounds, rowLat, colLng, field: new Float32Array(W*H), tmp: new Float32Array(W*H) };
+  if(S.overlay) map.removeLayer(S.overlay);
+  S.overlay = new CanvasOverlay(canvas, bounds, { pane: "raster", opacity: $("opacity").value/100, interactive: false }).addTo(map);
+}
+
+/* ================================================================
+   Réseaux (un par mode de déplacement), avec suivi du téléchargement
+   ================================================================ */
+async function fetchRoads(b, key){
+  const id = "net:" + key, PR = PROFILS[key];
+  const q = `[out:json][timeout:240];
+way["highway"~"${PR.filtre}"]${PR.exclusions}
+(${b.s},${b.w},${b.n},${b.e});
+out body;>;out skel qt;`;
+  const sizeKey = K + ":taille:" + key;
+  let expected = +lsGet(sizeKey) || null, lastErr;
+  for(let si = 0; si < OVERPASS.length; si++){
+    const ep = OVERPASS[si], server = new URL(ep).hostname;
+    const ctrl = new AbortController(); let reason = null;
+    const abort = r => { reason = r; ctrl.abort(); };
+    const t0 = performance.now(); let bytes = 0, last = t0;
+    const other = si < OVERPASS.length - 1 ? { label: "Essayer l'autre serveur", fn: () => abort("switch") } : null;
+    const upd = () => {
+      const el = (performance.now() - t0) / 1000, idle = (performance.now() - last) / 1000;
+      if(!bytes){
+        job(id, { text: `Requête envoyée à <b>${server}</b> : le serveur extrait les voies…` +
+          (el > 45 ? '<br><span class="muted">Ce délai est normal quand le serveur est chargé (jusqu\'à 2 à 3 min).</span>' : ""), pct: null, action: other });
+        if(el > 200) abort("timeout");
+      } else {
+        job(id, { text: `Réception depuis ${server} : <b>${fmtMo(bytes)}</b>${expected ? " sur ≈ " + fmtMo(expected) : ""}` +
+          (idle > 8 ? `<br><span class="muted">Aucune donnée depuis ${Math.round(idle)} s…</span>` : ""),
+          pct: expected ? Math.min(99, bytes / expected * 100) : null, action: other });
+        if(idle > 60) abort("timeout");
+      }
+    };
+    const iv = setInterval(upd, 500); upd();
+    try{
+      const r = await fetch(ep, { method: "POST", signal: ctrl.signal, body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+      if(!r.ok) throw new Error(r.status === 429 || r.status === 504 ? `serveur ${server} saturé (${r.status})` : `${server} a répondu ${r.status}`);
+      const cl = +r.headers.get("Content-Length"); if(cl) expected = cl;
+      const text = await readBody(r, n => { bytes = n; last = performance.now(); });
+      clearInterval(iv);
+      job(id, { text: `Lecture des ${fmtMo(bytes)} reçus…`, pct: 100, action: null }); await tick();
+      const json = JSON.parse(text);
+      if(json.remark && /error|runtime/i.test(json.remark) && !(json.elements || []).length) throw new Error("Overpass : " + json.remark);
+      lsSet(sizeKey, bytes);
+      return { json, bytes, server };
+    }catch(e){
+      clearInterval(iv);
+      lastErr = reason === "switch" ? new Error("changement de serveur demandé") : reason === "timeout" ? new Error(`pas de réponse de ${server}`) : e;
+      console.warn(server, lastErr);
+      if(si < OVERPASS.length - 1) job(id, { text: `${esc(lastErr.message)} : essai sur le serveur suivant…`, pct: null, action: null });
+    }
+  }
+  throw lastErr || new Error("Overpass indisponible");
+}
+function installNet(key, net, date, from, stats){
+  const G = buildGraph(net), IX = buildIndex(G);
+  const R = S.grid, accSpeed = PROFILS[key].acces_kmh / 3.6;
+  const rnode = new Int32Array(R.W*R.H), racc = new Float32Array(R.W*R.H);
+  for(let j = 0; j < R.H; j++) for(let i = 0; i < R.W; i++){
+    const r = nearestNode(G, IX, R.rowLat[j], R.colLng[i], 6);
+    rnode[j*R.W+i] = r.node; racc[j*R.W+i] = r.dist / accSpeed;
+  }
+  const pr = { key, net, G, IX, fwd: makeForwardSolver(G), rnode, racc, date, from, stats: stats || networkStats(net, null), res: {} };
+  S.prof[key] = pr;
+  return pr;
+}
+/* Contrôle de cohérence affiché : taille du réseau et centres de communes reliés */
+function reportNet(pr){
+  const st = pr.stats, n = S.communes.length;
+  let ok = 0; for(const c of S.communes){ const [lo, la] = c.centre.coordinates; if(nearestNode(pr.G, pr.IX, la, lo, 12).dist < 500) ok++; }
+  const small = pr.G.mainSize < 2000, holes = ok < n * 0.9;
+  const lines = [`${st.ways ? fmtInt(st.ways) + " voies · " : ""}${fmtInt(st.km)} km de voies · ${fmtInt(pr.G.mainSize)} nœuds`,
+    `${ok}/${n} centres de communes reliés au réseau`];
+  lines.push(pr.from === "cache" ? "Mémorisé dans ce navigateur" : pr.from === "fichier" ? "Ouvert depuis un fichier" : `Téléchargé depuis ${esc(st.server || "OpenStreetMap")} (${fmtMo((st.mo || 0) * 1048576)})`);
+  if(small || holes) lines.push('<span style="color:#b26a00">Réseau anormalement réduit : relancez la mise à jour.</span>');
+  job("net:" + pr.key, { state: small || holes ? "warn" : pr.from === "osm" ? "ok" : "cache", text: lines.join("<br>"),
+    right: "OSM du " + frDate(pr.date), pct: null, action: { label: "Mettre à jour depuis OpenStreetMap", fn: () => updateProfile(pr.key) } });
+}
+function ensureProfile(key, force){
+  if(!force && S.prof[key] && S.prof[key].G) return Promise.resolve(S.prof[key]);
+  if(S.loading[key]) return S.loading[key];
+  const id = "net:" + key;
+  return S.loading[key] = (async () => {
+    try{
+      const saved = force ? null : await IDB.get(K + ":net:" + key);
+      let pr;
+      if(saved && saved.net && saved.net.lat){
+        job(id, { state: "run", text: "Ouverture du réseau mémorisé dans ce navigateur…", pct: null, action: null }); await tick();
+        pr = installNet(key, saved.net, saved.date, "cache", saved.stats);
+      } else {
+        job(id, { state: "run", text: "Connexion à OpenStreetMap (Overpass)…", pct: null, action: null });
+        const { json, bytes, server } = await fetchRoads(S.ebbox, key);
+        const nWays = json.elements.reduce((n, e) => n + (e.type === "way" ? 1 : 0), 0);
+        if(!nWays) throw new Error("la réponse ne contient aucune voie");
+        job(id, { text: `${fmtInt(nWays)} voies reçues · construction du graphe…`, pct: null, action: null }); await tick();
+        const net = overpassToNetwork(json, key), date = today();
+        const stats = Object.assign(networkStats(net, nWays), { server, mo: bytes / 1048576 });
+        job(id, { text: "Préparation de la carte des temps…" }); await tick();
+        pr = installNet(key, net, date, "osm", stats);
+        IDB.set(K + ":net:" + key, { net, date, stats });
+        lsSet(K + ":meta:" + key, { date, stats });
+      }
+      reportNet(pr);
+      return pr;
+    }catch(e){
+      job(id, { state: "err", text: "Échec : " + esc(e.message) + ".", pct: null, right: "",
+        action: { label: "Réessayer", fn: () => updateProfile(key) } });
+      throw e;
+    } finally { delete S.loading[key]; }
+  })();
+}
+function updateProfile(key){
+  if(key === S.profil) return activateProfile(key, true);
+  ensureProfile(key, true).catch(() => {});
+}
+async function activateProfile(key, force){
+  S.profil = key; updateHash(); drawProfiles();
+  $("row-coef").classList.toggle("hidden", !PROFILS[key].coef_trafic);
+  $("note-temps").textContent = "Temps théoriques calculés sur le réseau OpenStreetMap " + PROFILS[key].libelle +
+    (PROFILS[key].coef_trafic ? ", sans trafic réel ni temps de stationnement." : ", à vitesse constante.");
+  drawChips();
+  if(!S.prof[key] || force){
+    routesLayer.clearLayers(); contourLayer.clearLayers(); clearCanvas();
+    $("results").innerHTML = `<div class="loading"><span class="spin"></span><span>Récupération du réseau ${esc(PROFILS[key].libelle)}… <span class="muted">(détail ci-dessus)</span></span></div>`;
+  }
+  try{
+    await ensureProfile(key, force);
+    if(S.profil !== key) return;
+    $("btn-save").disabled = false;
+    if(!map.hasLayer(startMarker)){
+      const f = (hashParams.get("from") || "").split(",").map(Number);
+      startMarker.setLatLng(f.length === 2 && f.every(isFinite) ? f : communesLayer.getBounds().getCenter()).addTo(map);
+    }
+    refresh();
+  }catch(e){
+    console.error(e);
+    if(S.profil === key) $("results").innerHTML = `<div class="loading err"><span>Le réseau ${esc(PROFILS[key].libelle)} n'a pas pu être récupéré. Voir le détail ci-dessus.</span></div>`;
+  }
+}
+
+/* ================================================================
+   Couches d'équipements
+   ================================================================ */
+function layer(id){ return S.layers[id || S.couche]; }
+function activeItems(Ly){
+  if(!Ly || !Ly.items) return [];
+  if(!Ly.exclus || !Ly.exclus.length) return Ly.items;
+  return Ly.items.filter(it => !it.reseaux || it.reseaux.some(r => !Ly.exclus.includes(r)));
+}
+function saveLayer(Ly){ lsSet(K + ":couche:" + Ly.def.id, { items: Ly.items, exclus: Ly.exclus, source: Ly.source, date: Ly.date }); }
+function setLayerItems(Ly, items, source){
+  Ly.items = items; Ly.source = source; Ly.date = today(); Ly.statut = items.length ? "ok" : "vide"; Ly.msg = "";
+  markHors(Ly); saveLayer(Ly); invalidate(Ly.def.id);
+}
+function markHors(Ly){ if(S.communes) for(const it of Ly.items) it.hors = !inTerritory(it.lat, it.lon); }
+function invalidate(id){ for(const k in S.prof) if(S.prof[k].res) delete S.prof[k].res[id]; }
+const countHors = items => items.filter(isExt).length;
+function layerJob(def){
+  const Ly = S.layers[def.id], n = activeItems(Ly).length, h = countHors(activeItems(Ly));
+  return `${esc(nb(n, def.type))}${h ? ` (dont ${h} hors NCPA)` : ""}`;
+}
+function reportFileLayer(def){
+  const Ly = S.layers[def.id];
+  job(def.id, { label: def.court || def.libelle, state: Ly.items.length ? "ok" : "warn",
+    text: Ly.items.length ? `${layerJob(def)} · ${esc(Ly.source || "fichier")}` : "Aucun site : importez un fichier (Réglages)", right: Ly.date ? frDate(Ly.date) : "", action: null });
+}
+
+async function fetchEducation(b){
+  const H = "https://data.education.gouv.fr", DS = "fr-en-annuaire-education";
+  const deps = [...new Set(S.communes.map(c => c.code.slice(0, 2)))].filter(d => /^\d\d$/.test(d));
+  const whereBox = `latitude >= ${b.s} and latitude <= ${b.n} and longitude >= ${b.w} and longitude <= ${b.e}`;
+  const whereDep = deps.map(d => `code_departement = "0${d}" or code_departement = "${d}"`).join(" or ");
+  const poly = `(${b.s},${b.w}),(${b.n},${b.w}),(${b.n},${b.e}),(${b.s},${b.e})`;
+  const tries = [
+    ["requête par emprise", `${H}/api/explore/v2.1/catalog/datasets/${DS}/exports/json?where=${encodeURIComponent(whereBox)}`],
+    ["requête par département", `${H}/api/explore/v2.1/catalog/datasets/${DS}/exports/json?where=${encodeURIComponent(whereDep)}`],
+    ["ancienne API", `${H}/api/records/1.0/search/?dataset=${DS}&rows=10000&geofilter.polygon=${encodeURIComponent(poly)}`]
+  ];
+  let lastErr = null;
+  for(const [lbl, u] of tries){
+    try{
+      job("edu", { text: `data.education.gouv.fr · ${lbl}…` });
+      const parsed = parseEducation(await fetchJSONProgress(u, "edu", `data.education.gouv.fr · ${lbl}`), b);
+      if(parsed.ecole.length + parsed.college.length) return parsed;
+      lastErr = new Error("aucun établissement renvoyé");
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error("Annuaire de l'éducation indisponible");
+}
+async function fetchStops(b){
+  try{
+    job("gtfs", { text: "transport.data.gouv.fr · interrogation…" });
+    const fc = await fetchJSONProgress(`https://transport.data.gouv.fr/api/gtfs-stops?south=${b.s}&north=${b.n}&west=${b.w}&east=${b.e}`, "gtfs", "transport.data.gouv.fr");
+    const items = parseGtfsStops(fc);
+    if(items.length) return { items, source: "transport.data.gouv.fr (horaires GTFS)", fallback: false, raw: (fc.features || []).length };
+  }catch(e){ console.warn("GTFS indisponible", e); }
+  const q = `[out:json][timeout:90];(node["highway"="bus_stop"](${b.s},${b.w},${b.n},${b.e});node["public_transport"="platform"]["bus"="yes"](${b.s},${b.w},${b.n},${b.e}););out body;`;
+  for(const ep of OVERPASS){
+    try{
+      job("gtfs", { text: `transport.data.gouv.fr indisponible · secours OpenStreetMap (${new URL(ep).hostname})…` });
+      const r = await fetch(ep, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+      if(!r.ok) throw new Error("Overpass " + r.status);
+      const json = JSON.parse(await readBody(r, n => job("gtfs", { text: `Secours OpenStreetMap · réception <b>${fmtMo(n)}</b>` })));
+      const items = parseOverpassStops(json);
+      if(items.length) return { items, source: "OpenStreetMap (secours)", fallback: true, raw: json.elements.length };
+    }catch(e){ console.warn(e); }
+  }
+  throw new Error("aucune source d'arrêts accessible");
+}
+
+/* Charge les couches : mémoire du navigateur d'abord, sinon open data ; `force` = couches à retélécharger */
+async function loadLayers(force = []){
+  for(const def of CONFIG.couches){
+    if(S.layers[def.id] && !force.includes(def.id)) continue;
+    const st = force.includes(def.id) ? null : lsGet(K + ":couche:" + def.id);
+    const Ly = S.layers[def.id] = S.layers[def.id] || { def, items: [], exclus: [], source: "", date: "", statut: "vide", msg: "" };
+    if(st && Array.isArray(st.items) && (st.items.length || def.source !== "fichier" || !(def.items || []).length)){
+      Object.assign(Ly, { items: st.items, exclus: st.exclus || [], source: st.source || "", date: st.date || "", statut: st.items.length ? "ok" : "vide", fromCache: true });
+      markHors(Ly);
+    } else if(def.source === "fichier"){
+      Ly.items = JSON.parse(JSON.stringify(def.items || [])); Ly.statut = Ly.items.length ? "ok" : "vide";
+      Ly.source = Ly.items.length ? "relevé intégré à l'outil" : ""; Ly.date = ""; markHors(Ly);
+    } else { Ly.statut = "chargement"; Ly.items = []; Ly.fromCache = false; }
+    if(def.source === "fichier") reportFileLayer(def);
+  }
+  const groups = { education: "edu", gtfs: "gtfs" };
+  for(const src in groups){
+    const defs = CONFIG.couches.filter(d => d.source === src);
+    if(!defs.length) continue;
+    const id = groups[src], label = src === "education" ? "Écoles et collèges" : "Arrêts de bus et de car";
+    const pending = defs.filter(d => S.layers[d.id].statut === "chargement");
+    if(!pending.length){
+      const Ly0 = S.layers[defs[0].id];
+      job(id, { label, state: "cache", text: defs.map(layerJob).join(" · ") + `<br>${esc(Ly0.source)}, mémorisé dans ce navigateur`,
+        right: Ly0.date ? "chargé le " + frDate(Ly0.date) : "", action: { label: "Recharger depuis l'open data", fn: () => reloadSource(src) } });
+    } else job(id, { label, state: "run", text: "Connexion…", right: "", action: null });
+  }
+  drawLayers(); drawLayerPanel();
+  const done = () => { drawLayers(); drawLayerPanel(); refresh(); };
+  const jobs = [];
+  const edu = CONFIG.couches.filter(d => d.source === "education" && S.layers[d.id].statut === "chargement");
+  const gtfs = CONFIG.couches.filter(d => d.source === "gtfs" && S.layers[d.id].statut === "chargement");
+  if(edu.length) jobs.push(fetchEducation(S.ebbox).then(res => {
+    for(const d of edu) setLayerItems(S.layers[d.id], res[d.filtre] || [], "Annuaire de l'éducation nationale");
+    const empty = edu.filter(d => !S.layers[d.id].items.length);
+    job("edu", { state: empty.length ? "warn" : "ok", text: edu.map(layerJob).join(" · ") + "<br>Annuaire de l'éducation nationale (data.education.gouv.fr)" +
+      (empty.length ? `<br><span style="color:#b26a00">Aucun établissement pour : ${empty.map(d => esc(d.court)).join(", ")}</span>` : ""),
+      right: "chargé le " + frDate(today()), action: { label: "Recharger", fn: () => reloadSource("education") } });
+  }).catch(e => {
+    for(const d of edu){ const Ly = S.layers[d.id]; Ly.statut = "erreur"; Ly.msg = "Annuaire de l'éducation inaccessible. Importez un fichier ou réessayez."; }
+    job("edu", { state: "err", text: "Échec : " + esc(e.message) + ". Vous pouvez importer un fichier dans Réglages.", right: "", action: { label: "Réessayer", fn: () => reloadSource("education") } });
+  }).then(done));
+  if(gtfs.length) jobs.push(fetchStops(S.ebbox).then(res => {
+    for(const d of gtfs) setLayerItems(S.layers[d.id], res.items, res.source);
+    const nRes = new Set(res.items.flatMap(i => i.reseaux || [])).size;
+    job("gtfs", { state: res.fallback ? "warn" : "ok",
+      text: `${gtfs.map(layerJob).join(" · ")} (${fmtInt(res.raw)} points regroupés) · ${nRes} réseau${nRes > 1 ? "x" : ""}<br>${esc(res.source)}` +
+        (res.fallback ? '<br><span style="color:#b26a00">Source de secours : couverture OpenStreetMap à vérifier.</span>' : ""),
+      right: "chargé le " + frDate(today()), action: { label: "Recharger", fn: () => reloadSource("gtfs") } });
+  }).catch(e => {
+    for(const d of gtfs){ const Ly = S.layers[d.id]; Ly.statut = "erreur"; Ly.msg = "Arrêts inaccessibles. Importez un fichier ou réessayez."; }
+    job("gtfs", { state: "err", text: "Échec : " + esc(e.message) + ".", right: "", action: { label: "Réessayer", fn: () => reloadSource("gtfs") } });
+  }).then(done));
+  await Promise.all(jobs);
+}
+async function reloadSource(src){
+  const ids = CONFIG.couches.filter(d => d.source === src).map(d => d.id);
+  ids.forEach(id => { S.layers[id].statut = "chargement"; S.layers[id].exclus = []; invalidate(id); });
+  refresh(); await loadLayers(ids);
+}
+
+/* Calculs par couche sur le réseau du mode actif (mis en cache), avec conventions d'accès éventuelles */
+function getRes(id){
+  const pr = cur(); if(!pr) return null;
+  if(pr.res[id]) return pr.res[id];
+  const items = activeItems(layer(id)); if(!items.length) return null;
+  const t0 = performance.now();
+  const snaps = items.map((d, k) => ({ k, node: nearestNode(pr.G, pr.IX, d.lat, d.lon, 20).node, dist: 0 }));
+  const warnings = [];
+  const acc = items.map(it => {
+    if(!it.communes_autorisees || !it.communes_autorisees.length) return null;
+    const r = resolveCommunes(it.communes_autorisees, S.communes); r.warnings.forEach(w => warnings.push(shortName(it.nom, layer(id).def.type) + " : " + w)); return r.codes;
+  });
+  const groups = new Map();
+  const groupOf = code => {
+    const idx = items.map((_, i) => i).filter(i => !acc[i] || (code != null && acc[i].has(code))), key = idx.join(",");
+    if(!groups.has(key)) groups.set(key, { idx, res: dijkstra(pr.G, idx.map(i => snaps[i])) });
+    return groups.get(key);
+  };
+  const res = { items, snaps, acc, warnings, per: null, outGroup: groupOf(null), comGroup: S.communes.map(c => groupOf(c.code)) };
+  console.log(`Temps vers « ${id} » (${pr.key}) : ${Math.round(performance.now() - t0)} ms, ${groups.size} groupe(s)`);
+  return pr.res[id] = res;
+}
+const groupAt = (res, ci) => ci >= 0 ? res.comGroup[ci].res : res.outGroup.res;
+const canUse = (res, i, ci) => !res.acc[i] || (ci >= 0 && res.acc[i].has(S.communes[ci].code));
+function getPer(id){
+  const res = getRes(id); if(!res) return [];
+  if(!res.per) res.per = res.items.length <= PER_MAX ? res.snaps.map(s => s.node >= 0 ? dijkstra(cur().G, [s]) : null) : [];
+  return res.per;
+}
+
+/* ================================================================
+   Rafraîchissement général
+   ================================================================ */
+function refresh(){
+  drawLayers(); drawDestMarkers(); drawLayerPanel(); drawChips();
+  if(!cur()) return;
+  computeTable(); updatePoint(true);
+}
+function clearCanvas(){ if(S.grid){ const c = S.grid.canvas; c.getContext("2d").clearRect(0, 0, c.width, c.height); } }
+
+/* ================================================================
+   Carte des temps (lissage, courbes)
+   ================================================================ */
+function hexRGB(h){ const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+const LUTS = {};
+function rampLUT(step){
+  if(LUTS[step]) return LUTS[step];
+  const TC = timeClasses(step), capmin = step * 8;
+  const stops = TC.map((c, i) => [i * step, hexRGB(c.color)]);
+  const lut = new Uint8ClampedArray(256 * 4);
+  for(let q = 0; q < 256; q++){
+    const m = q / 255 * capmin; let rgb, a = 255;
+    if(m >= stops[stops.length-1][0]){ rgb = stops[stops.length-1][1]; a = Math.round(255 - Math.min(1, (m - 5*step) / (2*step)) * 150); }
+    else { let s = 0; while(m > stops[s+1][0]) s++; const t = (m - stops[s][0]) / (stops[s+1][0] - stops[s][0]);
+      rgb = stops[s][1].map((v, k) => Math.round(v + (stops[s+1][1][k] - v) * t)); }
+    lut.set([rgb[0], rgb[1], rgb[2], a], q*4);
+  }
+  return LUTS[step] = lut;
+}
+function renderRaster(){
+  const pr = cur(), R = S.grid; if(!pr || !R) return;
+  const ctx = R.canvas.getContext("2d"); ctx.globalCompositeOperation = "source-over";
+  const img = ctx.createImageData(R.W, R.H), d = img.data, N = R.W * R.H, node = pr.rnode, acc = pr.racc;
+  const STEP = P().pas, CAPMIN = STEP * 8, TC = classes(), k = coef(), res = getRes(S.couche);
+  contourLayer.clearLayers();
+  if(S.mode === "sect"){
+    if(res) for(let p = 0; p < N; p++){ const nd = node[p]; if(nd < 0) continue; const s = groupAt(res, R.com[p]).src[nd]; if(s < 0) continue;
+      const rgb = hexRGB(destColor(s)); d[p*4] = rgb[0]; d[p*4+1] = rgb[1]; d[p*4+2] = rgb[2]; d[p*4+3] = 235; }
+  } else {
+    let timeAt = null, only = -1;
+    if(S.mode === "from"){ if(S.fw && S.startNode >= 0) timeAt = (nd) => S.fw.time[nd]; }
+    else if(res && S.mode === "near") timeAt = (nd, p) => groupAt(res, R.com[p]).time[nd];
+    else if(res){ const r = getPer(S.couche)[+S.mode]; if(r){ timeAt = nd => r.time[nd]; if(res.acc[+S.mode]) only = +S.mode; } }
+    if(timeAt){
+      const F = R.field;
+      for(let p = 0; p < N; p++){
+        const nd = node[p], t = nd < 0 ? Infinity : timeAt(nd, p);
+        F[p] = isFinite(t) ? Math.min(CAPMIN, (t + acc[p]) * k / 60) : CAPMIN;
+      }
+      const smooth = $("chk-smooth").checked, LUT = rampLUT(STEP), CLS = TC.map(c => hexRGB(c.color));
+      if(smooth) blurField(F, R.W, R.H, 3, R.tmp);
+      for(let p = 0; p < N; p++){
+        const m = F[p];
+        if(smooth){ const q = Math.min(255, Math.round(m / CAPMIN * 255)) * 4; d[p*4] = LUT[q]; d[p*4+1] = LUT[q+1]; d[p*4+2] = LUT[q+2]; d[p*4+3] = LUT[q+3]; }
+        else { let ci = 0; while(m >= TC[ci].max) ci++; const rgb = CLS[ci]; d[p*4] = rgb[0]; d[p*4+1] = rgb[1]; d[p*4+2] = rgb[2]; d[p*4+3] = 255; }
+        if(only >= 0 && !canUse(res, only, R.com[p])) d[p*4+3] = Math.round(d[p*4+3] * 0.22);
+      }
+      if($("chk-contours").checked) drawContours(F, STEP);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  ctx.globalCompositeOperation = "destination-in"; ctx.drawImage(R.mask, 0, 0);
+  ctx.globalCompositeOperation = "source-over";
+}
+/* Courbes isochrones en vecteur, étiquetées toutes les deux tranches */
+function drawContours(F, STEP){
+  const R = S.grid;
+  const toLL = (x, y) => {
+    const j0 = Math.max(0, Math.min(R.H - 2, Math.floor(y))), ty = y - j0;
+    const i0 = Math.max(0, Math.min(R.W - 2, Math.floor(x))), tx = x - i0;
+    return [R.rowLat[j0] + (R.rowLat[j0+1] - R.rowLat[j0]) * ty, R.colLng[i0] + (R.colLng[i0+1] - R.colLng[i0]) * tx];
+  };
+  let ax = R.W / 2, ay = R.H / 2;
+  if(S.mode === "from" && map.hasLayer(startMarker)){
+    const ll = startMarker.getLatLng();
+    ax = (ll.lng - R.colLng[0]) / (R.colLng[R.W-1] - R.colLng[0]) * (R.W - 1);
+    let j = 0; while(j < R.H - 1 && R.rowLat[j] > ll.lat) j++; ay = j;
+  }
+  for(let c = 1; c <= 5; c++){
+    const level = c * STEP, major = c % 2 === 0;
+    const segs = contourSegments(F, R.W, R.H, level, R.inside);
+    if(!segs.length) continue;
+    const lines = []; let top = -1, best = Infinity;
+    for(let s = 0; s < segs.length; s += 4){
+      lines.push([toLL(segs[s], segs[s+1]), toLL(segs[s+2], segs[s+3])]);
+      const x = segs[s], y = segs[s+1];
+      if(x < 8 || x > R.W - 8 || y < 8 || y > R.H - 8) continue;
+      const cost = Math.abs(x - ax) + (y > ay ? 4 * (y - ay) + 20 : 0);
+      if(cost < best){ best = cost; top = s; }
+    }
+    const st = major ? CONTOUR_STYLE.majeure : CONTOUR_STYLE.mineure;
+    L.polyline(lines, { renderer: contourRenderer, color: CONTOUR_STYLE.couleur, weight: st.epaisseur, opacity: st.opacite, interactive: false }).addTo(contourLayer);
+    if(major && top >= 0) L.marker(toLL(segs[top], segs[top+1]), { pane: "isolbl", interactive: false, keyboard: false,
+      icon: L.divIcon({ className: "", html: `<span class="iso-lbl">${level} min</span>`, iconSize: [0, 0] }) }).addTo(contourLayer);
+  }
+}
+
+/* ================================================================
+   Point de départ
+   ================================================================ */
+let raf = 0;
+const schedule = () => { if(!raf) raf = requestAnimationFrame(() => { raf = 0; updatePoint(false); }); };
+startMarker.on("dragstart", () => { S.startLabel = null; });
+startMarker.on("drag", schedule);
+startMarker.on("dragend", () => { updatePoint(false); updateHash(); });
+map.on("click", e => { if(!cur() || S.editMode) return; S.startLabel = null; startMarker.setLatLng(e.latlng); updatePoint(false); updateHash(); });
+function updateHash(){
+  const p = new URLSearchParams();
+  if(map.hasLayer(startMarker)){ const ll = startMarker.getLatLng(); p.set("from", ll.lat.toFixed(5) + "," + ll.lng.toFixed(5)); }
+  p.set("couche", S.couche); p.set("mode", S.profil);
+  history.replaceState(null, "", "#" + p.toString());
+}
+function badge(Ly, i, small){
+  const it = activeItems(Ly)[i], col = small ? destColor(i) : Ly.def.couleur;
+  return `<span class="badge ${isExt(it) ? "ext" : ""}" style="background:${col};--c:${col}">${small ? i + 1 : ""}</span>`;
+}
+/* redraw = recalculer aussi la carte pour les modes qui ne dépendent pas du point */
+function updatePoint(redraw){
+  routesLayer.clearLayers();
+  const pr = cur();
+  if(!pr || !map.hasLayer(startMarker)){ S.fw = null; return; }
+  const ll = startMarker.getLatLng(), k = coef(), STEP = P().pas;
+  const sn = nearestNode(pr.G, pr.IX, ll.lat, ll.lng, 12);
+  S.startNode = sn.node;
+  const ci = comIndexAt(ll.lat, ll.lng), com = ci >= 0 ? S.communes[ci] : null;
+  const place = S.startLabel || (com ? com.nom : "Hors du territoire");
+  const head = `<div class="headrow"><div class="lbl">Départ</div>${S.startLabel ? '<button class="link" id="btn-clear-addr">Effacer</button>' : ""}</div>
+    <div class="place">${esc(place)}</div>`;
+  if(sn.node < 0){
+    S.fw = null; if(S.mode === "from" || redraw) renderRaster();
+    $("results").innerHTML = head + '<p class="muted">Aucune voie trouvée à proximité de ce point.</p>'; bindClear(); return;
+  }
+  const acc = sn.dist / (P().acces_kmh / 3.6);
+
+  // le plus proche, couche par couche
+  const diag = CONFIG.couches.map(def => {
+    const Ly = layer(def.id), res = getRes(def.id);
+    if(!res) return { def, t: Infinity, sub: Ly && Ly.statut === "chargement" ? "chargement…" : Ly && Ly.statut === "erreur" ? "source indisponible" : "aucun site" };
+    const g = groupAt(res, ci), i = g.src[sn.node];
+    return i >= 0 ? { def, t: (g.time[sn.node] + acc) * k, sub: shortName(res.items[i].nom, def.type), ext: isExt(res.items[i]) } : { def, t: Infinity, sub: "hors d'atteinte" };
+  });
+
+  // temps depuis le point : carte en direct et liste détaillée de la couche affichée
+  const res = getRes(S.couche), Ly = layer(), def = Ly.def;
+  const g0 = res ? groupAt(res, ci) : null, tNear = g0 && g0.src[sn.node] >= 0 ? g0.time[sn.node] : Infinity;
+  const rasterCap = S.mode === "from" ? STEP * 8 * 60 / k + 120 : 0;
+  const listCap = isFinite(tNear) ? Math.min(tNear + 15*60, 3*3600) : 0;
+  S.fw = pr.fwd(sn.node, Math.max(rasterCap, listCap, 60));
+  if(S.mode === "from" || redraw) renderRaster();
+
+  let html = head + `<div class="sep"></div><div class="lbl">Le plus proche · ${esc(P().libelle)}</div><div class="diag">` +
+    diag.map(r => `<button class="drow ${r.def.id === S.couche ? "on" : ""}" data-c="${r.def.id}" title="Afficher ${esc(r.def.libelle)}">
+      <span class="badge" style="background:${r.def.couleur}"></span>
+      <span class="dn"><b>${esc(r.def.court || r.def.libelle)}</b><span>${esc(r.sub)}${r.ext ? '<span class="tag">hors NCPA</span>' : ""}</span></span>
+      <span class="dt">${fmtMin(r.t)}</span></button>`).join("") + `</div>`;
+
+  if(!res){
+    html += `<div class="sep"></div><p class="muted">${Ly.statut === "chargement" ? "La couche " + esc(def.court) + " est en cours de récupération." : "Aucun site dans la couche " + esc(def.court) + "."}</p>`;
+    $("results").innerHTML = html; bindResults(); return;
+  }
+  const small = res.items.length <= DEST_COLORS.length;
+  let rows = [];
+  res.snaps.forEach((s, i) => { if(s.node < 0) return; const t = S.fw.time[s.node]; if(isFinite(t)) rows.push({ i, node: s.node, t: (t + acc) * k, ok: canUse(res, i, ci) }); });
+  rows.sort((a, b) => a.t - b.t);
+  const okRows = rows.filter(r => r.ok).slice(0, LIST_MAX), refused = small ? rows.filter(r => !r.ok) : [];
+  const all = $("chk-allroutes").checked;
+  okRows.forEach(r => { r.pts = [[ll.lat, ll.lng]].concat(traceForward(pr.G, S.fw, r.node)); r.km = pathLength(r.pts); });
+  okRows.slice().reverse().forEach(r => {
+    const best = r === okRows[0]; if(!best && !all) return;
+    const col = small ? destColor(r.i) : def.couleur;
+    L.polyline(r.pts, { pane: "routes", color: "#fff", weight: best ? 8 : 5.5, opacity: 0.95, interactive: false }).addTo(routesLayer);
+    L.polyline(r.pts, { pane: "routes", color: col, weight: best ? 4.5 : 2.5, opacity: best ? 1 : 0.9, dashArray: best ? null : "5 6", interactive: false }).addTo(routesLayer);
+  });
+  // étiquettes des sites (petites couches)
+  if(small) S.markers.forEach((m, i) => {
+    const r = rows.find(x => x.i === i);
+    m.setTooltipContent(esc(shortName(res.items[i].nom, def.type)) + (r ? (r.ok ? " · " + fmtMin(r.t) : " · sans convention") : ""));
+  });
+  const b = okRows[0];
+  html += `<div class="sep"></div><div class="lbl">${esc(def.court)} · accès le plus rapide</div>` +
+    (b ? `<div class="place">${esc(res.items[b.i].nom)}${isExt(res.items[b.i]) ? '<span class="tag">hors NCPA</span>' : ""}</div>
+      <div class="bigtime">${fmtMin(b.t)}<small>${fmtKm(b.km)}</small></div>
+      ${res.items[b.i].info ? `<div class="muted">${esc(res.items[b.i].info)}</div>` : ""}` : '<p class="muted">Aucun site atteignable depuis ce point.</p>') +
+    `<div class="steps">${okRows.slice(1).map(r => `<div class="step">${badge(Ly, r.i, small)}
+      <span>${esc(res.items[r.i].nom)}${isExt(res.items[r.i]) ? '<span class="tag">hors NCPA</span>' : ""}</span>
+      <span class="t">${fmtMin(r.t)} · ${fmtKm(r.km)}</span></div>`).join("")}` +
+    refused.map(r => `<div class="step off" title="Pas de convention d'accès pour ${esc(com ? com.nom : "ce point")}">${badge(Ly, r.i, small)}
+      <span>${esc(res.items[r.i].nom)}<span class="tag">sans convention</span></span><span class="t">${fmtMin(r.t)}</span></div>`).join("") + "</div>";
+  $("results").innerHTML = html; bindResults();
+}
+function bindClear(){ const clr = $("btn-clear-addr"); if(clr) clr.onclick = () => { S.startLabel = null; $("search").value = ""; updatePoint(false); }; }
+function bindResults(){ bindClear(); $("results").querySelectorAll(".drow").forEach(b => b.onclick = () => setCouche(b.dataset.c)); }
+
+/* ================================================================
+   Couches, modes de déplacement, modes de carte, légende
+   ================================================================ */
+function drawLayers(){
+  $("layers").innerHTML = CONFIG.couches.map(d => { const Ly = S.layers[d.id];
+    const n = !Ly ? "" : Ly.statut === "chargement" ? '<span class="spin sm"></span>' : Ly.statut === "erreur" ? "!" : activeItems(Ly).length;
+    return `<button class="pill ${d.id === S.couche ? "on" : ""}" data-c="${d.id}" title="${esc(d.libelle)}"><span class="dot" style="background:${d.couleur}"></span>${esc(d.court || d.libelle)}<span class="cnt">${n}</span></button>`; }).join("");
+  $("layers").querySelectorAll("button").forEach(b => b.onclick = () => setCouche(b.dataset.c));
+}
+function drawProfiles(){
+  $("profils").innerHTML = Object.entries(PROFILS).map(([k, p]) => `<button class="pill ${k === S.profil ? "on" : ""}" data-p="${k}">${p.court}</button>`).join("");
+  $("profils").querySelectorAll("button").forEach(b => b.onclick = () => { if(b.dataset.p !== S.profil) activateProfile(b.dataset.p); });
+}
+function setCouche(id){
+  if(S.editMode) toggleEdit();
+  S.couche = id; updateHash();
+  if(!["from", "near", "sect"].includes(S.mode)) S.mode = "near";
+  refresh();
+}
+function drawChips(){
+  const Ly = layer(), res = cur() ? getRes(S.couche) : null, typ = Ly ? Ly.def.type : "site";
+  const opts = [["from", "Depuis le départ"], ["near", "Vers le plus proche"], ["sect", "Secteurs"]];
+  if(res && res.items.length <= PER_MAX) res.items.forEach((d, i) => opts.push([String(i), shortName(d.nom, typ), destColor(i)]));
+  if(!opts.some(o => o[0] === S.mode)) S.mode = "from";
+  $("chips").innerHTML = opts.map(([v, t, col]) =>
+    `<button class="pill ${S.mode === v ? "on" : ""}" data-m="${v}" title="${v === "from" ? "Temps depuis le point de départ" : v === "near" ? "Temps vers le site le plus proche" : v === "sect" ? "Site le plus proche de chaque endroit" : "Temps vers ce site"}">${col ? `<span class="dot" style="background:${col}"></span>` : ""}${esc(t)}</button>`).join("");
+  $("chips").querySelectorAll("button").forEach(b => b.onclick = () => { S.mode = b.dataset.m; drawChips(); updatePoint(true); });
+  drawLegend();
+}
+function drawLegend(){
+  const el = $("legend"), STEP = P().pas, TC = classes();
+  if(S.mode === "sect"){
+    const res = cur() ? getRes(S.couche) : null;
+    el.innerHTML = res && res.items.length <= DEST_COLORS.length
+      ? '<div class="sect-leg">' + res.items.map((d, i) => `<span><i style="background:${destColor(i)}"></i>${esc(d.nom)}${isExt(d) ? '<span class="tag">hors NCPA</span>' : ""}</span>`).join("") + "</div>"
+      : '<p class="muted" style="margin:8px 0 0">Une couleur par site le plus proche (couleurs réutilisées au-delà de 10 sites).</p>';
+  } else if($("chk-smooth").checked){
+    const g = TC.map((c, i) => `${c.color} ${i * 20}%`).join(",");
+    el.innerHTML = `<div class="grad" style="background:linear-gradient(to right,${g})"></div>
+      <div class="ticks">${[0,1,2,3,4,5].map(i => `<span>${i*STEP}${i === 5 ? "+ min" : ""}</span>`).join("")}</div>`;
+  } else {
+    el.innerHTML = `<div class="grad" style="background:linear-gradient(to right,${TC.map((c, i) => `${c.color} ${i*100/6}% ${(i+1)*100/6}%`).join(",")})"></div>
+      <div class="ticks"><span>0</span>${[1,2,3,4,5].map(i => `<span>${i*STEP}</span>`).join("")}<span>min</span></div>`;
+  }
+}
+
+/* ================================================================
+   Sites de la couche (Réglages)
+   ================================================================ */
+function drawLayerPanel(){
+  const Ly = layer(); if(!Ly) return;
+  const def = Ly.def, items = activeItems(Ly), small = items.length <= DEST_COLORS.length, nh = countHors(items);
+  $("lbl-sites").textContent = "Sites · " + (def.court || def.libelle);
+  let h = "";
+  if(Ly.statut === "chargement") h = '<p class="muted">Récupération en cours…</p>';
+  else if(Ly.statut === "erreur") h = `<p class="muted" style="color:var(--rouge)">${esc(Ly.msg)}</p>`;
+  else if(!Ly.items.length) h = `<p class="muted">${def.source === "fichier" ? "Aucun site : importez un fichier (CSV nom;lat;lon, colonne WKT, ou GeoJSON en WGS84)." : "Aucun site trouvé."}</p>`;
+  else {
+    h = `<p class="muted" style="margin:2px 0 6px">${esc(nb(items.length, def.type))}${nh ? ` dont ${nh} hors NCPA` : ""} · ${esc(Ly.source || "fichier importé")}${Ly.date ? ", " + frDate(Ly.date) : ""}.</p>`;
+    if(small) h += items.map((d, i) => `<div class="eqitem">${badge(Ly, i, true)}<input type="text" data-i="${Ly.items.indexOf(d)}" value="${esc(d.nom)}">${isExt(d) ? '<span class="tag" style="margin:0">hors NCPA</span>' : ""}</div>` +
+      (d.communes_autorisees && d.communes_autorisees.length ? `<div class="muted" style="margin:0 0 6px 27px">Accès réservé : ${esc(d.communes_autorisees.join(", "))}</div>` : "")).join("");
+  }
+  const res = cur() ? getRes(def.id) : null;
+  if(res && res.warnings.length) h += `<p class="muted" style="color:var(--rouge)">Conventions : ${res.warnings.map(esc).join(" ; ")}</p>`;
+  const reseaux = new Map();
+  for(const it of Ly.items) for(const r of it.reseaux || []) reseaux.set(r, (reseaux.get(r) || 0) + 1);
+  if(reseaux.size > 1){
+    h += `<details class="reseaux"><summary>Réseaux pris en compte (${reseaux.size - Ly.exclus.filter(r => reseaux.has(r)).length}/${reseaux.size})</summary>` +
+      [...reseaux].sort((a, b) => b[1] - a[1]).map(([r, n]) => `<label><input type="checkbox" data-r="${esc(r)}" ${Ly.exclus.includes(r) ? "" : "checked"}> ${esc(r)} <span class="muted">(${n})</span></label>`).join("") +
+      `<p class="muted" style="margin:4px 0 0">Décochez les réseaux périmés ou hors sujet (scolaire, train…).</p></details>`;
+  }
+  if(def.note) h += `<p class="muted" style="margin:6px 0 0">${esc(def.note)}</p>`;
+  $("layerinfo").innerHTML = h;
+  $("layerinfo").querySelectorAll(".eqitem input").forEach(inp => inp.addEventListener("change", () => {
+    Ly.items[+inp.dataset.i].nom = inp.value; saveLayer(Ly); drawDestMarkers(); drawChips(); computeTable(); updatePoint(false); }));
+  $("layerinfo").querySelectorAll(".reseaux input").forEach(cb => cb.addEventListener("change", () => {
+    const r = cb.dataset.r; Ly.exclus = Ly.exclus.filter(x => x !== r); if(!cb.checked) Ly.exclus.push(r);
+    saveLayer(Ly); invalidate(def.id); refresh(); }));
+  const file = def.source === "fichier";
+  $("btn-reset-dest").textContent = file ? "Réinitialiser" : "Recharger l'open data";
+  $("btn-reset-dest").title = file ? "Revenir aux sites intégrés à l'outil" : "Retélécharger depuis la source open data (vos modifications seront perdues)";
+}
+function drawDestMarkers(){
+  destLayer.clearLayers(); S.markers = [];
+  const Ly = layer(); if(!Ly) return;
+  const def = Ly.def, items = activeItems(Ly), small = items.length <= DEST_COLORS.length;
+  items.forEach((d, i) => {
+    const col = small ? destColor(i) : def.couleur, ext = isExt(d);
+    let m;
+    if(small || S.editMode){
+      const html = small ? `<div class="dmark ${S.editMode ? "edit" : ""} ${ext ? "ext" : ""}" style="background:${col};--c:${col}">${i+1}</div>`
+                         : `<div class="smark ${S.editMode ? "edit" : ""} ${ext ? "ext" : ""}" style="background:${col};--c:${col}"></div>`;
+      const sz = small ? 24 : 14;
+      m = L.marker([d.lat, d.lon], { draggable: S.editMode, zIndexOffset: 500, keyboard: false, icon: L.divIcon({ className: "", html, iconSize: [sz, sz], iconAnchor: [sz/2, sz/2] }) });
+      m.on("dragend", () => { const p = m.getLatLng(); d.lat = r6(p.lat); d.lon = r6(p.lng); d.hors = !inTerritory(d.lat, d.lon); saveLayer(Ly); invalidate(def.id); refresh(); });
+    } else {
+      m = L.circleMarker([d.lat, d.lon], { radius: 5, color: ext ? col : "#fff", weight: ext ? 2 : 1.5, fillColor: ext ? "#fff" : col, fillOpacity: 1 });
+    }
+    const perm = small && items.length <= 6;
+    m.bindTooltip(perm ? esc(shortName(d.nom, def.type)) : `${esc(d.nom)}${d.info ? " · " + esc(d.info) : ""}${d.reseaux ? "<br>" + esc(d.reseaux.join(", ")) : ""}${ext ? " · hors NCPA" : ""}`,
+      { permanent: perm, direction: perm ? "right" : "top", offset: perm ? [12, 0] : [0, -8], className: "tt-dark" });
+    m.addTo(destLayer); S.markers.push(m);
+  });
+}
+function toggleEdit(){
+  S.editMode = !S.editMode; $("btn-edit").classList.toggle("on", S.editMode);
+  $("btn-edit").textContent = S.editMode ? "Terminer le déplacement" : "Déplacer sur la carte";
+  drawDestMarkers(); updatePoint(false);
+}
+$("btn-edit").addEventListener("click", toggleEdit);
+$("btn-reset-dest").addEventListener("click", async () => {
+  const Ly = layer(), def = Ly.def;
+  if(def.source === "fichier"){
+    if(!confirm("Revenir aux sites intégrés à l'outil pour « " + def.libelle + " » ? Les modifications seront perdues.")) return;
+    setLayerItems(Ly, JSON.parse(JSON.stringify(def.items || [])), "relevé intégré à l'outil"); Ly.date = ""; saveLayer(Ly); reportFileLayer(def); refresh(); return;
+  }
+  if(!confirm("Retélécharger « " + def.libelle + " » depuis l'open data ? Les modifications faites dans l'outil seront perdues.")) return;
+  reloadSource(def.source);
+});
+$("file-dest").addEventListener("change", async e => {
+  const f = e.target.files[0]; if(!f) return; e.target.value = "";
+  const Ly = layer();
+  try{
+    const txt = await f.text();
+    const items = /\.(geo)?json$/i.test(f.name) ? parseDestGeoJSON(JSON.parse(txt)) : parseDestCSV(txt);
+    Ly.exclus = []; setLayerItems(Ly, items, "fichier " + f.name);
+    if(Ly.def.source === "fichier") reportFileLayer(Ly.def);
+    else job(Ly.def.source === "education" ? "edu" : "gtfs", { state: "warn", text: `${esc(Ly.def.court)} remplacés par le fichier ${esc(f.name)} (${items.length} sites)`, right: frDate(today()) });
+    S.mode = "from"; refresh();
+  }catch(err){ alert("Import impossible : " + err.message); }
+});
+$("btn-export-dest").addEventListener("click", () => {
+  const Ly = layer(); if(!Ly || !Ly.items.length) return;
+  const cl = s => String(s == null ? "" : s).replace(/[;\n\r]+/g, ",");
+  const csv = "nom;lat;lon;info;reseaux;externe;communes_autorisees\n" + activeItems(Ly).map(d => [cl(d.nom), d.lat, d.lon, cl(d.info), cl((d.reseaux || []).join(" | ")), isExt(d) ? "oui" : "", cl((d.communes_autorisees || []).join("|"))].join(";")).join("\n");
+  download(Ly.def.id + "_" + today() + ".csv", "\uFEFF" + csv, "text/csv");
+});
+
+/* ================================================================
+   Tableau par commune et statistiques (couche et mode actifs)
+   ================================================================ */
+function computeTable(){
+  const pr = cur(), res = getRes(S.couche);
+  $("st-lbl").textContent = `${layer().def.court} · ${P().libelle}`;
+  if(!pr || !res){ S.tabRows = []; ["st-10", "st-15", "st-mean"].forEach(i => $(i).textContent = "–"); drawTable(); return; }
+  const k = coef(), per = res.items.length <= 6 ? getPer(S.couche) : [], accSpeed = P().acces_kmh / 3.6;
+  S.tabRows = S.communes.map((c, ci) => {
+    const [lo, la] = c.centre.coordinates;
+    const sn = nearestNode(pr.G, pr.IX, la, lo, 12), g = groupAt(res, ci);
+    const acc = sn.node >= 0 ? sn.dist / accSpeed : Infinity;
+    const t = sn.node >= 0 ? (g.time[sn.node] + acc) * k : Infinity;
+    const iNear = sn.node >= 0 ? g.src[sn.node] : -1;
+    return { nom: c.nom, code: c.code, pop: c.population, t, near: iNear >= 0 ? res.items[iNear].nom : "–",
+      per: per.map((r, i) => r && sn.node >= 0 ? (canUse(res, i, ci) ? (r.time[sn.node] + acc) * k : NaN) : Infinity), lat: la, lon: lo };
+  });
+  let Pt = 0, p10 = 0, p15 = 0, sum = 0;
+  for(const r of S.tabRows){ if(!isFinite(r.t)) continue; Pt += r.pop; sum += r.pop * r.t; if(r.t <= 600) p10 += r.pop; if(r.t <= 900) p15 += r.pop; }
+  const pct = v => Pt ? Math.round(v/Pt*100) + " %" : "–";
+  $("st-10").textContent = pct(p10); $("st-15").textContent = pct(p15);
+  $("st-mean").textContent = Pt ? fmtMin(sum/Pt) : "–";
+  drawTable();
+}
+function drawTable(){
+  const res = cur() ? getRes(S.couche) : null, typ = layer().def.type;
+  const names = res && res.items.length <= 6 ? res.items.map(d => shortName(d.nom, typ)) : [];
+  const cols = [["nom", "Commune"], ["pop", "Population"], ["near", "Le plus proche"], ["t", "Temps"]].concat(names.map((n, i) => ["p" + i, n]));
+  const val = (r, c) => { const v = /^p\d+$/.test(c) ? r.per[+c.slice(1)] : r[c]; return Number.isNaN(v) ? Infinity : v; };
+  const { col, asc } = S.sort;
+  const rows = S.tabRows.slice().sort((a, b) => { const x = val(a, col), y = val(b, col);
+    return (typeof x === "string" ? x.localeCompare(y, "fr") : x - y) * (asc ? 1 : -1); });
+  $("sheet-title").textContent = `Temps par commune · ${layer().def.court} · ${P().libelle}`;
+  $("tab").tHead.innerHTML = "<tr>" + cols.map(([c, t]) => `<th data-c="${c}">${esc(t)}${c === col ? (asc ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr>";
+  $("tab").tBodies[0].innerHTML = rows.map(r => `<tr data-la="${r.lat}" data-lo="${r.lon}" data-n="${esc(r.nom)}"><td>${esc(r.nom)}</td><td class="n">${r.pop.toLocaleString("fr-FR")}</td><td>${esc(r.near)}</td><td class="n"><b>${fmtMin(r.t)}</b></td>` +
+    r.per.map(t => Number.isNaN(t) ? '<td class="n" style="color:var(--gris2)" title="Pas de convention">sans conv.</td>' : `<td class="n">${fmtMin(t)}</td>`).join("") + "</tr>").join("");
+  $("tab").tHead.querySelectorAll("th").forEach(th => th.onclick = () => {
+    const c = th.dataset.c; S.sort = { col: c, asc: S.sort.col === c ? !S.sort.asc : true }; drawTable(); });
+  $("tab").tBodies[0].querySelectorAll("tr").forEach(tr => tr.onclick = () => {
+    const ll = [+tr.dataset.la, +tr.dataset.lo]; S.startLabel = tr.dataset.n + " (centre)";
+    startMarker.setLatLng(ll); map.panTo(ll); updatePoint(false); updateHash(); });
+}
+$("btn-table").addEventListener("click", () => { const on = $("sheet").classList.toggle("hidden") === false; $("btn-table").classList.toggle("on", on); });
+$("btn-close-sheet").addEventListener("click", () => { $("sheet").classList.add("hidden"); $("btn-table").classList.remove("on"); });
+$("btn-export-tab").addEventListener("click", () => {
+  if(!S.tabRows.length) return;
+  const res = getRes(S.couche), names = res && res.items.length <= 6 ? res.items.map(d => d.nom) : [];
+  const head = ["commune", "code_insee", "population", "plus_proche", "temps_min"].concat(names.map(n => "min_" + n.replace(/[;\s]+/g, "_")));
+  const fm = t => Number.isNaN(t) ? "sans convention" : isFinite(t) ? (t/60).toFixed(1).replace(".", ",") : "";
+  const lines = S.tabRows.map(r => [r.nom, r.code, r.pop, String(r.near).replace(/;/g, ","), fm(r.t)].concat(r.per.map(fm)).join(";"));
+  download(`temps_${S.couche}_${S.profil}_par_commune.csv`, "\uFEFF" + head.join(";") + "\n" + lines.join("\n"), "text/csv");
+});
+
+/* ================================================================
+   Réglages
+   ================================================================ */
+$("btn-settings").addEventListener("click", () => { const on = $("settings").classList.toggle("hidden") === false; $("btn-settings").classList.toggle("on", on); });
+$("btn-close-settings").addEventListener("click", () => { $("settings").classList.add("hidden"); $("btn-settings").classList.remove("on"); });
+$("coef").addEventListener("change", () => { computeTable(); updatePoint(true); });
+$("opacity").addEventListener("input", e => S.overlay && S.overlay.setOpacity(e.target.value/100));
+$("chk-smooth").addEventListener("change", () => { drawLegend(); updatePoint(true); });
+$("chk-contours").addEventListener("change", () => updatePoint(true));
+$("chk-allroutes").addEventListener("change", () => updatePoint(false));
+
+/* ================================================================
+   Recherche d'adresse (BAN, limitée aux communes du territoire)
+   ================================================================ */
+let st = 0;
+$("search").addEventListener("input", e => {
+  clearTimeout(st); const q = e.target.value.trim();
+  if(q.length < 3){ $("search-res").innerHTML = ""; return; }
+  st = setTimeout(async () => {
+    try{
+      const c = communesLayer.getBounds().isValid() ? communesLayer.getBounds().getCenter() : map.getCenter();
+      const r = await fetch("https://api-adresse.data.gouv.fr/search/?limit=15&q=" + encodeURIComponent(q) + `&lat=${c.lat.toFixed(4)}&lon=${c.lng.toFixed(4)}`);
+      const j = await r.json();
+      const codes = new Set((S.communes || []).map(c => c.code));
+      const f = j.features.filter(x => !codes.size || codes.has(x.properties.citycode)).slice(0, 6);
+      $("search-res").innerHTML = f.length ? "<ul>" + f.map((x, i) => `<li data-i="${i}">${esc(x.properties.label)}</li>`).join("") + "</ul>"
+        : '<div class="muted" style="margin-top:6px">Aucune adresse trouvée sur le territoire.</div>';
+      $("search-res").querySelectorAll("li").forEach(li => li.onclick = () => {
+        const x = f[+li.dataset.i], [lo, la] = x.geometry.coordinates;
+        S.startLabel = x.properties.label;
+        startMarker.setLatLng([la, lo]); if(!map.hasLayer(startMarker)) startMarker.addTo(map);
+        map.setView([la, lo], Math.max(map.getZoom(), 13)); updatePoint(false); updateHash();
+        $("search-res").innerHTML = ""; $("search").value = x.properties.label;
+      });
+    }catch(err){ $("search-res").innerHTML = '<div class="muted" style="margin-top:6px">Recherche d\'adresse indisponible.</div>'; }
+  }, 300);
+});
+
+/* ================================================================
+   Enregistrer / ouvrir (réseaux chargés + couches)
+   ================================================================ */
+function download(name, content, type){
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+$("btn-save").addEventListener("click", () => {
+  const reseaux = {};
+  for(const key in S.prof){ const pr = S.prof[key], n = pr.net;
+    reseaux[key] = { date: pr.date, stats: pr.stats, lat: n.lat.map(r6), lon: n.lon.map(r6), ea: n.ea, eb: n.eb, len: n.len, cost: n.cost, dir: n.dir }; }
+  const couches = {};
+  for(const id in S.layers){ const Ly = S.layers[id]; couches[id] = { items: Ly.items, exclus: Ly.exclus, source: Ly.source, date: Ly.date }; }
+  const out = { format: "ncpa-acces-v1", date: today(), communes: S.communes, reseaux, couches };
+  download("temps_acces_ncpa_" + out.date + ".json", JSON.stringify(out), "application/json");
+});
+$("file-net").addEventListener("change", async e => {
+  const f = e.target.files[0]; if(!f) return; e.target.value = "";
+  try{
+    job("communes", { state: "run", text: `Lecture du fichier ${esc(f.name)} (${fmtMo(f.size)})…`, pct: null }); await tick();
+    const j = JSON.parse(await f.text());
+    let reseaux, couches = null;
+    if(j.format === "ncpa-acces-v1"){ reseaux = j.reseaux || {}; couches = j.couches || null; }
+    else if(j.format === "ncpa-reseau-v1"){ reseaux = { [j.profil || "voiture"]: j }; }
+    else throw new Error("ce fichier n'a pas été enregistré par cet outil");
+    if(!Object.keys(reseaux).length) throw new Error("le fichier ne contient aucun réseau");
+    installCommunes(j.communes); IDB.set(K + ":communes", j.communes);
+    job("communes", { state: "ok", text: `${j.communes.length} communes · fichier ${esc(f.name)}`, right: frDate(j.date) });
+    S.prof = {};
+    for(const key in reseaux){
+      if(!PROFILS[key]) continue;
+      job("net:" + key, { state: "run", text: "Ouverture depuis le fichier…", pct: null }); await tick();
+      const pr = installNet(key, reseaux[key], reseaux[key].date || j.date, "fichier", reseaux[key].stats);
+      IDB.set(K + ":net:" + key, { net: reseaux[key], date: pr.date, stats: pr.stats }); lsSet(K + ":meta:" + key, { date: pr.date, stats: pr.stats });
+      reportNet(pr);
+    }
+    if(couches) for(const id in couches){ const Ly = S.layers[id]; if(!Ly) continue; Object.assign(Ly, couches[id], { statut: (couches[id].items || []).length ? "ok" : "vide", msg: "" }); markHors(Ly); saveLayer(Ly); }
+    await activateProfile(S.prof[S.profil] ? S.profil : Object.keys(S.prof)[0]);
+  }catch(err){ job("communes", { state: "err", text: "Ouverture impossible : " + esc(err.message) }); }
+});
+
+/* ================================================================
+   Démarrage
+   ================================================================ */
+document.title = CONFIG.titre;
+$("h-titre").textContent = CONFIG.titre; $("h-eyebrow").textContent = CONFIG.surtitre || "";
+job("communes", { label: "Communes du territoire", state: "run", text: "API Géo (geo.api.gouv.fr)…" });
+for(const key in PROFILS){
+  const meta = lsGet(K + ":meta:" + key);
+  job("net:" + key, { label: "Réseau " + PROFILS[key].libelle, state: "todo",
+    text: meta ? `Mémorisé (OSM du ${frDate(meta.date)}), ouvert au premier passage en mode ${PROFILS[key].court}` : `Téléchargé au premier passage en mode ${PROFILS[key].court} (20 à 60 s)`,
+    action: { label: meta ? "Ouvrir maintenant" : "Télécharger maintenant", fn: () => ensureProfile(key).catch(() => {}) } });
+}
+drawProfiles(); drawLayers(); drawChips();
+$("results").innerHTML = '<p class="muted">Les temps s\'afficheront dès que le réseau sera prêt.</p>';
+(async function start(){
+  try{
+    let com = await IDB.get(K + ":communes"), from = "cache";
+    if(!com || !com.length){ com = await fetchCommunes(); IDB.set(K + ":communes", com); from = "api"; }
+    installCommunes(com);
+    const pop = com.reduce((s, c) => s + (c.population || 0), 0);
+    job("communes", { state: from === "api" ? "ok" : "cache", text: `${com.length} communes · ${fmtInt(pop)} habitants<br>${from === "api" ? "API Géo (geo.api.gouv.fr)" : "Mémorisées dans ce navigateur"}`, right: "" });
+  }catch(e){
+    console.error(e);
+    job("communes", { state: "err", text: "Échec : " + esc(e.message) + ". Vérifiez la connexion, ou ouvrez un fichier enregistré (Réglages).",
+      action: { label: "Réessayer", fn: () => location.reload() } });
+    return;
+  }
+  loadLayers();
+  activateProfile(S.profil);
+})();
+})(); }
+</script>
+</body>
+</html>
