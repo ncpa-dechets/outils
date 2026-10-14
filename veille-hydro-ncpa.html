@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veille hydro – NCPA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --fond: #EEF2F3;
+    --carte: #FFFFFF;
+    --encre: #13293D;
+    --encre-douce: #4F6475;
+    --trait: #D3DDE1;
+    --eau: #1B6F8A;
+    --eau-clair: #8FC3D3;
+    --calme: #3F8F5A;
+    --vigilance: #D9822B;
+    --alerte: #C2362B;
+    --neutre: #7B8C97;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fond); color: var(--encre);
+    font-family: "Source Sans 3", "Segoe UI", Arial, sans-serif; font-size: 16px; line-height: 1.45;
+  }
+  h1, h2, h3 { font-family: "Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif; margin: 0; }
+  .page { max-width: 1280px; margin: 0 auto; padding: 0 20px 40px; }
+
+  /* En-tête */
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 28px 0 18px; }
+  header h1 { font-size: 2.1rem; font-weight: 700; letter-spacing: -0.01em; }
+  header p { margin: 2px 0 0; color: var(--encre-douce); }
+  .maj { display: flex; align-items: center; gap: 12px; color: var(--encre-douce); font-size: 0.95rem; }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 6px;
+    border: 1px solid var(--eau); background: var(--eau); color: #fff; padding: 7px 14px;
+  }
+  button.secondaire { background: transparent; color: var(--eau); }
+  button[aria-pressed="true"] { background: var(--eau); color: #fff; }
+  button:focus-visible { outline: 3px solid var(--vigilance); outline-offset: 2px; }
+
+  /* Synthèse */
+  .synthese { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+  .tuile { background: var(--carte); border-radius: 8px; padding: 14px 16px; border-top: 6px solid var(--neutre); }
+  .tuile h2 { font-size: 1rem; font-weight: 600; color: var(--encre-douce); }
+  .tuile .etat { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.6rem; font-weight: 700; margin: 2px 0; }
+  .tuile .detail { font-size: 0.93rem; color: var(--encre-douce); }
+  .tuile.calme { border-top-color: var(--calme); } .tuile.calme .etat { color: var(--calme); }
+  .tuile.vigilance { border-top-color: var(--vigilance); } .tuile.vigilance .etat { color: var(--vigilance); }
+  .tuile.alerte { border-top-color: var(--alerte); } .tuile.alerte .etat { color: var(--alerte); }
+
+  /* Modules */
+  section.module { background: var(--carte); border-radius: 8px; padding: 18px 20px 20px; margin-bottom: 18px; }
+  section.module h2 { font-size: 1.45rem; font-weight: 600; }
+  .chapo { margin: 2px 0 14px; color: var(--encre-douce); font-size: 0.95rem; max-width: 75ch; }
+  .deux-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .deux-col > section.module { margin-bottom: 0; }
+  .deux-col + * { margin-top: 18px; }
+  .graph { position: relative; height: 260px; }
+  .msg { color: var(--encre-douce); font-style: italic; }
+  .erreur { color: var(--alerte); }
+
+  /* Tableau rivières */
+  .defile { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.97rem; }
+  th { text-align: left; font-weight: 600; color: var(--encre-douce); font-size: 0.88rem; padding: 6px 10px; border-bottom: 2px solid var(--trait); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--trait); vertical-align: middle; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.separateur td { padding: 14px 10px 4px; border-bottom: none; font-family: "Barlow Semi Condensed", sans-serif; font-weight: 600; color: var(--eau); }
+  .nom-station { font-weight: 600; }
+  .sous { display: block; font-size: 0.85rem; color: var(--encre-douce); font-weight: 400; }
+  .pastille { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 0.85rem; font-weight: 600; white-space: nowrap; background: #E4EAED; color: var(--encre); }
+  .pastille.forte { background: var(--alerte); color: #fff; }
+  .pastille.montee { background: var(--vigilance); color: #fff; }
+  .pastille.baisse { background: #DCEDE1; color: var(--calme); }
+  .pastille.maree { background: #DDEFF4; color: var(--eau); }
+  .spark { color: var(--eau); display: block; }
+
+  /* Pluie / marée */
+  .chiffres { display: flex; flex-wrap: wrap; gap: 10px 26px; margin: 12px 0 0; }
+  .chiffres div { font-size: 0.93rem; color: var(--encre-douce); }
+  .chiffres strong { display: block; font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.35rem; color: var(--encre); }
+  .pm { margin-top: 12px; }
+  .pm td, .pm th { padding: 5px 8px; }
+
+  /* Nappes */
+  .nappes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .nappe h3 { font-size: 1.15rem; font-weight: 600; }
+  .nappe .graph { height: 190px; margin-top: 8px; }
+  .nappe .ligne-etat { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; font-size: 0.93rem; color: var(--encre-douce); }
+
+  /* Débi'Clic */
+  .bascule { display: flex; gap: 8px; margin-bottom: 12px; }
+  #debiclic-widget { min-height: 640px; }
+
+  footer { color: var(--encre-douce); font-size: 0.88rem; padding-top: 8px; max-width: 90ch; }
+  footer a, .module a { color: var(--eau); }
+
+  @media (max-width: 1000px) {
+    .synthese { grid-template-columns: repeat(2, 1fr); }
+    .deux-col, .nappes { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) { .synthese { grid-template-columns: 1fr; } header h1 { font-size: 1.7rem; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div>
+      <h1>Veille crues et submersion – NCPA</h1>
+      <p>Bassin de la Dives et littoral · données publiques en temps réel</p>
+    </div>
+    <div class="maj">
+      <span id="heure-maj">Chargement…</span>
+      <button id="btn-actualiser" type="button">Actualiser</button>
+    </div>
+  </header>
+
+  <!-- Synthèse : un coup d'œil sur les 4 indicateurs -->
+  <div class="synthese" aria-live="polite">
+    <div class="tuile" id="t-rivieres"><h2>Rivières</h2><div class="etat">…</div><div class="detail"></div></div>
+    <div class="tuile" id="t-pluie"><h2>Pluie à venir</h2><div class="etat">…</div><div class="detail"></div></div>
+    <div class="tuile" id="t-maree"><h2>Marée</h2><div class="etat">…</div><div class="detail"></div></div>
+    <div class="tuile" id="t-nappes"><h2>Nappes</h2><div class="etat">…</div><div class="detail"></div></div>
+  </div>
+
+  <!-- Module 1 : tendance des rivières -->
+  <section class="module" id="m-rivieres">
+    <h2>Rivières : tendance sur 24 h</h2>
+    <p class="chapo">Les stations sont rangées de l'amont vers l'aval : une montée en haut du tableau arrive sur NCPA quelques heures plus tard. À Cabourg, la hauteur suit la marée ; on compare donc la dernière pleine mer aux précédentes.</p>
+    <div class="defile"><div id="tableau-rivieres" class="msg">Chargement des mesures…</div></div>
+  </section>
+
+  <div class="deux-col">
+    <!-- Module 2 : pluie -->
+    <section class="module" id="m-pluie">
+      <h2>Pluie sur le bassin de la Dives</h2>
+      <p class="chapo">Cumuls journaliers : 3 jours passés (barres pâles) et 7 jours de prévision.</p>
+      <div class="graph"><canvas id="g-pluie"></canvas></div>
+      <div id="chiffres-pluie" class="chiffres"></div>
+    </section>
+
+    <!-- Module 3 : marée -->
+    <section class="module" id="m-maree">
+      <h2>Marée à l'embouchure de la Dives</h2>
+      <p class="chapo">Niveau de la mer prévu (modèle) et hauteur mesurée à Cabourg sur 48 h. Les deux courbes n'ont pas le même zéro : comparez leurs rythmes, pas leurs valeurs.</p>
+      <div class="graph"><canvas id="g-maree"></canvas></div>
+      <div id="infos-maree"></div>
+    </section>
+  </div>
+
+  <!-- Module 4 : nappes -->
+  <section class="module" id="m-nappes">
+    <h2>Nappes souterraines</h2>
+    <p class="chapo">Niveau des 12 derniers mois comparé à la plage historique de la même période (zone bleue = entre le plus bas et le plus haut niveau connus à cette date). Une nappe haute aggrave les débordements dans les marais.</p>
+    <div class="nappes" id="nappes"></div>
+  </section>
+
+  <!-- Module 5 : Débi'Clic (outil d'origine) -->
+  <section class="module" id="m-debiclic">
+    <h2>Détail par station (Débi'Clic)</h2>
+    <p class="chapo">Carte, liste et graphiques des 15 derniers jours. Cabourg ne mesure pas le débit : elle n'apparaît qu'en mode hauteurs.</p>
+    <div class="bascule" role="group" aria-label="Grandeur affichée">
+      <button type="button" class="secondaire" data-grandeur="H" aria-pressed="true">Hauteurs</button>
+      <button type="button" class="secondaire" data-grandeur="Q" aria-pressed="false">Débits</button>
+    </div>
+    <div id="debiclic-widget"></div>
+  </section>
+
+  <footer>
+    <p>Sources : Hub'Eau (hydrométrie et piézométrie, BRGM / Vigicrues), Open-Meteo (prévisions de pluie et modèle de marée). Les seuils de couleur sont des réglages de départ, à ajuster dans la partie CONFIGURATION du fichier. La marée affichée est une estimation de modèle : pour les horaires et coefficients officiels, voir <a href="https://maree.shom.fr" target="_blank" rel="noopener">maree.shom.fr</a> ; pour les vigilances officielles, <a href="https://www.vigicrues.gouv.fr" target="_blank" rel="noopener">Vigicrues</a> et <a href="https://vigilance.meteofrance.fr" target="_blank" rel="noopener">Météo-France</a>.</p>
+  </footer>
+</div>
+
+<script src="https://unpkg.com/debiclic@latest/dist/embed/debiclic.min.js"></script>
+<script>
+/* =====================================================================
+   CONFIGURATION — c'est la seule partie à modifier pour adapter l'outil
+   ===================================================================== */
+const CONFIG = {
+  // Stations hydrométriques, de l'amont vers l'aval
+  stations: [
+    { code: "I123000101", nom: "La Dives à Bretteville-sur-Dives", secteur: "Amont" },
+    { code: "I205103002", nom: "La Dives au Mesnil-Mauger",        secteur: "Amont" },
+    { code: "I135000101", nom: "La Vie à Grandchamp-le-Château",   secteur: "Amont" },
+    { code: "I220382002", nom: "Le Laizon à Croissanville",        secteur: "Amont" },
+    { code: "I221361001", nom: "Le bras de l'Ancre à Cricqueville-en-Auge", secteur: "NCPA" },
+    { code: "I157000101", nom: "La Dives à Cabourg",               secteur: "NCPA", maree: true, sansDebit: true }
+  ],
+  // Variation de hauteur sur 24 h (en cm) à partir de laquelle on signale une montée
+  seuilMontee: 10,
+  seuilMonteeForte: 30,
+
+  // Zones de prévision de pluie (coordonnées GPS)
+  zonesPluie: [
+    { nom: "Haute vallée (St-Pierre-en-Auge)", lat: 48.95, lon: -0.03, couleur: "#13293D" },
+    { nom: "Moyenne vallée (Mézidon)",         lat: 49.08, lon: -0.07, couleur: "#1B6F8A" },
+    { nom: "NCPA (Dozulé)",                    lat: 49.23, lon: -0.04, couleur: "#8FC3D3" }
+  ],
+  // Cumul de pluie prévu sur 72 h (en mm) : vigilance / alerte
+  seuilPluie72h: 20,
+  seuilPluie72hFort: 40,
+
+  // Point de calcul de la marée (au large de l'embouchure de la Dives)
+  pointMaree: { lat: 49.30, lon: -0.11 },
+
+  // Piézomètres (codes BSS)
+  piezos: [
+    { code: "01206X0013/P",  nom: "Hérouvillette",     sous: "sur NCPA" },
+    { code: "01211X0037/S1", nom: "Danestal",          sous: "Pays d'Auge, 8 km à l'est" },
+    { code: "01463X0103/S1", nom: "Mézidon (Vieux-Fumé)", sous: "vallée de la Dives, amont" }
+  ],
+
+  // Actualisation automatique (en minutes, 0 pour désactiver)
+  actualisationAuto: 30
+};
+
+/* =====================================================================
+   OUTILS COMMUNS
+   ===================================================================== */
+const HEURE = 3600e3, JOUR = 24 * HEURE;
+const HUBEAU = "https://hubeau.eaufrance.fr/api";
+const graphiques = {};          // garde les graphiques pour pouvoir les redessiner
+let serieCabourg = [];          // partagée entre le module rivières et le module marée
+
+async function lireJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+const nb = (v, d = 2) => (v == null || isNaN(v)) ? "–"
+  : v.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const signe = (v, d = 0) => (v > 0 ? "+" : "") + nb(v, d);
+const dateHeure = t => new Date(t).toLocaleString("fr-FR", { weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const heure = t => new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+function tuile(id, classe, etat, detail) {
+  const el = document.getElementById(id);
+  el.className = "tuile " + classe;
+  el.querySelector(".etat").textContent = etat;
+  el.querySelector(".detail").textContent = detail;
+}
+
+// Point de la série le plus proche d'un instant donné (dans une tolérance)
+function valeurA(serie, t, tolerance = 3 * HEURE) {
+  let meilleur = null;
+  for (const p of serie) {
+    const ecart = Math.abs(p.t - t);
+    if (ecart <= tolerance && (!meilleur || ecart < Math.abs(meilleur.t - t))) meilleur = p;
+  }
+  return meilleur;
+}
+
+// Maxima locaux (pleines mers) : point le plus haut dans une fenêtre de ± demiFenetre
+function pics(serie, demiFenetre) {
+  const res = [];
+  for (let i = 0; i < serie.length; i++) {
+    const p = serie[i]; let estMax = true;
+    for (let j = i - 1; j >= 0 && p.t - serie[j].t <= demiFenetre; j--) if (serie[j].v > p.v) { estMax = false; break; }
+    if (estMax) for (let j = i + 1; j < serie.length && serie[j].t - p.t <= demiFenetre; j++) if (serie[j].v >= p.v) { estMax = false; break; }
+    if (estMax) res.push(p);
+  }
+  return res;
+}
+
+// Mini-courbe SVG
+function sparkline(serie, l = 130, h = 32) {
+  if (serie.length < 2) return "";
+  const t0 = serie[0].t, t1 = serie[serie.length - 1].t;
+  const vs = serie.map(p => p.v), mn = Math.min(...vs), mx = Math.max(...vs), plage = (mx - mn) || 1;
+  const pts = serie.map(p => ((p.t - t0) / ((t1 - t0) || 1) * l).toFixed(1) + "," + (h - 2 - (p.v - mn) / plage * (h - 4)).toFixed(1)).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${l} ${h}" width="${l}" height="${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+}
+
+// Trait vertical « maintenant » sur les graphiques temporels
+const pluginMaintenant = {
+  id: "maintenant",
+  afterDatasetsDraw(chart) {
+    const x = chart.scales.x; if (!x || x.type !== "linear") return;
+    const px = x.getPixelForValue(Date.now());
+    if (px < x.left || px > x.right) return;
+    const ctx = chart.ctx; ctx.save();
+    ctx.strokeStyle = "#D9822B"; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(px, chart.chartArea.top); ctx.lineTo(px, chart.chartArea.bottom); ctx.stroke();
+    ctx.fillStyle = "#D9822B"; ctx.font = "600 12px 'Source Sans 3', sans-serif"; ctx.fillText("maintenant", px + 4, chart.chartArea.top + 12);
+    ctx.restore();
+  }
+};
+function dessiner(id, config) {
+  if (graphiques[id]) graphiques[id].destroy();
+  graphiques[id] = new Chart(document.getElementById(id), config);
+}
+Chart.defaults.font.family = "'Source Sans 3', sans-serif";
+Chart.defaults.color = "#4F6475";
+
+/* =====================================================================
+   MODULE 1 — RIVIÈRES : TENDANCE 24 H
+   ===================================================================== */
+async function serieHubeau(code, grandeur, depuis) {
+  const iso = new Date(depuis).toISOString().slice(0, 19) + "Z";
+  const url = `${HUBEAU}/v2/hydrometrie/observations_tr?code_entite=${code}&grandeur_hydro=${grandeur}&date_debut_obs=${iso}&size=20000&fields=date_obs,resultat_obs`;
+  const d = await lireJSON(url);
+  return (d.data || []).filter(o => o.resultat_obs != null)
+    .map(o => ({ t: Date.parse(o.date_obs), v: o.resultat_obs }))
+    .sort((a, b) => a.t - b.t);
+}
+
+async function analyserStation(st) {
+  const maintenant = Date.now();
+  const [h, q] = await Promise.all([
+    serieHubeau(st.code, "H", maintenant - 30 * JOUR),
+    st.sansDebit ? Promise.resolve([]) : serieHubeau(st.code, "Q", maintenant - 2 * JOUR).catch(() => [])
+  ]);
+  if (!h.length) return { st, etat: "indispo" };
+  const dernier = h[h.length - 1];
+  const res = { st, dernier, max30: Math.max(...h.map(p => p.v)), spark: h.filter(p => p.t >= dernier.t - 2 * JOUR) };
+  res.debit = q.length ? q[q.length - 1] : null;
+
+  if (st.maree) {
+    serieCabourg = h;
+    const vs = h.map(p => p.v).sort((a, b) => a - b), mediane = vs[Math.floor(vs.length / 2)];
+    const pm = pics(h, 3 * HEURE).filter(p => p.v > mediane);
+    if (pm.length >= 2) {
+      const derniere = pm[pm.length - 1];
+      const precedentes = pm.slice(0, -1).map(p => p.v);
+      res.pleineMer = derniere;
+      res.moyennePM = precedentes.reduce((a, b) => a + b, 0) / precedentes.length;
+      res.recordPM = derniere.v >= Math.max(...precedentes);
+      res.etat = res.recordPM ? "montee" : "maree";
+    } else res.etat = "maree";
+    return res;
+  }
+
+  const ilYA24h = valeurA(h, dernier.t - JOUR);
+  if (ilYA24h) {
+    res.delta = (dernier.v - ilYA24h.v) / 10; // mm -> cm
+    res.etat = res.delta >= CONFIG.seuilMonteeForte ? "forte"
+      : res.delta >= CONFIG.seuilMontee ? "montee"
+      : res.delta <= -CONFIG.seuilMontee ? "baisse" : "stable";
+  } else res.etat = "stable";
+  return res;
+}
+
+const LIBELLES = { forte: "Montée forte", montee: "En montée", baisse: "En baisse", stable: "Stable", maree: "Sous marée", indispo: "Pas de données" };
+
+async function chargerRivieres() {
+  const zone = document.getElementById("tableau-rivieres");
+  const resultats = await Promise.all(CONFIG.stations.map(st => analyserStation(st).catch(() => ({ st, etat: "indispo" }))));
+
+  let html = `<table><thead><tr><th>Station</th><th>Tendance</th><th class="num">Hauteur</th><th class="num">Variation 24 h</th><th class="num">Débit</th><th class="num">Max 30 j</th><th>48 dernières heures</th></tr></thead><tbody>`;
+  let secteur = null;
+  for (const r of resultats) {
+    if (r.st.secteur !== secteur) {
+      secteur = r.st.secteur;
+      html += `<tr class="separateur"><td colspan="7">${secteur === "NCPA" ? "Sur NCPA" : "En amont de NCPA"}</td></tr>`;
+    }
+    if (r.etat === "indispo") {
+      html += `<tr><td><span class="nom-station">${r.st.nom}</span><span class="sous">${r.st.code}</span></td><td><span class="pastille">${LIBELLES.indispo}</span></td><td colspan="5" class="msg">La station n'a rien transmis depuis 30 jours.</td></tr>`;
+      continue;
+    }
+    let variation = r.delta != null ? signe(r.delta, 0) + " cm" : "–";
+    let libelle = LIBELLES[r.etat];
+    if (r.st.maree && r.pleineMer) {
+      variation = `<span title="Dernière pleine mer comparée à la moyenne des pleines mers sur 30 jours">PM ${heure(r.pleineMer.t)} : ${signe((r.pleineMer.v - r.moyennePM) / 10, 0)} cm vs moy.</span>`;
+      if (r.recordPM) libelle = "PM la + haute (30 j)";
+    }
+    html += `<tr>
+      <td><span class="nom-station">${r.st.nom}</span><span class="sous">${r.st.code}</span></td>
+      <td><span class="pastille ${r.etat}">${libelle}</span></td>
+      <td class="num">${nb(r.dernier.v / 1000)} m</td>
+      <td class="num">${variation}</td>
+      <td class="num">${r.debit ? nb(r.debit.v / 1000, r.debit.v < 10000 ? 2 : 1) + " m³/s" : "–"}</td>
+      <td class="num">${nb(r.max30 / 1000)} m</td>
+      <td>${sparkline(r.spark)}<span class="sous">dernière mesure ${dateHeure(r.dernier.t)}</span></td>
+    </tr>`;
+  }
+  zone.className = ""; zone.innerHTML = html + "</tbody></table>";
+
+  // Tuile de synthèse
+  const amont = resultats.filter(r => r.st.secteur === "Amont");
+  const fortes = resultats.filter(r => r.etat === "forte").length;
+  const montees = resultats.filter(r => r.etat === "montee" && !r.st.maree).length;
+  const enMonteeAmont = amont.filter(r => r.etat === "forte" || r.etat === "montee").length;
+  const indispo = resultats.filter(r => r.etat === "indispo").length;
+  if (fortes) tuile("t-rivieres", "alerte", "Montée forte", `${fortes} station(s) à +${CONFIG.seuilMonteeForte} cm ou plus en 24 h`);
+  else if (montees) tuile("t-rivieres", "vigilance", "En montée", `${montees} station(s) en hausse, dont ${enMonteeAmont} à l'amont`);
+  else tuile("t-rivieres", "calme", "Stable", `Aucune hausse notable sur 24 h${indispo ? ` · ${indispo} station(s) muette(s)` : ""}`);
+}
+
+/* =====================================================================
+   MODULE 2 — PLUIE
+   ===================================================================== */
+async function chargerPluie() {
+  const z = CONFIG.zonesPluie;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${z.map(a => a.lat).join(",")}&longitude=${z.map(a => a.lon).join(",")}&daily=precipitation_sum,precipitation_probability_max&past_days=3&forecast_days=7&timezone=Europe%2FParis`;
+  let d = await lireJSON(url);
+  if (!Array.isArray(d)) d = [d];
+
+  const jours = d[0].daily.time;
+  const auj = new Date().toLocaleDateString("sv-SE"); // format AAAA-MM-JJ
+  let iAuj = jours.indexOf(auj); if (iAuj < 0) iAuj = 3;
+  const etiquettes = jours.map(j => new Date(j + "T12:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }));
+
+  const somme = (arr, a, b) => arr.slice(a, b).reduce((s, v) => s + (v || 0), 0);
+  const bilans = d.map((zone, k) => ({
+    nom: z[k].nom,
+    passe: somme(zone.daily.precipitation_sum, Math.max(0, iAuj - 3), iAuj),
+    avenir: somme(zone.daily.precipitation_sum, iAuj, iAuj + 3)
+  }));
+
+  dessiner("g-pluie", {
+    type: "bar",
+    data: {
+      labels: etiquettes,
+      datasets: d.map((zone, k) => ({
+        label: z[k].nom,
+        data: zone.daily.precipitation_sum,
+        backgroundColor: jours.map((_, i) => i < iAuj ? z[k].couleur + "55" : z[k].couleur),
+        borderRadius: 2
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label} : ${nb(c.parsed.y, 1)} mm` } } },
+      scales: { y: { beginAtZero: true, title: { display: true, text: "mm / jour" } }, x: { grid: { display: false } } }
+    }
+  });
+
+  document.getElementById("chiffres-pluie").innerHTML = bilans.map(b =>
+    `<div>${b.nom}<strong>${nb(b.avenir, 0)} mm à venir</strong>${nb(b.passe, 0)} mm ces 3 derniers jours</div>`).join("");
+
+  const pire = bilans.reduce((a, b) => b.avenir > a.avenir ? b : a);
+  const detail = `${nb(pire.avenir, 0)} mm prévus en 72 h (${pire.nom.split(" (")[0].toLowerCase()})`;
+  if (pire.avenir >= CONFIG.seuilPluie72hFort) tuile("t-pluie", "alerte", "Fortes pluies", detail);
+  else if (pire.avenir >= CONFIG.seuilPluie72h) tuile("t-pluie", "vigilance", "Pluies notables", detail);
+  else tuile("t-pluie", "calme", "Peu de pluie", detail);
+}
+
+/* =====================================================================
+   MODULE 3 — MARÉE
+   ===================================================================== */
+async function chargerMaree() {
+  const p = CONFIG.pointMaree;
+  const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${p.lat}&longitude=${p.lon}&hourly=sea_level_height_msl&past_days=2&forecast_days=4&timezone=GMT`;
+  const d = await lireJSON(url);
+  const serie = d.hourly.time.map((t, i) => ({ t: Date.parse(t + "Z"), v: d.hourly.sea_level_height_msl[i] })).filter(x => x.v != null);
+  const maintenant = Date.now();
+
+  // Pleines mers, basses mers et marnage (écart entre une basse mer et la pleine mer suivante)
+  const hautes = pics(serie, 4 * HEURE).filter(x => x.v > 0);
+  const basses = pics(serie.map(x => ({ t: x.t, v: -x.v })), 4 * HEURE).map(x => ({ t: x.t, v: -x.v }));
+  const marnage = pm => { const bm = basses.filter(b => b.t < pm.t).pop(); return bm ? pm.v - bm.v : null; };
+  const passees = hautes.filter(h => h.t <= maintenant).map(marnage).filter(v => v != null);
+  const futures = hautes.filter(h => h.t > maintenant && h.t < maintenant + 3 * JOUR);
+  const marnFuturs = futures.map(marnage).filter(v => v != null);
+  const moy = a => a.reduce((s, v) => s + v, 0) / (a.length || 1);
+
+  const obs = serieCabourg.filter(x => x.t >= maintenant - 2 * JOUR).map(x => ({ x: x.t, y: x.v / 1000 }));
+  dessiner("g-maree", {
+    type: "line",
+    data: { datasets: [
+      { label: "Marée prévue (modèle, m)", data: serie.map(x => ({ x: x.t, y: x.v })), borderColor: "#1B6F8A", backgroundColor: "#1B6F8A22", fill: "origin", pointRadius: 0, borderWidth: 2, tension: 0.3, yAxisID: "y" },
+      { label: "Hauteur mesurée à Cabourg (m)", data: obs, borderColor: "#13293D", pointRadius: 0, borderWidth: 1.5, yAxisID: "y2" }
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode: "nearest", axis: "x", intersect: false },
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } },
+        tooltip: { callbacks: { title: c => dateHeure(c[0].parsed.x), label: c => `${c.dataset.label} : ${nb(c.parsed.y)}` } } },
+      scales: {
+        x: { type: "linear", min: maintenant - 2 * JOUR, max: maintenant + 3 * JOUR,
+             ticks: { stepSize: JOUR / 2, callback: v => new Date(v).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }) + (new Date(v).getHours() >= 12 ? " ap-m" : "") } },
+        y: { title: { display: true, text: "modèle (m)" } },
+        y2: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "Cabourg (m)" } }
+      }
+    },
+    plugins: [pluginMaintenant]
+  });
+
+  const prochaines = hautes.filter(h => h.t > maintenant).slice(0, 6);
+  const plusHaute = futures.length ? futures.reduce((a, b) => b.v > a.v ? b : a) : null;
+  const tendance = marnFuturs.length && passees.length ? moy(marnFuturs) - moy(passees) : 0;
+  const sens = tendance > 0.15 ? "vers les vives-eaux (marées plus fortes)" : tendance < -0.15 ? "vers les mortes-eaux (marées plus faibles)" : "stable";
+
+  document.getElementById("infos-maree").innerHTML = `
+    <div class="chiffres">
+      <div>Plus haute pleine mer (3 j)<strong>${plusHaute ? nb(plusHaute.v) + " m" : "–"}</strong>${plusHaute ? dateHeure(plusHaute.t) : ""}</div>
+      <div>Marnage moyen à venir<strong>${nb(moy(marnFuturs), 1)} m</strong>tendance ${sens}</div>
+    </div>
+    <table class="pm"><thead><tr><th>Prochaines pleines mers</th><th class="num">Hauteur (modèle)</th></tr></thead><tbody>
+      ${prochaines.map(h => `<tr><td>${dateHeure(h.t)}</td><td class="num">${nb(h.v)} m</td></tr>`).join("")}
+    </tbody></table>`;
+
+  // Synthèse : on croise la tendance de marée et la dernière pleine mer observée à Cabourg
+  const pmObs = serieCabourg.length ? pics(serieCabourg, 3 * HEURE) : [];
+  const recordObs = pmObs.length > 2 && pmObs[pmObs.length - 1].v >= Math.max(...pmObs.slice(0, -1).map(x => x.v));
+  if (recordObs) tuile("t-maree", "vigilance", "Pleine mer haute", "Dernière PM observée à Cabourg : la plus haute des 30 derniers jours");
+  else if (tendance > 0.15) tuile("t-maree", "vigilance", "Vives-eaux", `Marées en renforcement · PM max ${plusHaute ? dateHeure(plusHaute.t) : ""}`);
+  else tuile("t-maree", "calme", tendance < -0.15 ? "Mortes-eaux" : "Marées moyennes", `PM max à venir : ${plusHaute ? nb(plusHaute.v) + " m, " + dateHeure(plusHaute.t) : "–"}`);
+}
+
+/* =====================================================================
+   MODULE 4 — NAPPES
+   ===================================================================== */
+const jourAnnee = t => { const d = new Date(t); return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(d.getFullYear(), 0, 0)) / JOUR); };
+const ETATS_NAPPE = [
+  { max: 10, nom: "Très basse", classe: "baisse" }, { max: 33, nom: "Basse", classe: "baisse" },
+  { max: 67, nom: "Normale", classe: "" }, { max: 90, nom: "Haute", classe: "montee" }, { max: 101, nom: "Très haute", classe: "forte" }
+];
+
+async function analyserPiezo(pz, index) {
+  const url = `${HUBEAU}/v1/niveaux_nappes/chroniques?code_bss=${encodeURIComponent(pz.code)}&size=20000&fields=date_mesure,niveau_nappe_eau&sort=asc`;
+  const d = await lireJSON(url);
+  const serie = (d.data || []).filter(x => x.niveau_nappe_eau != null).map(x => ({ t: Date.parse(x.date_mesure), v: x.niveau_nappe_eau })).sort((a, b) => a.t - b.t);
+  if (!serie.length) throw new Error("vide");
+
+  const dernier = serie[serie.length - 1];
+  const limite = dernier.t - 365 * JOUR;
+  const histo = serie.filter(x => x.t < limite), recent = serie.filter(x => x.t >= limite);
+
+  // Enveloppe historique (min / max) par jour de l'année
+  const env = {};
+  for (const x of histo) { const j = jourAnnee(x.t); env[j] = env[j] ? [Math.min(env[j][0], x.v), Math.max(env[j][1], x.v)] : [x.v, x.v]; }
+
+  // Position du niveau actuel parmi les niveaux historiques à la même période (± 7 jours)
+  const jA = jourAnnee(dernier.t);
+  const comparables = histo.filter(x => { const e = Math.abs(jourAnnee(x.t) - jA); return Math.min(e, 365 - e) <= 7; }).map(x => x.v);
+  const pct = comparables.length ? comparables.filter(v => v < dernier.v).length / comparables.length * 100 : null;
+  const etat = pct == null ? { nom: "Historique court", classe: "" } : ETATS_NAPPE.find(e => pct < e.max);
+  const il30j = valeurA(serie, dernier.t - 30 * JOUR, 5 * JOUR);
+  const annees = histo.length ? Math.round((limite - histo[0].t) / (365 * JOUR)) : 0;
+
+  const bloc = document.createElement("div");
+  bloc.className = "nappe";
+  bloc.innerHTML = `<h3>${pz.nom}</h3><span class="sous">${pz.sous} · ${pz.code}</span>
+    <div class="ligne-etat"><span class="pastille ${etat.classe}">${etat.nom}</span>
+    <span>${nb(dernier.v)} m NGF · ${il30j ? signe((dernier.v - il30j.v) * 100, 0) + " cm en 30 j" : ""}</span></div>
+    <div class="graph"><canvas id="g-nappe-${index}"></canvas></div>
+    <span class="sous">Mesure du ${new Date(dernier.t).toLocaleDateString("fr-FR")} · comparaison sur ${annees} an(s) d'historique</span>`;
+  document.getElementById("nappes").appendChild(bloc);
+
+  const bandeMax = recent.map(x => ({ x: x.t, y: env[jourAnnee(x.t)]?.[1] ?? null }));
+  const bandeMin = recent.map(x => ({ x: x.t, y: env[jourAnnee(x.t)]?.[0] ?? null }));
+  dessiner(`g-nappe-${index}`, {
+    type: "line",
+    data: { datasets: [
+      { label: "Max historique", data: bandeMax, borderWidth: 0, pointRadius: 0, backgroundColor: "#8FC3D355", fill: "+1", spanGaps: true },
+      { label: "Min historique", data: bandeMin, borderWidth: 0, pointRadius: 0, fill: false, spanGaps: true },
+      { label: "Niveau", data: recent.map(x => ({ x: x.t, y: x.v })), borderColor: "#13293D", borderWidth: 2, pointRadius: 0 }
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode: "nearest", axis: "x", intersect: false },
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { title: c => new Date(c[0].parsed.x).toLocaleDateString("fr-FR"), label: c => `${c.dataset.label} : ${nb(c.parsed.y)} m` } } },
+      scales: { x: { type: "linear", ticks: { maxTicksLimit: 6, callback: v => new Date(v).toLocaleDateString("fr-FR", { month: "short" }) } },
+                y: { ticks: { maxTicksLimit: 5 } } }
+    }
+  });
+  return { pz, etat, pct };
+}
+
+async function chargerNappes() {
+  const zone = document.getElementById("nappes");
+  zone.innerHTML = "";
+  const res = [];
+  for (const [i, pz] of CONFIG.piezos.entries()) {
+    try { res.push(await analyserPiezo(pz, i)); }
+    catch { zone.insertAdjacentHTML("beforeend", `<div class="nappe"><h3>${pz.nom}</h3><p class="erreur">Données indisponibles.</p></div>`); }
+  }
+  const hautes = res.filter(r => r.pct != null && r.pct >= 67);
+  if (res.some(r => r.pct != null && r.pct >= 90)) tuile("t-nappes", "alerte", "Très hautes", hautes.map(r => r.pz.nom).join(", ") + " au-dessus des normales");
+  else if (hautes.length) tuile("t-nappes", "vigilance", "Hautes", hautes.map(r => r.pz.nom).join(", ") + " au-dessus des normales");
+  else if (res.length) tuile("t-nappes", "calme", "Normales ou basses", "Pas de nappe au-dessus de la normale saisonnière");
+  else tuile("t-nappes", "", "Indisponible", "Hub'Eau ne répond pas");
+}
+
+/* =====================================================================
+   MODULE 5 — DÉBI'CLIC (outil d'origine, inchangé)
+   ===================================================================== */
+function afficherDebiclic(grandeur) {
+  const conteneur = document.getElementById("debiclic-widget");
+  conteneur.innerHTML = ""; // on vide avant de recréer le widget
+  const stations = CONFIG.stations.filter(s => grandeur === "H" || !s.sansDebit);
+  debiclic.init({
+    container: "#debiclic-widget",
+    codeStations: stations.map(s => s.code),
+    stationsLabels: Object.fromEntries(stations.map(s => [s.code, s.nom])),
+    grandeurHydro: grandeur,
+    days: 15,
+    height: 640,
+    showMap: true,
+    colors: { station: "#1B6F8A", graph: "#1B6F8A" }
+  });
+  document.querySelectorAll(".bascule button").forEach(b => b.setAttribute("aria-pressed", b.dataset.grandeur === grandeur));
+}
+document.querySelectorAll(".bascule button").forEach(b => b.addEventListener("click", () => afficherDebiclic(b.dataset.grandeur)));
+
+/* =====================================================================
+   LANCEMENT
+   ===================================================================== */
+async function toutCharger() {
+  const btn = document.getElementById("btn-actualiser");
+  btn.disabled = true; btn.textContent = "Actualisation…";
+  const erreur = (idModule, idTuile, source) => () => {
+    tuile(idTuile, "", "Indisponible", `${source} ne répond pas`);
+    const cible = document.querySelector(`#${idModule} .graph, #${idModule} .defile`);
+    if (cible) cible.insertAdjacentHTML("afterend", `<p class="erreur">Données indisponibles pour le moment (${source}). Réessayez avec « Actualiser ».</p>`);
+  };
+  await Promise.all([
+    chargerRivieres().catch(erreur("m-rivieres", "t-rivieres", "Hub'Eau"))
+      .then(() => chargerMaree().catch(erreur("m-maree", "t-maree", "Open-Meteo"))),
+    chargerPluie().catch(erreur("m-pluie", "t-pluie", "Open-Meteo")),
+    chargerNappes()
+  ]);
+  document.getElementById("heure-maj").textContent = "Mis à jour à " + heure(Date.now());
+  btn.disabled = false; btn.textContent = "Actualiser";
+}
+
+document.getElementById("btn-actualiser").addEventListener("click", () => {
+  document.querySelectorAll("p.erreur").forEach(p => p.remove());
+  toutCharger();
+});
+toutCharger();
+afficherDebiclic("H");
+if (CONFIG.actualisationAuto > 0) setInterval(toutCharger, CONFIG.actualisationAuto * 60e3);
+</script>
+</body>
+</html>
