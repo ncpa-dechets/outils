@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Implantation des dalles – NCPA</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--rouge:#B91E27;--rouge-f:#8f161e;--vert:#B1B993;--vert-f:#6f7852;--fond:#f5f5f2;--bord:#d9d9d3;--txt:#1f1f1f;--doux:#6b6b6b;--bleu:#0d47a1}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{display:flex;flex-direction:column;height:100vh;font-family:Calibri,"Segoe UI",system-ui,sans-serif;font-size:14px;color:var(--txt);background:#fff}
+svg.ic{width:16px;height:16px;vertical-align:-3px;fill:currentColor;flex:0 0 16px}
+/* --- En-tête --- */
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:0 14px 0 0;border-bottom:1px solid var(--bord);background:#fff}
+.marque{display:flex;align-items:center;gap:12px;padding:8px 14px;border-left:6px solid var(--rouge);min-height:56px}
+.marque .logo{height:38px;max-width:120px;object-fit:contain}
+.marque .logo-txt{background:var(--rouge);color:#fff;font-weight:700;font-size:15px;letter-spacing:.06em;padding:6px 8px;border-radius:3px}
+.surtitre{font-size:12px;color:var(--rouge);font-weight:700}
+h1{margin:0;font-size:19px;line-height:1.15;font-weight:700}
+#nomProjet{width:230px}
+header .actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+/* --- Mise en page --- */
+main{flex:1 1 auto;display:flex;min-height:0}
+#panneau{flex:0 0 310px;width:310px;overflow-y:auto;background:var(--fond);border-right:1px solid var(--bord);padding:10px}
+#mapwrap{flex:1 1 auto;position:relative;min-width:0}
+#map{position:absolute;inset:0;background:#e8e8e4}
+details.bloc{background:#fff;border:1px solid var(--bord);border-radius:6px;margin-bottom:8px;padding:6px 10px}
+details.bloc>summary{font-weight:700;cursor:pointer;padding:3px 0;list-style:none;display:flex;align-items:center;gap:6px}
+details.bloc>summary::-webkit-details-marker{display:none}
+details.bloc>summary::before{content:"";width:6px;height:6px;border-right:2px solid var(--rouge);border-bottom:2px solid var(--rouge);transform:rotate(-45deg);transition:transform .15s;margin-right:2px}
+details.bloc[open]>summary::before{transform:rotate(45deg)}
+h3{font-size:12.5px;color:var(--rouge);margin:10px 0 4px;font-weight:700}
+button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--bord);background:#fff;border-radius:5px;padding:4px 9px;color:var(--txt);display:inline-flex;align-items:center;gap:5px}
+button:hover{border-color:#9a9a9a}
+button.p{background:var(--rouge);border-color:var(--rouge);color:#fff}
+button.p:hover{background:var(--rouge-f)}
+button.danger{color:var(--rouge)}
+input[type=text],input[type=number],select,textarea{font:inherit;font-size:13px;border:1px solid var(--bord);border-radius:4px;padding:3px 6px;background:#fff;color:var(--txt)}
+input:focus,select:focus,textarea:focus{outline:2px solid #e9b9bc;border-color:var(--rouge)}
+input[type=number]{width:86px;text-align:right}
+textarea{width:100%;resize:vertical}
+label.l{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0}
+label.c{display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer}
+.btns{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+.note{font-size:12px;color:var(--doux);margin:4px 0;line-height:1.3}
+.types{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+.types button{text-align:left;padding:7px 8px}
+.types button.actif{border-color:var(--rouge);box-shadow:inset 0 0 0 1px var(--rouge)}
+.pastille{display:inline-block;width:12px;height:12px;border-radius:3px;flex:0 0 12px;border:1px solid rgba(0,0,0,.25)}
+.puce{display:inline-block;width:9px;height:9px;border-radius:50%;flex:0 0 9px}
+ul.liste{list-style:none;margin:4px 0;padding:0;max-height:240px;overflow-y:auto;border:1px solid var(--bord);border-radius:4px;background:#fff}
+ul.liste li{display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #eee;cursor:pointer;font-size:13px}
+ul.liste li:hover{background:#faf6f6}
+ul.liste li.sel{background:#f6e4e5}
+ul.liste li.vide{color:var(--doux);cursor:default}
+ul.liste .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ul.liste .dim{color:var(--doux);font-size:12px;white-space:nowrap}
+ul.liste:empty,#coords:empty{display:none}
+ul.liste li.fiche-grp{cursor:default;font-size:11.5px;font-weight:700;color:var(--rouge);background:#faf3f3;padding:3px 6px}
+ul.liste li.ind{padding-left:18px}
+#recherche{position:absolute;top:10px;left:54px;z-index:1001;width:380px;max-width:calc(100% - 64px)}
+.rch-champ{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--bord);border-radius:6px;padding:0 6px 0 10px;box-shadow:0 2px 8px rgba(0,0,0,.2);color:var(--doux)}
+.rch-champ:focus-within{border-color:var(--rouge);box-shadow:0 0 0 2px #f1c9cc,0 2px 8px rgba(0,0,0,.2)}
+.rch-champ input{flex:1;border:none!important;outline:none!important;padding:9px 2px;font-size:14px;background:transparent}
+.rch-champ button{border:none;font-size:18px;line-height:1;padding:2px 6px;color:var(--doux)}
+#resAdr{list-style:none;margin:4px 0 0;padding:4px 0;background:#fff;border:1px solid var(--bord);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.2);max-height:60vh;overflow-y:auto}
+#resAdr[hidden]{display:none}
+#resAdr .grp{font-size:11px;font-weight:700;color:var(--rouge);text-transform:uppercase;letter-spacing:.04em;padding:6px 12px 2px}
+#resAdr li.r{padding:6px 12px;cursor:pointer;display:flex;flex-direction:column}
+#resAdr li.r small{color:var(--doux);font-size:12px}
+#resAdr li.r.act,#resAdr li.r:hover{background:#f6e4e5}
+#resAdr li.info{padding:6px 12px;color:var(--doux);font-size:13px}
+#banniere{top:58px}
+.totaux{font-size:12px;color:var(--doux)}
+.legende{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:12px;margin:4px 0}
+.legende span{display:flex;align-items:center;gap:5px}
+/* --- Panneau de réglages --- */
+#insp{position:absolute;top:10px;right:10px;z-index:1000;width:320px;max-height:calc(100% - 20px);overflow-y:auto;background:#fff;border:1px solid var(--bord);border-top:3px solid var(--rouge);border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,.2);padding:8px 10px}
+#insp[hidden],#banniere[hidden],#modal[hidden]{display:none}
+.ihead{display:flex;align-items:center;gap:6px;font-size:15px;margin:0 0 6px}
+.ihead .x{margin-left:auto;border:none;font-size:20px;line-height:1;padding:0 4px}
+#insp details.bloc{margin-bottom:6px;padding:4px 8px}
+#insp input[type=text]{width:170px}
+.bac{display:flex;gap:4px;margin:3px 0}
+.bac select:first-child{flex:1}
+.resume{background:var(--fond);border-radius:5px;padding:6px 8px;margin:4px 0;font-size:13px}
+.resume div{display:flex;justify-content:space-between;gap:8px;padding:1px 0}
+.resume span{color:var(--doux)}
+.alerte{color:var(--rouge);font-weight:700;margin:4px 0 0}
+.loc{font-size:12.5px;line-height:1.35}
+.loc dt{color:var(--doux);margin-top:4px}
+.loc dd{margin:0;font-weight:600}
+.loc dd.ok{color:#2e7d32}
+.loc dd.av{color:#b35c00}
+.poseq,.cote{display:flex;align-items:center;gap:6px;font-size:12px;margin:3px 0;padding:2px 4px;border-radius:4px}
+.poseq span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.poseq input{width:58px}
+.poseq.actif{background:#f6e4e5}
+.cote b{color:var(--bleu);white-space:nowrap}
+.cote input{flex:1;width:auto!important}
+/* --- Carte --- */
+#banniere{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--rouge);color:#fff;padding:7px 12px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.25);max-width:90%}
+#banniere button{margin-left:8px;background:#fff;color:var(--rouge);border:none}
+#coords{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);z-index:900;background:rgba(255,255,255,.88);padding:2px 8px;border-radius:4px;font-size:12px;color:#333;pointer-events:none;white-space:nowrap}
+#map.pose,#map.pose .leaflet-interactive{cursor:crosshair!important}
+#map path.eq-mobile{cursor:move}
+.poignee div{width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid var(--rouge);color:var(--rouge);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:grab}
+.poignee svg{width:15px;height:15px;fill:currentColor}
+.poignee.pq div{width:22px;height:22px;border-color:#1b5e20;color:#1b5e20}
+.poignee.pe div{border-color:#1565c0;color:#1565c0}
+.leaflet-tooltip.lbl{background:rgba(255,255,255,.9);border:none;box-shadow:none;font-size:11px;line-height:1.15;padding:1px 4px;text-align:center;color:#111}
+.leaflet-tooltip.lbl::before{display:none}
+.lbl-cote span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;background:#fff;color:var(--bleu);border:1px solid var(--bleu);border-radius:3px;padding:0 4px;font-size:11px;font-weight:700}
+.lbl-code span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;background:rgba(255,255,255,.9);color:#111;border-radius:3px;padding:0 3px;font-size:10px;font-weight:700}
+.sans-etiquettes .leaflet-tooltip.lbl,.sans-etiquettes .lbl-cote{display:none}
+.lbl-etalon{color:#1565c0;font-weight:700;font-size:12px;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff;transform:translate(-50%,-120%)}
+/* --- Fenêtre d'import --- */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:3000;display:flex;align-items:center;justify-content:center}
+#modal .boite{background:#fff;border-top:4px solid var(--rouge);border-radius:6px;padding:14px 18px;width:min(470px,94vw);max-height:90vh;overflow:auto}
+#modal select{max-width:230px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 14px;border-radius:6px;z-index:4000;opacity:0;transition:opacity .25s;pointer-events:none}
+#toast.vu{opacity:.95}
+@media (max-width:860px){
+  main{flex-direction:column}
+  #panneau{flex:0 0 auto;width:auto;max-height:38vh;border-right:none;border-bottom:1px solid var(--bord)}
+  #mapwrap{min-height:62vh}
+  #insp{top:auto;bottom:8px;right:8px;left:8px;width:auto;max-height:50%}
+}
+/* =========================== FICHES D'IMPLANTATION =========================== */
+#impression{display:none}
+body.impression{display:block;height:auto;background:#888}
+body.impression>*:not(#impression):not(.html2canvas-container){display:none!important}
+body.impression #impression{display:block}
+.fiche{width:210mm;min-height:296mm;margin:0 auto 8mm;background:#fff;padding:10mm;font-size:8.6pt;line-height:1.3;color:#111;display:flex;flex-direction:column;gap:1.8mm;break-after:page;page-break-after:always}
+.fiche:last-child{break-after:auto;page-break-after:auto}
+.f-cart{display:grid;grid-template-columns:30mm 1fr 52mm;border:0.4mm solid #333;border-top:2mm solid var(--rouge)}
+.f-cart>div{padding:2mm;border-right:0.3mm solid #999}
+.f-cart>div:last-child{border-right:none}
+.f-cart .logo{max-width:26mm;max-height:16mm;object-fit:contain}
+.f-cart .logo-txt{display:block;width:fit-content;line-height:1.2;background:var(--rouge);color:#fff;font-weight:700;padding:1.5mm 2mm;font-size:11pt}
+.f-cart h2{margin:0.5mm 0;font-size:13pt}
+.f-cart .st{color:var(--rouge);font-weight:700;font-size:8pt}
+.f-cart table td{padding:0 1mm 0 0;font-size:7.8pt}
+.f-row{display:grid;gap:2.5mm}
+.f-box{border:0.3mm solid #999;padding:2mm 2mm 1.6mm}
+.f-box h4{line-height:1.25;margin:0 0 1mm;font-size:8.6pt;color:var(--rouge);text-transform:none}
+.f-box table{width:100%;border-collapse:collapse}
+.f-box td,.f-box th{padding:0.5mm 1mm;vertical-align:top;text-align:left;font-size:7.9pt}
+.f-box th{color:#555;font-weight:400;width:32mm}
+.f-tab{width:100%;border-collapse:collapse;font-size:7.8pt}
+.f-tab th,.f-tab td{border:0.25mm solid #aaa;padding:0.6mm 1.2mm;text-align:left;vertical-align:top}
+.f-tab thead th{background:#f1e3e4}
+.f-tab td.n{text-align:right;white-space:nowrap}
+.f-carte{position:relative;border:0.3mm solid #666}
+.f-carte .m{position:absolute;inset:0}
+.f-carte .titre{position:absolute;left:1.5mm;top:1.5mm;z-index:1000;background:rgba(255,255,255,.92);padding:0.4mm 1.5mm;font-weight:700;font-size:8pt}
+.f-carte .nord{position:absolute;right:2mm;top:2mm;z-index:1000;background:rgba(255,255,255,.92);border-radius:50%;width:10mm;height:10mm;display:flex;align-items:center;justify-content:center}
+.f-carte .leaflet-control-attribution{font-size:6pt}
+.f-schemas{display:flex;flex-wrap:wrap;gap:2mm;align-items:flex-start}
+.f-schemas figure{margin:0;flex:1 1 0;min-width:0}
+.f-schemas figcaption{font-weight:700;font-size:8pt}
+.f-schemas svg{width:100%;max-height:58mm}
+.coche{display:block;flex:0 0 3mm;width:3mm;height:3mm;border:0.3mm solid #333;margin-right:1mm}
+.sv{display:flex;align-items:center;gap:1mm;margin:0.5mm 0}
+.trait{flex:1;height:3mm;border-bottom:0.25mm dotted #333;margin:0 1mm}
+.ligne-a-remplir{display:inline-block;min-width:28mm;border-bottom:0.25mm dotted #333}
+.rappel{border-left:1.2mm solid var(--rouge);background:#fbeff0;padding:1.2mm 2mm;font-weight:700;font-size:8pt}
+.f-pied{margin-top:auto;display:flex;justify-content:space-between;font-size:7pt;color:#555;border-top:0.3mm solid #999;padding-top:1mm}
+@page{size:A4 portrait;margin:0}
+#barreApercu{position:sticky;top:0;z-index:2000;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px;background:#333;color:#fff;margin-bottom:8mm}
+#barreApercu button:disabled{opacity:.5;cursor:wait}
+@media print{#barreApercu{display:none!important}body.impression{background:#fff}.fiche{margin:0}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<header>
+  <div class="marque">
+    <span id="logoEntete"><span class="logo-txt">NCPA</span></span>
+    <div>
+      <div class="surtitre">Direction de la Maîtrise des Déchets · Déploiement des équipements de collecte</div>
+      <h1>Implantation des dalles béton</h1>
+    </div>
+  </div>
+  <input type="text" id="nomProjet" placeholder="Nom du projet (ex. Dozulé – vague 1)" aria-label="Nom du projet">
+  <div class="actions">
+    <button type="button" id="bOuvrir" title="Rouvrir un projet enregistré (.json)">Ouvrir</button>
+    <button type="button" id="bEnregistrer" title="Télécharger le projet (.json) pour le rouvrir plus tard">Enregistrer</button>
+    <button type="button" id="bExcel" title="Tableau des dalles (.xlsx)">Excel</button>
+    <button type="button" class="p" id="bFiches" title="Une fiche A4 par site, pour toutes les dalles">Fiches d'implantation</button>
+    <button type="button" id="bNouveau">Nouveau</button>
+    <input type="file" id="fProjet" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<main>
+<aside id="panneau">
+
+  <details class="bloc" open>
+    <summary>Placer une dalle</summary>
+    <div class="types" id="typesPose">
+      <button type="button" data-pose="borne"><span class="pastille" style="background:#2f7d4a"></span>Borne à verre</button>
+      <button type="button" data-pose="cabane"><span class="pastille" style="background:#b08a5a"></span>Cabane à cartons</button>
+      <button type="button" data-pose="pdr"><span class="pastille" style="background:#e74c3c"></span>PDR (bacs)</button>
+      <button type="button" data-pose="libre"><span class="pastille" style="background:#9e9e9e"></span>Dalle libre</button>
+    </div>
+    <p class="note">Choisissez un type puis cliquez sur la carte (ou sur un site importé).</p>
+    <h3>Dalles placées</h3>
+    <ul class="liste" id="listeDalles"></ul>
+    <div class="totaux" id="totaux"></div>
+    <div class="legende" id="legendeStatuts"></div>
+  </details>
+
+  <details class="bloc" open>
+    <summary>Fond de carte et repères</summary>
+    <label class="c"><input type="radio" name="fond" value="ortho" checked> Photo aérienne IGN</label>
+    <label class="c"><input type="radio" name="fond" value="plan"> Plan IGN</label>
+    <label class="c"><input type="checkbox" id="cCadastre"> Cadastre (parcelles)</label>
+    <label class="c"><input type="checkbox" id="cEtiq" checked> Étiquettes et cotes</label>
+    <div class="btns"><button type="button" id="bEtalon" title="Carré de 10 × 10 m quadrillé tous les mètres, déplaçable">Carré étalon 10 m</button><button type="button" id="bToutVoir">Tout afficher</button></div>
+  </details>
+
+  <details class="bloc">
+    <summary>Mes sites (Excel / CSV)</summary>
+    <p class="note">Fichier avec des coordonnées GPS (latitude/longitude) ou Lambert-93 (X/Y).</p>
+    <div class="btns"><button type="button" id="bSites">Charger un fichier…</button><button type="button" id="bSitesSuppr">Retirer les sites</button></div>
+    <input type="file" id="fSites" accept=".xlsx,.xls,.csv" hidden>
+    <input type="text" id="filtreSites" placeholder="Filtrer (nom, commune…)" style="width:100%;margin-top:4px">
+    <ul class="liste" id="listeSites"></ul>
+  </details>
+
+  <details class="bloc">
+    <summary>Paramètres des fiches</summary>
+    <label class="l">Rédacteur <input type="text" data-p="redacteur" style="width:160px"></label>
+    <label class="l">Service <input type="text" data-p="service" style="width:160px"></label>
+    <label class="l">Sur-largeur de travail (cm) <input type="number" data-p="surlargeur" min="0" step="5"></label>
+    <label class="l">Couche de forme sous dalle (cm) <input type="number" data-p="forme" min="0" step="1"></label>
+    <p class="note">Emprise DT-DICT = dalle + sur-largeur de chaque côté. Profondeur de terrassement = épaisseur de dalle + couche de forme.</p>
+    <label class="l">Plan d'implantation <select data-p="zoomPlan"><option value="19.5">Vue large (net)</option><option value="20.5">Équilibré</option><option value="21.5">Rapproché (flou)</option></select></label>
+    <p class="note">La photo IGN a une résolution d'environ 20 cm : plus le plan est rapproché, plus elle est agrandie et floue.</p>
+    <label class="l">Regrouper les dalles distantes de moins de (m) <input type="number" data-p="regroupement" min="0" step="1"></label>
+    <p class="note">Ces dalles partagent une même fiche et une même référence site. 0 = pas de regroupement automatique.</p>
+    <h3>Logo</h3>
+    <div class="btns"><button type="button" id="bLogo">Choisir une image…</button><button type="button" id="bLogoSuppr">Retirer</button></div>
+    <input type="file" id="fLogo" accept="image/*" hidden>
+  </details>
+
+  <details class="bloc">
+    <summary>Mode d'emploi</summary>
+    <p class="note"><b>Placer</b> : choisir un type, cliquer sur la carte. <b>Sélectionner</b> : cliquer sur une dalle ; ses réglages s'ouvrent à droite.</p>
+    <p class="note"><b>Poignées</b> (dalle sélectionnée) : centre = déplacer · arrière = pivoter (Maj : pas de 15°) · coin avant droit = redimensionner. Sur ordinateur, on peut aussi glisser la dalle.</p>
+    <p class="note"><b>Recherche</b> (en haut de la carte, raccourci « / ») : adresse, rue, commune, lieu-dit, référence ou nom de dalle / site, coordonnées GPS (« 49.28, -0.12 ») ou Lambert-93 (« 476711 6915384 »). Flèches + Entrée pour choisir.</p>
+    <p class="note"><b>Clavier</b> : flèches = déplacer de 10 cm (Maj : 1 m) · Suppr = supprimer · Échap = annuler / désélectionner.</p>
+    <p class="note"><b>Équipements</b> : « Ajuster les équipements » pour les déplacer sur la dalle (glisser, poignées vertes, flèches) ou saisir leur position.</p>
+    <p class="note"><b>Cotes</b> : « Ajouter une cote », cliquer sur le bord de la dalle (les angles sont aimantés), puis sur le repère (bordure, façade, candélabre…). La cote suit la dalle si elle bouge.</p>
+    <p class="note"><b>Fiches</b> : les dalles proches (15 m par défaut, réglable dans « Paramètres des fiches ») ou de même référence site partagent une fiche. Case « Toujours sur une fiche séparée » pour l'éviter.</p>
+    <p class="note"><b>Localisation</b> : l'adresse la plus proche et la parcelle cadastrale sont recherchées automatiquement (services IGN, connexion requise).</p>
+    <p class="note">La flèche rouge indique l'avant (côté usagers). « Gauche / droite » s'entendent face à la dalle, depuis l'avant.</p>
+    <p class="note">Le travail est gardé automatiquement dans ce navigateur. Pour le partager ou le conserver : <b>Enregistrer</b>.</p>
+  </details>
+</aside>
+
+<section id="mapwrap">
+  <div id="map"></div>
+  <div id="banniere" hidden></div>
+  <div id="insp" hidden></div>
+  <div id="coords"></div>
+  <div id="recherche" role="search">
+    <div class="rch-champ">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.1 5.1-1.4 1.4-5.1-5.1A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg>
+      <input type="text" id="qAdr" autocomplete="off" spellcheck="false" placeholder="Adresse, commune, lieu, réf. de site, coordonnées…" aria-label="Rechercher">
+      <button type="button" id="bEffacerRch" title="Effacer" hidden>×</button>
+    </div>
+    <ul id="resAdr" hidden></ul>
+  </div>
+</section>
+</main>
+
+<div id="modal" hidden>
+  <div class="boite">
+    <div class="surtitre">Import des sites</div>
+    <h2 style="margin:2px 0 8px;font-size:17px" id="mTitre">Correspondance des colonnes</h2>
+    <label class="l">Feuille <select id="mFeuille"></select></label>
+    <label class="l">Ligne des en-têtes <input type="number" id="mEntete" min="1" step="1" value="1"></label>
+    <h3>Colonnes</h3>
+    <label class="l">Référence du site <select id="mRef"></select></label>
+    <label class="l">Nom du site <select id="mNom"></select></label>
+    <label class="l">Commune <select id="mCommune"></select></label>
+    <label class="l">Type <select id="mType"></select></label>
+    <label class="l">Longitude ou X <select id="mX"></select></label>
+    <label class="l">Latitude ou Y <select id="mY"></select></label>
+    <p class="note">Si les coordonnées sont dans une seule colonne (« 49.28, -0.12 »), choisissez-la pour les deux lignes.</p>
+    <p class="note" id="mInfo" style="font-weight:700"></p>
+    <div class="btns" style="justify-content:flex-end"><button type="button" id="mAnnuler">Annuler</button><button type="button" class="p" id="mValider">Afficher les sites</button></div>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="impression"></div>
+<script>
+'use strict';
+// =====================================================================
+//  OUTILS GÉNÉRAUX
+// =====================================================================
+const $ = id => document.getElementById(id);
+const fr = (v, d = 2) => Number(v).toLocaleString('fr-FR', {maximumFractionDigits: d});
+const frf = (v, d = 2) => Number(v).toLocaleString('fr-FR', {minimumFractionDigits: d, maximumFractionDigits: d});
+const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const r1 = v => Math.round(v * 10) / 10;
+const r2 = v => Math.round(v * 100) / 100;
+const cinq = v => Math.round(v / 5) * 5;                 // pas de 5 cm
+const rad = d => d * Math.PI / 180;
+const norm360 = a => ((Math.round(a) % 360) + 360) % 360;
+const num = v => typeof v === 'number' ? v : parseFloat(String(v).replace(/\s/g, '').replace(',', '.'));
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('vu'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('vu'), 2800); }
+function telecharger(blob, nom){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+const slug = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '') || 'implantation';
+const aujourdhui = () => new Date().toISOString().slice(0, 10);
+const dateFr = d => new Date(d || Date.now()).toLocaleDateString('fr-FR');
+// Petites icônes dessinées (affichage identique sur tous les postes)
+const IC = {
+  move: '<svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.5 3.5h-2.5v5h5V8l3.5 4-3.5 4v-2.5h-5v5h2.5L12 22l-3.5-3.5H11v-5H6V16l-3.5-4L6 8v2.5h5v-5H8.5z"/></svg>',
+  rot:  '<svg class="ic" viewBox="0 0 24 24"><path d="M12 4V1L7.5 5.5 12 10V6.5a5.5 5.5 0 1 1-5.5 5.5H4a8 8 0 1 0 8-8z"/></svg>',
+  size: '<svg class="ic" viewBox="0 0 24 24"><path d="M4 4h7L8.4 6.6l9 9L20 13v7h-7l2.6-2.6-9-9L4 11z"/></svg>',
+  nord: '<svg viewBox="0 0 24 30" width="22" height="27"><path d="M12 1l7 22-7-5-7 5z" fill="#B91E27"/><path d="M12 1v17l-7 5z" fill="#7a0f16"/><text x="12" y="29.5" font-size="7.5" font-weight="700" text-anchor="middle" font-family="Calibri,Arial">N</text></svg>'
+};
+
+// Mètres <-> degrés, avec correction selon la latitude (la carte reste juste à l'échelle)
+function mLat(phi){ const p = rad(phi); return 111132.954 - 559.822 * Math.cos(2*p) + 1.175 * Math.cos(4*p); }
+function mLng(phi){ const p = rad(phi); return 111412.84 * Math.cos(p) - 93.5 * Math.cos(3*p); }
+function deplacer(ll, e, n){ return {lat: ll.lat + n / mLat(ll.lat), lng: ll.lng + e / mLng(ll.lat)}; }  // e = vers l'est, n = vers le nord (m)
+function ecart(a, b){ return {e: (b.lng - a.lng) * mLng(a.lat), n: (b.lat - a.lat) * mLat(a.lat)}; }
+const distance = (a, b) => { const v = ecart(a, b); return Math.hypot(v.e, v.n); };
+// Lambert-93 (EPSG:2154), le système des plans et des DT-DICT
+const L93 = '+proj=lcc +lat_0=46.5 +lon_0=3 +lat_1=49 +lat_2=44 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs';
+const enL93 = ll => typeof proj4 === 'undefined' ? null : proj4('EPSG:4326', L93, [ll.lng, ll.lat]);
+const txtL93 = ll => { const p = enL93(ll); return p ? `X ${frf(p[0])} · Y ${frf(p[1])}` : '—'; };
+const txtGPS = ll => `${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;
+const CAPS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+const cap = d => CAPS[Math.round((((d % 360) + 360) % 360) / 22.5) % 16];
+const capAvant = o => `${cap(o.rot + 180)} (${norm360(o.rot + 180)}°)`;
+
+// Repère local d'une dalle : origine au coin arrière gauche, x vers la droite, y vers l'avant, en cm.
+// La rotation (°) se lit comme un cap : 0 = l'arrière de la dalle est au nord.
+function versCarte(o, x, y){
+  const dx = (x - o.L / 2) / 100, dy = (y - o.P / 2) / 100, t = rad(o.rot);
+  const e0 = dx, n0 = -dy;
+  return deplacer(o.c, e0 * Math.cos(t) + n0 * Math.sin(t), -e0 * Math.sin(t) + n0 * Math.cos(t));
+}
+function versLocal(o, ll){
+  const v = ecart(o.c, ll), t = rad(o.rot);
+  const e0 = v.e * Math.cos(t) - v.n * Math.sin(t), n0 = v.e * Math.sin(t) + v.n * Math.cos(t);
+  return {x: e0 * 100 + o.L / 2, y: -n0 * 100 + o.P / 2};
+}
+const rect = (x, y, w, h) => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+const coins = (o, m = 0) => rect(-m, -m, o.L + 2 * m, o.P + 2 * m).map(([x, y]) => versCarte(o, x, y));
+
+// =====================================================================
+//  DONNÉES MÉTIER (reprises des schémas de dimensionnement)
+// =====================================================================
+const PRESETS = {'120 L':[49,55], '240 L':[59,73], '340 L':[66,87], '500 L':[124,66], '660 L':[136,77], '770 L':[137,77]};
+const FLUX = {OMr:{nom:'Ordures ménagères', c:'#e74c3c'}, Emb:{nom:'Emballages', c:'#f1c40f'}, Bio:{nom:'Biodéchets', c:'#8d6e3f'}};
+const TYPES = {
+  borne:  {nom:'Borne à verre',          pre:'V', coul:'#2f7d4a'},
+  cabane: {nom:'Cabane à cartons',       pre:'C', coul:'#b08a5a'},
+  pdr:    {nom:'Point de regroupement',  pre:'P', coul:'#e74c3c'},
+  libre:  {nom:'Dalle libre',            pre:'D', coul:'#9e9e9e'}
+};
+const STATUTS = [
+  {k:'projet',     lib:'Projet',                   c:'#616161'},
+  {k:'valide',     lib:'Validé par la commune',    c:'#1565c0'},
+  {k:'dtdict',     lib:'DT-DICT envoyée',          c:'#ef6c00'},
+  {k:'recepisses', lib:'Récépissés reçus',         c:'#7b1fa2'},
+  {k:'realise',    lib:'Réalisé',                  c:'#2e7d32'}
+];
+const statut = o => STATUTS.find(s => s.k === o.statut) || STATUTS[0];
+// Toutes les longueurs en centimètres
+function defauts(type){
+  const c = {rot:0, zoneAv:0, com:'', site:'', ref:'', statut:'projet', cotes:[], loc:null, eqPos:null, seule:false};
+  if (type === 'borne')  return {...c, auto:true,  L:281.6, P:251.6, ep:12, n:1, eL:181.6, eP:151.6, gap:20, cAv:50, cCo:50, cAr:50};
+  if (type === 'cabane') return {...c, auto:false, L:355, P:225, ep:10, n:1, eL:185, eP:163, gap:30, cAv:42, cCo:85, cAr:20, vant:82.5, ang:90};
+  if (type === 'pdr')    return {...c, auto:true,  L:300, P:100, ep:12.5, cAv:20, cCo:10, cAr:10, gap:5,
+                                 bacs:[{flux:'OMr', vol:'660 L'}, {flux:'Emb', vol:'660 L'}], cl:true, clEp:15, clDeb:5};
+  return {...c, auto:false, L:300, P:300, ep:15};
+}
+
+// Calcule la position des équipements dans la dalle (et la taille de la dalle si « auto »)
+function calc(o){
+  const k = {eq:[], portes:[], claustra:[], m:null, deborde:false, chevauche:false};
+  if (o.type === 'libre') return k;
+  const items = [];
+  if (o.type === 'pdr'){
+    let x = 0;
+    o.bacs.forEach(b => { const [l, p] = PRESETS[b.vol] || [136, 77];
+      items.push({x, w:l, h:p, coul:(FLUX[b.flux] || {}).c || '#999', lab:`${b.flux} ${b.vol}`}); x += l + o.gap; });
+  } else {
+    for (let i = 0; i < o.n; i++) items.push({x: i * (o.eL + o.gap), w:o.eL, h:o.eP, coul:TYPES[o.type].coul, lab: o.type === 'borne' ? 'Verre' : 'Cartons'});
+  }
+  if (!items.length) return k;
+  const bbW = Math.max(...items.map(i => i.x + i.w)), bbH = Math.max(...items.map(i => i.h));
+  if (o.auto){ o.L = r1(bbW + 2 * o.cCo); o.P = r1(bbH + o.cAr + o.cAv); }
+  const x0 = o.auto ? o.cCo : (o.L - bbW) / 2, y0 = o.cAr;
+  // Position de chaque équipement : celle choisie par l'utilisateur (eqPos) sinon la disposition automatique
+  items.forEach((it, i) => { const p = o.eqPos && o.eqPos[i];
+    k.eq.push({...it, i, x: p ? p.x : x0 + it.x, y: p ? p.y : y0}); });
+  const gx0 = Math.min(...k.eq.map(r => r.x)), gy0 = Math.min(...k.eq.map(r => r.y));
+  const gx1 = Math.max(...k.eq.map(r => r.x + r.w)), gy1 = Math.max(...k.eq.map(r => r.y + r.h));
+  k.m = {g: gx0, d: o.L - gx1, ar: gy0, av: o.P - gy1};
+  k.deborde = Object.values(k.m).some(v => v < -0.05);
+  k.chevauche = k.eq.some((a, i) => k.eq.some((b, j) => j > i &&
+    a.x < b.x + b.w - 0.05 && b.x < a.x + a.w - 0.05 && a.y < b.y + b.h - 0.05 && b.y < a.y + a.h - 0.05));
+  if (o.type === 'cabane'){
+    const a = Math.min(180, Math.max(0, o.ang)), v = o.vant;
+    const secteur = (hx, yb, s) => { const pts = [[hx, yb]];
+      for (let j = 0; j <= 12; j++){ const t = rad(a * j / 12); pts.push([hx + s * v * Math.cos(t), yb + v * Math.sin(t)]); }
+      return pts; };
+    k.eq.forEach(r => { const cx = r.x + r.w / 2, yb = r.y + r.h; k.portes.push(secteur(cx - v, yb, 1), secteur(cx + v, yb, -1)); });
+  }
+  if (o.type === 'pdr' && o.cl){
+    const d = o.clDeb, e = o.clEp, L_ = o.L, P_ = o.P;
+    k.claustra.push(rect(-d, -d, L_ + 2*d, e), rect(-d, -d, e, P_ + d), rect(L_ + d - e, -d, e, P_ + d));
+  }
+  return k;
+}
+function libEquip(o){
+  if (o.type === 'borne')  return `${o.n} borne${o.n > 1 ? 's' : ''} ${fr(o.eL,1)} × ${fr(o.eP,1)} cm`;
+  if (o.type === 'cabane') return `${o.n} cabane${o.n > 1 ? 's' : ''} ${fr(o.eL,1)} × ${fr(o.eP,1)} cm, portes 2 × ${fr(o.vant,1)} cm`;
+  if (o.type === 'pdr')    return o.bacs.map(b => `${b.flux} ${b.vol}`).join(', ') + (o.cl ? ' + claustra' : '');
+  return '';
+}
+const surface = o => o.L * o.P / 1e4;                 // m²
+const volume  = o => surface(o) * o.ep / 100;         // m³
+
+// =====================================================================
+//  ÉTAT
+// =====================================================================
+const CLE = 'ncpa_implantation_dalles_v1';
+const PARAM_DEF = {redacteur:'', service:'Direction de la Maîtrise des Déchets', surlargeur:50, forme:10, logo:'', regroupement:15, zoomPlan:'20.5'};
+let ETAT = {compteurs:{borne:0, cabane:0, pdr:0, libre:0}, nextId:1, objets:[], sites:[], param:{...PARAM_DEF}};
+let SEL = null, MODE = null, DRAGH = null, ANCRE = null, ETIQ = true, ETALON = null;
+let EQMODE = false, EQSEL = null;   // mode « Ajuster les équipements » + équipement actif
+let COTE = null;                    // cote en cours de tracé
+const COUCHES = new Map();
+const trouver = id => ETAT.objets.find(o => o.id === id);
+
+function nouvelObjet(type, ll){
+  const n = ++ETAT.compteurs[type];
+  return {...defauts(type), id: ETAT.nextId++, type, code: TYPES[type].pre + n, nom: TYPES[type].nom + ' ' + n, c: {lat: ll.lat, lng: ll.lng}};
+}
+
+// =====================================================================
+//  CARTE
+// =====================================================================
+const map = L.map('map', {maxZoom: 23, zoomSnap: 0.5, keyboard: false}).setView([49.285, -0.10], 12);
+L.control.scale({imperial: false, maxWidth: 160}).addTo(map);
+const IGN = (layer, fmt, style = 'normal') =>
+  `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=${encodeURIComponent(style)}&FORMAT=${encodeURIComponent(fmt)}&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+const ATTR = '© IGN / Géoplateforme';
+// Fabriques de fonds (une nouvelle couche par carte : écran et fiches)
+const FOND = {
+  ortho: () => L.tileLayer(IGN('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg'), {maxNativeZoom: 19, maxZoom: 23, attribution: ATTR, zIndex: 1, crossOrigin: 'anonymous'}),
+  plan:  () => L.tileLayer(IGN('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'), {maxNativeZoom: 19, maxZoom: 23, attribution: ATTR, zIndex: 1, crossOrigin: 'anonymous'}),
+  cadastre: (op = .85) => L.tileLayer(IGN('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png', 'PCI vecteur'), {maxNativeZoom: 19, maxZoom: 23, opacity: op, attribution: 'Cadastre ' + ATTR, zIndex: 5, crossOrigin: 'anonymous'})
+};
+const FONDS = {ortho: FOND.ortho(), plan: FOND.plan()}, CADASTRE = FOND.cadastre();
+let FOND_ACTIF = FONDS.ortho.addTo(map);
+// Plans d'empilement : abords < dalles < équipements < cotes < sites
+const creerPanes = m => [['zones', 410], ['dalles', 420], ['equip', 430], ['cotes', 450], ['sites', 460]].forEach(([n, z]) => { m.createPane(n).style.zIndex = z; });
+creerPanes(map);
+
+document.querySelectorAll('input[name=fond]').forEach(r => r.addEventListener('change', () => {
+  map.removeLayer(FOND_ACTIF); FOND_ACTIF = FONDS[r.value].addTo(map);
+}));
+$('cCadastre').addEventListener('change', e => e.target.checked ? CADASTRE.addTo(map) : map.removeLayer(CADASTRE));
+$('cEtiq').addEventListener('change', e => { ETIQ = e.target.checked; ETAT.objets.forEach(dessiner); });
+const majEtiq = () => $('map').classList.toggle('sans-etiquettes', map.getZoom() < 18);
+map.on('zoomend', majEtiq); majEtiq();
+// Coordonnées sous le curseur
+$('map').addEventListener('mousemove', ev => {
+  const ll = map.mouseEventToLatLng(ev);
+  $('coords').textContent = `Lambert-93 : ${txtL93(ll)}  |  GPS : ${txtGPS(ll)}`;
+  if (COTE && COTE.a) majCoteProvisoire(ll);
+});
+
+// =====================================================================
+//  GÉOMÉTRIE D'UNE DALLE (commune à l'écran et aux fiches)
+// =====================================================================
+function formes(o, sel = false, eqMode = false){
+  const k = calc(o), F = [], st = statut(o);
+  if (o.zoneAv > 0) F.push({pts: rect(0, o.P, o.L, o.zoneAv), pane:'zones', st:{color:'#6f7852', weight:1.5, dashArray:'5 4', fillColor:'#B1B993', fillOpacity:.4}});
+  F.push({pts: rect(0, 0, o.L, o.P), pane:'dalles', role:'dalle', st:{color: sel ? '#B91E27' : st.c, weight: sel ? 3 : 2, fillColor:'#d9d4c9', fillOpacity:.88}});
+  k.claustra.forEach(p => F.push({pts: p, pane:'equip', st:{color:'#5d3a17', weight:1, fillColor:'#8b5a2b', fillOpacity:.95}}));
+  k.eq.forEach(r => { const actif = eqMode && EQSEL === r.i;
+    F.push({pts: rect(r.x, r.y, r.w, r.h), pane:'equip', eq:r.i, st:{color: actif ? '#B91E27' : '#222', weight: actif ? 3 : 1, fillColor:r.coul, fillOpacity:.92, className: eqMode ? 'eq-mobile' : ''}}); });
+  k.portes.forEach((p, j) => F.push({pts: p, pane:'equip', eq: Math.floor(j / 2), st:{color:'#B91E27', weight:1, dashArray:'3 3', fillColor:'#B91E27', fillOpacity:.12, className: eqMode ? 'eq-mobile' : ''}}));
+  const f = Math.min(20, o.L / 6);   // flèche « avant »
+  F.push({pts: [[o.L/2 - f, o.P], [o.L/2 + f, o.P], [o.L/2, o.P + f * 1.2]], pane:'equip', st:{color:'#B91E27', weight:1, fillColor:'#B91E27', fillOpacity:1}});
+  return F;
+}
+// Cote : départ accroché au bord de la dalle (en fraction de L et P), arrivée = repère fixe sur le terrain
+function coteGeo(o, c){ const A = versCarte(o, c.a.fx * o.L, c.a.fy * o.P), B = c.b; return {A, B, d: distance(A, B)}; }
+function coteCouches(o, c, i){
+  const {A, B, d} = coteGeo(o, c), v = ecart(A, B), u = d > 0 ? {e: -v.n / d, n: v.e / d} : {e: 0, n: 0}, t = 0.18;
+  const tick = P => [deplacer(P, u.e * t, u.n * t), deplacer(P, -u.e * t, -u.n * t)];
+  const st = {pane: 'cotes', interactive: false};
+  const mid = {lat: (A.lat + B.lat) / 2, lng: (A.lng + B.lng) / 2};
+  return [
+    L.polyline([A, B], {...st, color: '#fff', weight: 5, opacity: .9}),
+    L.polyline([A, B], {...st, color: '#0d47a1', weight: 2}),
+    L.polyline(tick(A), {...st, color: '#0d47a1', weight: 2}),
+    L.polyline(tick(B), {...st, color: '#0d47a1', weight: 2}),
+    L.circleMarker(B, {...st, radius: 3.5, color: '#0d47a1', fillColor: '#fff', fillOpacity: 1, weight: 2}),
+    L.marker(mid, {pane: 'cotes', interactive: false, keyboard: false,
+      icon: L.divIcon({className: 'lbl-cote', html: `<span>${esc(o.code)}-C${i + 1} · ${frf(d)} m${c.lib ? ' · ' + esc(c.lib) : ''}</span>`, iconSize: null})})
+  ];
+}
+function decrireAncre(a){
+  const bx = a.fx < 0.001 ? 'gauche' : a.fx > 0.999 ? 'droit' : null, by = a.fy < 0.001 ? 'arrière' : a.fy > 0.999 ? 'avant' : null;
+  if (bx && by) return `angle ${by} ${bx === 'droit' ? 'droit' : 'gauche'}`;
+  if (by) return `bord ${by}`;
+  if (bx) return `bord ${bx}`;
+  return 'dalle';
+}
+
+// =====================================================================
+//  DESSIN À L'ÉCRAN
+// =====================================================================
+function dessiner(o){
+  const ancien = COUCHES.get(o.id); if (ancien) map.removeLayer(ancien);
+  const sel = SEL === o.id, eqMode = sel && EQMODE, g = L.layerGroup();
+  formes(o, sel, eqMode).forEach(f => {
+    const l = L.polygon(f.pts.map(([x, y]) => versCarte(o, x, y)), {pane: f.pane, bubblingMouseEvents: false, ...f.st});
+    l.on('mousedown', e => { if (MODE || COTE) return; if (eqMode){ if (f.eq !== undefined) debutGlisserEq(e, o, f.eq); } else debutGlisser(e, o); });
+    l.on('click', e => { L.DomEvent.stop(e); if (MODE || COTE) clicCarte(e.latlng); else selectionner(o.id); });
+    g.addLayer(l);
+    if (f.role === 'dalle' && ETIQ) l.bindTooltip(`<b>${esc(o.code)}</b> ${esc(o.nom)}<br>${fr(o.L/100)} × ${fr(o.P/100)} m`,
+                                                  {permanent: true, direction: 'center', className: 'lbl', interactive: false});
+  });
+  if (ETIQ) (o.cotes || []).forEach((c, i) => coteCouches(o, c, i).forEach(l => g.addLayer(l)));
+  g.addTo(map); COUCHES.set(o.id, g);
+}
+
+// Glisser la dalle directement (souris uniquement ; au doigt, utiliser la poignée centrale)
+function debutGlisser(e, o){
+  const oe = e.originalEvent;
+  if (MODE || COTE || !oe || oe.button !== 0 || oe.pointerType === 'touch' || /^touch/.test(oe.type)) return;
+  L.DomEvent.stop(e); oe.preventDefault();
+  if (SEL !== o.id) selectionner(o.id);
+  map.dragging.disable();
+  const p0 = map.mouseEventToLatLng(oe), c0 = {...o.c}; let bouge = false;
+  const mv = ev => { const v = ecart(p0, map.mouseEventToLatLng(ev)); o.c = deplacer(c0, v.e, v.n); bouge = true; dessiner(o); placerPoignees(); };
+  const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
+                     map.dragging.enable(); if (bouge) geomModifiee(o); };
+  document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+}
+// Après tout changement de position, de taille ou d'orientation
+function geomModifiee(o){ planifierLoc(o); majListe(); majGroupeInsp(); sauver(); }
+
+// =====================================================================
+//  ÉQUIPEMENTS DÉPLAÇABLES À L'INTÉRIEUR DE LA DALLE
+// =====================================================================
+function figerEquipements(o){
+  const etaitAuto = o.auto, k = calc(o);
+  o.eqPos = k.eq.map(r => ({x: r1(r.x), y: r1(r.y)}));
+  if (etaitAuto){ o.auto = false; toast('La dalle garde sa taille : elle ne suit plus les équipements.'); }
+}
+function bougerEq(o, i, x, y){ o.eqPos[i] = {x: cinq(x), y: cinq(y)}; EQSEL = i; dessiner(o); placerPoignees(); majResume(o); majPosInsp(o); }
+function debutGlisserEq(e, o, i){
+  const oe = e.originalEvent;
+  if (MODE || !oe || oe.button !== 0 || oe.pointerType === 'touch' || /^touch/.test(oe.type)) return;
+  L.DomEvent.stop(e); oe.preventDefault();
+  figerEquipements(o);
+  const p0 = versLocal(o, map.mouseEventToLatLng(oe)), s0 = {...o.eqPos[i]}; let bouge = false;
+  EQSEL = i; dessiner(o); map.dragging.disable();
+  const mv = ev => { const p = versLocal(o, map.mouseEventToLatLng(ev)); bouge = true; bougerEq(o, i, s0.x + p.x - p0.x, s0.y + p.y - p0.y); };
+  const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up);
+                     map.dragging.enable(); afficherInspecteur(); if (bouge){ majListe(); sauver(); } };
+  document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+}
+function basculerEqMode(on){
+  EQMODE = on; EQSEL = on ? (EQSEL ?? 0) : null;
+  const o = SEL && trouver(SEL); if (o) dessiner(o);
+  placerPoignees(); afficherInspecteur();
+}
+
+// =====================================================================
+//  POIGNÉES (déplacer / pivoter / redimensionner)
+// =====================================================================
+const icone = (cls, svg, titre) => L.divIcon({className: 'poignee ' + cls, html: `<div title="${titre}">${svg}</div>`, iconSize: [26, 26], iconAnchor: [13, 13]});
+const P_MOVE   = L.marker([0, 0], {icon: icone('pm', IC.move, 'Déplacer la dalle'), draggable: true, zIndexOffset: 1000, autoPan: false});
+const P_ROT    = L.marker([0, 0], {icon: icone('pr', IC.rot, 'Pivoter (Maj : pas de 15°)'), draggable: true, zIndexOffset: 1000});
+const P_TAILLE = L.marker([0, 0], {icon: icone('pt', IC.size, 'Redimensionner'), draggable: true, zIndexOffset: 1000});
+const LIGNE_ROT = L.polyline([], {color: '#B91E27', weight: 1.5, dashArray: '4 4', interactive: false});
+const P_EQ = [];   // une poignée par équipement (utile au doigt, sur tablette)
+function poigneeEq(i){
+  const m = L.marker([0, 0], {icon: icone('pq', IC.move, 'Déplacer cet équipement'), draggable: true, zIndexOffset: 1100});
+  m.on('dragstart', () => { const o = trouver(SEL); figerEquipements(o); DRAGH = 'eq' + i; })
+   .on('drag', e => { const o = trouver(SEL), r = calc(o).eq[i], p = versLocal(o, e.target.getLatLng()); bougerEq(o, i, p.x - r.w / 2, p.y - r.h / 2); })
+   .on('dragend', () => { DRAGH = null; placerPoignees(); afficherInspecteur(); sauver(); });
+  return m;
+}
+function placerPoignees(){
+  const o = SEL && trouver(SEL);
+  const k = o && EQMODE ? calc(o) : {eq: []};
+  while (P_EQ.length < k.eq.length) P_EQ.push(poigneeEq(P_EQ.length));
+  P_EQ.forEach((m, i) => { const r = k.eq[i];
+    if (!r){ map.removeLayer(m); return; }
+    if (!map.hasLayer(m)) m.addTo(map);
+    if (DRAGH !== 'eq' + i) m.setLatLng(versCarte(o, r.x + r.w / 2, r.y + r.h / 2)); });
+  const tous = [P_MOVE, P_ROT, P_TAILLE, LIGNE_ROT];
+  if (!o || EQMODE){ tous.forEach(m => map.removeLayer(m)); return; }
+  tous.forEach(m => { if (!map.hasLayer(m)) m.addTo(map); });
+  const arr = versCarte(o, o.L / 2, 0), rh = versCarte(o, o.L / 2, -Math.max(80, o.P * 0.35));
+  if (DRAGH !== 'move') P_MOVE.setLatLng(o.c);
+  if (DRAGH !== 'rot') P_ROT.setLatLng(rh);
+  if (DRAGH !== 'taille') P_TAILLE.setLatLng(versCarte(o, o.L, o.P));
+  LIGNE_ROT.setLatLngs([arr, DRAGH === 'rot' ? P_ROT.getLatLng() : rh]);
+}
+P_MOVE.on('dragstart', () => DRAGH = 'move')
+  .on('drag', e => { const o = trouver(SEL); const ll = e.target.getLatLng(); o.c = {lat: ll.lat, lng: ll.lng}; dessiner(o); placerPoignees(); })
+  .on('dragend', () => { DRAGH = null; placerPoignees(); geomModifiee(trouver(SEL)); });
+P_ROT.on('dragstart', () => DRAGH = 'rot')
+  .on('drag', e => {
+    const o = trouver(SEL), v = ecart(o.c, e.target.getLatLng());
+    let a = Math.atan2(v.e, v.n) * 180 / Math.PI;
+    if (e.originalEvent && e.originalEvent.shiftKey) a = Math.round(a / 15) * 15;
+    o.rot = norm360(a); dessiner(o); placerPoignees(); majChampInsp('rot', o.rot);
+  })
+  .on('dragend', () => { DRAGH = null; placerPoignees(); geomModifiee(trouver(SEL)); });
+P_TAILLE.on('dragstart', () => { const o = trouver(SEL); DRAGH = 'taille'; ANCRE = versCarte(o, 0, 0); })
+  .on('drag', e => {
+    const o = trouver(SEL), t = rad(o.rot), v = ecart(ANCRE, e.target.getLatLng());
+    const e0 = v.e * Math.cos(t) - v.n * Math.sin(t), n0 = v.e * Math.sin(t) + v.n * Math.cos(t);
+    o.auto = false; o.L = Math.max(40, cinq(e0 * 100)); o.P = Math.max(40, cinq(-n0 * 100));
+    const dx = o.L / 200, dy = -o.P / 200;
+    o.c = deplacer(ANCRE, dx * Math.cos(t) + dy * Math.sin(t), -dx * Math.sin(t) + dy * Math.cos(t));
+    dessiner(o); placerPoignees(); majChampInsp('L', o.L); majChampInsp('P', o.P); majResume(o);
+  })
+  .on('dragend', () => { DRAGH = null; placerPoignees(); afficherInspecteur(); geomModifiee(trouver(SEL)); });
+// =====================================================================
+//  LOCALISATION AUTOMATIQUE : adresse la plus proche + parcelles cadastrales
+// =====================================================================
+const MINUTEURS_LOC = new Map();
+function planifierLoc(o){
+  if (!o) return;
+  clearTimeout(MINUTEURS_LOC.get(o.id));
+  o.loc = {...(o.loc || {}), etat: 'attente'}; majLocInsp(o);
+  MINUTEURS_LOC.set(o.id, setTimeout(() => localiser(o), 900));
+}
+async function localiser(o){
+  clearTimeout(MINUTEURS_LOC.get(o.id));
+  const id = o.id, [adr, cad] = await Promise.all([adresseProche(o.c), parcellesSous(o)]);
+  const cur = trouver(id); if (!cur) return;
+  cur.loc = {etat: 'ok', adr, cad, date: new Date().toISOString()};
+  majLocInsp(cur); majListe(); sauver();
+}
+async function adresseProche(c){
+  for (const base of ['https://data.geopf.fr/geocodage/reverse', 'https://api-adresse.data.gouv.fr/reverse/']){
+    try {
+      const r = await fetch(`${base}?lon=${c.lng}&lat=${c.lat}&limit=1`); if (!r.ok) continue;
+      const f = ((await r.json()).features || [])[0];
+      if (!f) return {ok: true, vide: true};
+      const p = f.properties, [lng, lat] = f.geometry.coordinates;
+      return {ok: true, label: p.label, commune: p.city, insee: p.citycode, cp: p.postcode, dist: distance(c, {lat, lng})};
+    } catch (e){ /* service suivant */ }
+  }
+  return {ok: false};
+}
+const lireParcelle = p => ({section: p.section || '', numero: p.numero || '', idu: p.idu || p.id_parcellaire || '',
+  commune: p.nom_com || '', insee: p.code_insee || ((p.code_dep || '') + (p.code_com || '')), contenance: p.contenance});
+// Points-tests répartis sur la dalle (utilisés si le service principal ne répond pas)
+const echantillon = o => { const pts = []; for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) pts.push(versCarte(o, o.L * i / 4, o.P * j / 4)); return pts; };
+function dansAnneau(p, ring){ let d = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++){ const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > p.lat) !== (yj > p.lat) && p.lng < (xj - xi) * (p.lat - yi) / (yj - yi) + xi) d = !d; }
+  return d; }
+function dansGeom(p, g){ const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+  return polys.some(poly => dansAnneau(p, poly[0]) && !poly.slice(1).some(h => dansAnneau(p, h))); }
+async function parcellesSous(o){
+  const ring = coins(o).map(p => [+p.lng.toFixed(7), +p.lat.toFixed(7)]); ring.push(ring[0]);
+  try {   // API Carto IGN : intersection exacte entre la dalle et les parcelles
+    const r = await fetch('https://apicarto.ign.fr/api/cadastre/parcelle?geom=' + encodeURIComponent(JSON.stringify({type: 'Polygon', coordinates: [ring]})));
+    if (r.ok){ const j = await r.json(); return {ok: true, parcelles: (j.features || []).map(f => lireParcelle(f.properties))}; }
+  } catch (e){ /* repli */ }
+  try {   // Repli : flux WFS du parcellaire IGN + test de points sur la dalle
+    const lats = ring.map(p => p[1]), lngs = ring.map(p => p[0]);
+    const bbox = [Math.min(...lats), Math.min(...lngs), Math.max(...lats), Math.max(...lngs)].join(',') + ',urn:ogc:def:crs:EPSG::4326';
+    const r = await fetch('https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle&OUTPUTFORMAT=application/json&BBOX=' + bbox);
+    if (r.ok){ const j = await r.json(), pts = echantillon(o);
+      return {ok: true, approx: true, parcelles: (j.features || []).filter(f => f.geometry && pts.some(p => dansGeom(p, f.geometry))).map(f => lireParcelle(f.properties))}; }
+  } catch (e){ /* indisponible */ }
+  return {ok: false};
+}
+const fmtParcelle = p => `${p.section} ${parseInt(p.numero, 10) || p.numero}`.trim();
+function texteCadastre(cad){
+  if (!cad || !cad.ok) return {t: 'Non vérifié (service cadastre indisponible) : contrôler avec la couche Cadastre.', cl: 'av'};
+  if (!cad.parcelles.length) return {t: 'Aucune parcelle cadastrée sous la dalle : a priori domaine public non cadastré (voirie, place). À confirmer avec la commune.', cl: 'ok'};
+  return {t: `Sur parcelle${cad.parcelles.length > 1 ? 's' : ''} ${cad.parcelles.map(fmtParcelle).join(', ')} : propriété à vérifier (communale ou privée).`, cl: 'av'};
+}
+function texteAdresse(adr){
+  if (!adr || !adr.ok) return 'Service d\'adresses indisponible.';
+  if (adr.vide) return 'Aucune adresse trouvée à proximité.';
+  return `${adr.label} (à ${fr(adr.dist, 0)} m)`;
+}
+
+// =====================================================================
+//  COTES DE REPÉRAGE
+// =====================================================================
+function activerCote(){
+  const o = trouver(SEL); if (!o) return;
+  if (EQMODE) basculerEqMode(false);
+  COTE = {id: o.id, a: null, tmp: L.layerGroup().addTo(map)};
+  $('map').classList.add('pose');
+  banniere('1/2 · Cliquez sur le <b>bord de la dalle</b> (les angles sont aimantés)', quitterCote);
+}
+function accrocher(o, ll){
+  const p = versLocal(o, ll);
+  const mpp = 40075016.686 * Math.cos(rad(ll.lat)) / Math.pow(2, map.getZoom() + 8);   // mètres par pixel
+  const tol = Math.min(18 * mpp * 100, 0.2 * Math.min(o.L, o.P));                       // ~18 px, en cm (plafonné)
+  let best = null, bd = Infinity;
+  [[0, 0], [o.L, 0], [0, o.P], [o.L, o.P]].forEach(([x, y]) => { const d = Math.hypot(p.x - x, p.y - y); if (d < bd){ bd = d; best = {x, y}; } });
+  let q;
+  if (bd <= tol) q = best;
+  else {
+    const cx = Math.min(Math.max(p.x, 0), o.L), cy = Math.min(Math.max(p.y, 0), o.P);
+    if (p.x >= 0 && p.x <= o.L && p.y >= 0 && p.y <= o.P){   // clic à l'intérieur : bord le plus proche
+      const d = {g: cx, dr: o.L - cx, ar: cy, av: o.P - cy}, m = Math.min(...Object.values(d));
+      q = m === d.g ? {x: 0, y: cy} : m === d.dr ? {x: o.L, y: cy} : m === d.ar ? {x: cx, y: 0} : {x: cx, y: o.P};
+    } else q = {x: cx, y: cy};
+  }
+  return {fx: q.x / o.L, fy: q.y / o.P};
+}
+function clicCote(ll){
+  const o = trouver(COTE.id); if (!o) return quitterCote();
+  if (!COTE.a){
+    COTE.a = accrocher(o, ll);
+    const A = versCarte(o, COTE.a.fx * o.L, COTE.a.fy * o.P);
+    COTE.ligne = L.polyline([A, A], {color: '#0d47a1', weight: 2, dashArray: '5 4', interactive: false});
+    COTE.tmp.addLayer(L.circleMarker(A, {radius: 5, color: '#0d47a1', fillColor: '#fff', fillOpacity: 1, interactive: false})).addLayer(COTE.ligne);
+    banniere('2/2 · Cliquez sur le <b>repère</b> (bordure, façade, candélabre…) <span id="coteDist"></span>', quitterCote);
+    return;
+  }
+  o.cotes.push({a: COTE.a, b: {lat: ll.lat, lng: ll.lng}, lib: ''});
+  quitterCote(); dessiner(o); afficherInspecteur('cotes'); sauver();
+  const champs = $('insp').querySelectorAll('[data-cote-lib]'); if (champs.length) champs[champs.length - 1].focus();
+}
+function majCoteProvisoire(ll){
+  const o = trouver(COTE.id); if (!o || !COTE.ligne) return;
+  const A = versCarte(o, COTE.a.fx * o.L, COTE.a.fy * o.P);
+  COTE.ligne.setLatLngs([A, ll]); const s = $('coteDist'); if (s) s.textContent = `— ${frf(distance(A, ll))} m`;
+}
+function quitterCote(){ if (!COTE) return; map.removeLayer(COTE.tmp); COTE = null; $('map').classList.remove('pose'); cacherBanniere(); }
+
+// =====================================================================
+//  SÉLECTION, POSE, ACTIONS
+// =====================================================================
+function banniere(html, annuler){
+  const b = $('banniere'); b.hidden = false;
+  b.innerHTML = html + '<button type="button" id="bAnnulerBan">Annuler</button>';
+  $('bAnnulerBan').onclick = annuler;
+}
+function cacherBanniere(){ $('banniere').hidden = true; }
+function selectionner(id){
+  const ancien = SEL; if (id !== ancien){ EQMODE = false; EQSEL = null; } SEL = id;
+  [ancien, id].forEach(i => { const o = i && trouver(i); if (o) dessiner(o); });
+  placerPoignees(); afficherInspecteur(); majListe();
+  const o = id && trouver(id); if (o && !o.loc) planifierLoc(o);
+}
+function activerPose(type){
+  quitterCote(); MODE = type; selectionner(null);
+  $('map').classList.add('pose');
+  document.querySelectorAll('[data-pose]').forEach(b => b.classList.toggle('actif', b.dataset.pose === type));
+  banniere(`Cliquez sur la carte pour placer : <b>${TYPES[type].nom}</b>`, quitterPose);
+}
+function quitterPose(){
+  MODE = null; $('map').classList.remove('pose'); cacherBanniere();
+  document.querySelectorAll('[data-pose]').forEach(b => b.classList.remove('actif'));
+}
+function ajouter(o){
+  const seuil = +ETAT.param.regroupement || 0;
+  if (!(o.ref || '').trim() && seuil > 0){   // reprend la référence de la dalle référencée la plus proche
+    const v = ETAT.objets.filter(x => (x.ref || '').trim() && !x.seule).map(x => ({x, d: distance(x.c, o.c)})).filter(e => e.d <= seuil).sort((a, b) => a.d - b.d)[0];
+    if (v){ o.ref = v.x.ref.trim(); toast(`Rattachée au site ${o.ref} (même fiche que ${v.x.code}).`); }
+  }
+  ETAT.objets.push(o); quitterPose(); dessiner(o); selectionner(o.id); sauver();
+  if (map.getZoom() < 19) map.setView(o.c, 20);
+}
+function clicCarte(ll){
+  if (MODE) return ajouter(nouvelObjet(MODE, ll));
+  if (COTE) return clicCote(ll);
+  if (SEL) selectionner(null);
+}
+function placerSurSite(type, i){
+  const s = ETAT.sites[i]; if (!s) return;
+  const o = nouvelObjet(type, s);
+  if (s.nom) o.nom = s.nom;
+  o.ref = s.ref || '';
+  o.site = [s.commune, s.nom].filter(Boolean).join(' – ');
+  map.closePopup(); ajouter(o);
+}
+function supprimer(id){
+  const g = COUCHES.get(id); if (g) map.removeLayer(g);
+  COUCHES.delete(id); ETAT.objets = ETAT.objets.filter(o => o.id !== id);
+  selectionner(null); sauver();
+}
+function dupliquer(o){
+  const c = JSON.parse(JSON.stringify(o)), n = ++ETAT.compteurs[o.type];
+  c.id = ETAT.nextId++; c.code = TYPES[o.type].pre + n; c.nom = o.nom + ' (copie)'; c.cotes = []; c.loc = null;
+  c.c = versCarte(o, o.L * 1.5 + 100, o.P / 2);   // posée 1 m à droite
+  ETAT.objets.push(c); dessiner(c); selectionner(c.id); sauver();
+}
+function zoomer(o){ map.fitBounds(L.latLngBounds(coins(o)), {maxZoom: 21, padding: [80, 80]}); }
+
+map.on('click', e => clicCarte(e.latlng));
+document.querySelectorAll('[data-pose]').forEach(b => b.addEventListener('click', () => MODE === b.dataset.pose ? quitterPose() : activerPose(b.dataset.pose)));
+
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, textarea, select')) return;
+  if (e.key === 'Escape'){ if (COTE) quitterCote(); else if (MODE) quitterPose(); else if (EQMODE) basculerEqMode(false); else if (SEL) selectionner(null); }
+  const o = SEL && trouver(SEL); if (!o || COTE) return;
+  if (e.key === 'Delete'){ supprimer(o.id); return; }
+  if (EQMODE && EQSEL !== null){   // équipement actif : 5 cm (Maj : 25 cm), dans le repère de la dalle
+    const s = e.shiftKey ? 25 : 5, d = {ArrowUp:[0, -s], ArrowDown:[0, s], ArrowLeft:[-s, 0], ArrowRight:[s, 0]}[e.key];
+    if (d){ e.preventDefault(); figerEquipements(o); const p = o.eqPos[EQSEL]; if (p){ bougerEq(o, EQSEL, p.x + d[0], p.y + d[1]); sauver(); } }
+    return;
+  }
+  const pas = e.shiftKey ? 1 : 0.1, d = {ArrowUp:[0, pas], ArrowDown:[0, -pas], ArrowLeft:[-pas, 0], ArrowRight:[pas, 0]}[e.key];
+  if (d){ e.preventDefault(); o.c = deplacer(o.c, d[0], d[1]); dessiner(o); placerPoignees(); geomModifiee(o); }
+});
+
+// =====================================================================
+//  PANNEAU DE RÉGLAGES (à droite)
+// =====================================================================
+const champ = (lib, k, o, opt = {}) =>
+  `<label class="l">${lib}<input type="number" data-k="${k}" value="${o[k]}" step="${opt.step || 'any'}" min="${opt.min ?? 0}" ${opt.dis ? 'disabled' : ''}></label>`;
+const OUVERTS = new Set(['ident', 'loc', 'dalle']);   // volets ouverts (mémorisés)
+const volet = (cle, titre, contenu) => `<details class="bloc" data-sec="${cle}" ${OUVERTS.has(cle) ? 'open' : ''}><summary>${titre}</summary>${contenu}</details>`;
+
+function afficherInspecteur(ouvrir){
+  if (ouvrir) OUVERTS.add(ouvrir);
+  const o = SEL && trouver(SEL), el = $('insp');
+  if (!o){ el.hidden = true; el.innerHTML = ''; return; }
+  const T = TYPES[o.type], auto = o.auto && o.type !== 'libre';
+  let h = `<div class="ihead"><span class="pastille" style="background:${T.coul}"></span><b>${esc(o.code)}</b>&nbsp;· ${T.nom}<button type="button" class="x" data-act="fermer" title="Fermer">×</button></div>`;
+
+  h += volet('ident', 'Identification',
+    `<label class="l">Référence site <input type="text" data-k="ref" value="${esc(o.ref)}" placeholder="ex. DOZ-03"></label>
+     <label class="l">Nom <input type="text" data-k="nom" value="${esc(o.nom)}"></label>
+     <label class="l">Statut <select data-k="statut">${STATUTS.map(s => `<option value="${s.k}" ${o.statut === s.k ? 'selected' : ''}>${s.lib}</option>`).join('')}</select></label>
+     ${o.site ? `<p class="note">Site importé : ${esc(o.site)}</p>` : ''}
+     <label class="c"><input type="checkbox" data-k="seule" ${o.seule ? 'checked' : ''}> Toujours sur une fiche séparée</label>
+     <p class="note" id="insGroupe"></p>`);
+
+  h += volet('loc', 'Localisation', `<div id="insLoc" class="loc"></div>
+     <div class="btns"><button type="button" data-act="reloc">Actualiser</button><button type="button" data-act="fiche" class="p">Fiche de ce site</button></div>`);
+
+  let dal = champ('Rotation (°)', 'rot', o, {step: 1})
+    + `<div class="btns">${[-90, -15, -1, 1, 15, 90].map(d => `<button type="button" data-rot="${d}">${d > 0 ? '+' : ''}${d}°</button>`).join('')}</div>`;
+  if (o.type !== 'libre') dal += `<label class="c"><input type="checkbox" data-k="auto" ${o.auto ? 'checked' : ''}> La dalle suit les équipements</label>`;
+  dal += champ('Longueur (cm)', 'L', o, {dis: auto}) + champ('Profondeur (cm)', 'P', o, {dis: auto}) + champ('Épaisseur (cm)', 'ep', o)
+     + `<div class="btns">${[10, 12, 12.5, 15, 20].map(v => `<button type="button" data-ep="${v}">${fr(v, 1)} cm</button>`).join('')}</div>`
+     + `<div id="insResume" class="resume"></div>`;
+  h += volet('dalle', 'Dalle et orientation', dal);
+
+  if (o.type !== 'libre'){
+    let eq = '';
+    if (o.type === 'borne' || o.type === 'cabane')
+      eq += champ('Nombre', 'n', o, {step: 1, min: 1}) + champ('Largeur, face avant (cm)', 'eL', o) + champ('Profondeur (cm)', 'eP', o) + champ('Écart entre équipements (cm)', 'gap', o);
+    if (o.type === 'cabane') eq += champ("Largeur d'un vantail (cm)", 'vant', o) + champ("Angle d'ouverture (°)", 'ang', o, {step: 5})
+       + `<p class="note">Débattement des portes en rouge pointillé (2 vantaux battant vers l'extérieur).</p>`;
+    if (o.type === 'pdr')
+      eq += o.bacs.map((b, i) => `<div class="bac">
+        <select data-bac="${i}" data-f="flux">${Object.keys(FLUX).map(f => `<option value="${f}" ${b.flux === f ? 'selected' : ''}>${FLUX[f].nom}</option>`).join('')}</select>
+        <select data-bac="${i}" data-f="vol">${Object.keys(PRESETS).map(v => `<option ${b.vol === v ? 'selected' : ''}>${v}</option>`).join('')}</select>
+        <button type="button" data-act="delbac" data-i="${i}" title="Retirer ce bac">×</button></div>`).join('')
+       + `<div class="btns"><button type="button" data-act="addbac">+ Ajouter un bac</button></div>`
+       + champ('Écart entre bacs (cm)', 'gap', o)
+       + `<label class="c"><input type="checkbox" data-k="cl" ${o.cl ? 'checked' : ''}> Claustra bois (arrière + côtés)</label>`;
+    eq += `<h3>Marges cibles (cm)</h3>` + champ('Avant', 'cAv', o) + champ('Côtés', 'cCo', o) + champ('Arrière', 'cAr', o)
+       + `<p class="note">Si la dalle ne suit pas les équipements, ceux-ci sont centrés en largeur et calés à la marge arrière.</p>`;
+    const k = calc(o);
+    eq += `<h3>Position sur la dalle</h3>
+      <div class="btns"><button type="button" data-act="eqmode" class="${EQMODE ? 'p' : ''}">${EQMODE ? 'Terminer l\'ajustement' : IC.move + ' Ajuster les équipements'}</button>
+      ${o.eqPos ? '<button type="button" data-act="eqauto">Replacer automatiquement</button>' : ''}</div>`
+      + (EQMODE ? `<p class="note">Glissez un équipement (ou sa poignée verte). Flèches : 5 cm (Maj : 25 cm) sur l'équipement encadré de rouge.</p>` : '')
+      + `<p class="note">Distances en cm depuis le coin arrière gauche de la dalle.</p>`
+      + k.eq.map(r => `<div class="poseq ${EQMODE && EQSEL === r.i ? 'actif' : ''}" data-i="${r.i}"><span>${o.type === 'pdr' ? esc(r.lab) : 'N° ' + (r.i + 1)}</span>
+          <label>gauche <input type="number" data-eq="${r.i}" data-c="x" value="${r1(r.x)}" step="5"></label>
+          <label>arrière <input type="number" data-eq="${r.i}" data-c="y" value="${r1(r.y)}" step="5"></label></div>`).join('');
+    h += volet('equip', 'Équipements', eq);
+  }
+
+  h += volet('cotes', `Cotes de repérage (${o.cotes.length})`,
+    (o.cotes.map((c, i) => `<div class="cote"><b>C${i + 1} · ${frf(coteGeo(o, c).d)} m</b>
+        <input type="text" data-cote-lib="${i}" value="${esc(c.lib)}" placeholder="repère (bordure, façade…)">
+        <button type="button" data-act="delcote" data-i="${i}" title="Supprimer">×</button></div>
+        <p class="note" style="margin:0 0 4px 4px">depuis ${decrireAncre(c.a)}</p>`).join('') || '<p class="note">Aucune cote.</p>')
+    + `<div class="btns"><button type="button" data-act="cote">+ Ajouter une cote</button></div>
+       <p class="note">Pour l'équipe terrain : distances de la dalle à des repères fixes visibles sur place.</p>`);
+
+  h += volet('abords', 'Abords et commentaire', champ('Zone dégagée devant la dalle (cm)', 'zoneAv', o)
+     + `<p class="note">Zone verte, hors dalle. Repère cheminement piéton : 140 cm (120 sans obstacle latéral).</p>`
+     + `<textarea data-k="com" rows="3" placeholder="Observations (accès, contraintes, réseaux visibles…)">${esc(o.com)}</textarea>`);
+
+  h += `<div class="btns"><button type="button" data-act="zoom">Zoomer</button><button type="button" data-act="dup">Dupliquer</button><button type="button" class="danger" data-act="del">Supprimer</button></div>`;
+  el.innerHTML = h; el.hidden = false; majResume(o); majLocInsp(o); majGroupeInsp();
+}
+$('insp').addEventListener('toggle', e => { const d = e.target; if (d.dataset && d.dataset.sec) d.open ? OUVERTS.add(d.dataset.sec) : OUVERTS.delete(d.dataset.sec); }, true);
+function majLocInsp(o){
+  const el = $('insLoc'); if (!el || SEL !== o.id) return;
+  const loc = o.loc || {}, cad = texteCadastre(loc.cad);
+  const attente = loc.etat === 'attente' ? ' <i style="font-weight:400;color:#888">(recherche…)</i>' : '';
+  el.innerHTML = `<dl style="margin:0">
+    <dt>Adresse la plus proche${attente}</dt><dd>${loc.adr ? esc(texteAdresse(loc.adr)) : '—'}</dd>
+    <dt>Cadastre</dt><dd class="${loc.cad ? cad.cl : ''}">${loc.cad ? esc(cad.t) : '—'}</dd>
+    <dt>Centre de la dalle</dt><dd>Lambert-93 : ${txtL93(o.c)}<br>GPS : ${txtGPS(o.c)}</dd>
+    <dt>Orientation de l'avant</dt><dd>${capAvant(o)}</dd></dl>`;
+}
+function majGroupeInsp(){
+  const o = SEL && trouver(SEL), el = $('insGroupe'); if (!o || !el) return;
+  const g = groupeDe(o), autres = g.filter(x => x !== o).map(x => x.code);
+  el.innerHTML = autres.length ? `Même fiche que : <b>${esc(autres.join(', '))}</b> (fiche « ${esc(libelleGroupe(g))} »).`
+                               : 'Fiche individuelle.';
+}
+function majChampInsp(k, v){ const f = $('insp').querySelector(`[data-k="${k}"]`); if (f && document.activeElement !== f) f.value = v; }
+function majResume(o){
+  const r = $('insResume'); if (!r) return;
+  const k = calc(o), s = surface(o), v = volume(o);
+  r.innerHTML = `<div><span>Dalle</span><b>${fr(o.L/100)} × ${fr(o.P/100)} m</b></div>
+    <div><span>Surface</span><b>${fr(s)} m²</b></div>
+    <div><span>Béton théorique</span><b>${fr(v)} m³</b></div>
+    <div><span>Béton + 10 % pertes</span><b>${fr(v * 1.1)} m³</b></div>`
+    + (k.m ? `<div><span>Marges réelles (cm)</span><b>av. ${fr(k.m.av, 0)} · g. ${fr(k.m.g, 0)} · d. ${fr(k.m.d, 0)} · arr. ${fr(k.m.ar, 0)}</b></div>` : '')
+    + (k.deborde ? `<p class="alerte">⚠ Les équipements dépassent de la dalle.</p>` : '')
+    + (k.chevauche ? `<p class="alerte">⚠ Deux équipements se chevauchent.</p>` : '');
+}
+function majPosInsp(o){
+  calc(o).eq.forEach(r => ['x', 'y'].forEach(c => {
+    const f = $('insp').querySelector(`[data-eq="${r.i}"][data-c="${c}"]`);
+    if (f && document.activeElement !== f) f.value = r1(r[c]); }));
+  $('insp').querySelectorAll('.poseq').forEach(d => d.classList.toggle('actif', EQMODE && +d.dataset.i === EQSEL));
+}
+const CLES_SANS_GEOM = ['nom', 'com', 'ref', 'statut', 'seule'];
+function maj(o, reconstruire, cle){
+  dessiner(o); placerPoignees();
+  if (reconstruire) afficherInspecteur(); else { majResume(o); majPosInsp(o); if (o.auto){ majChampInsp('L', o.L); majChampInsp('P', o.P); } }
+  if (!CLES_SANS_GEOM.includes(cle)) planifierLoc(o);
+  majListe(); majGroupeInsp(); sauver();
+}
+$('insp').addEventListener('input', e => {
+  const t = e.target, o = trouver(SEL); if (!o) return;
+  if (t.dataset.coteLib !== undefined){ o.cotes[+t.dataset.coteLib].lib = t.value; dessiner(o); return sauver(); }
+  if (t.dataset.bac !== undefined){ o.bacs[+t.dataset.bac][t.dataset.f] = t.value; return maj(o, false); }
+  if (t.dataset.eq !== undefined){ const v = parseFloat(t.value); if (!isFinite(v)) return;
+    figerEquipements(o); o.eqPos[+t.dataset.eq][t.dataset.c] = v; return maj(o, false); }
+  const k = t.dataset.k; if (!k) return;
+  if (t.type === 'checkbox'){ o[k] = t.checked; if (k === 'auto' && t.checked) o.eqPos = null; return maj(o, k !== 'seule', k); }
+  if (t.type === 'number'){
+    const v = parseFloat(t.value); if (!isFinite(v)) return;
+    if (['L', 'P', 'eL', 'eP', 'vant'].includes(k) && v <= 0) return;
+    if (k === 'n'){ if (v < 1) return; o.n = Math.min(12, Math.round(v)); }
+    else o[k] = k === 'rot' ? norm360(v) : v;
+    return maj(o, false, k);
+  }
+  o[k] = t.value; maj(o, false, k);
+});
+$('insp').addEventListener('click', e => {
+  const o = trouver(SEL); if (!o) return;
+  const ligne = e.target.closest('.poseq');   // choisir l'équipement piloté au clavier
+  if (ligne && EQMODE){ EQSEL = +ligne.dataset.i; dessiner(o); majPosInsp(o); }
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.rot){ o.rot = norm360(o.rot + +b.dataset.rot); majChampInsp('rot', o.rot); return maj(o, false); }
+  if (b.dataset.ep){ o.ep = +b.dataset.ep; majChampInsp('ep', o.ep); return maj(o, false, 'ep'); }
+  const a = b.dataset.act;
+  if (a === 'fermer') selectionner(null);
+  else if (a === 'addbac'){ const d = o.bacs[o.bacs.length - 1] || {flux:'OMr', vol:'660 L'}; o.bacs.push({...d}); maj(o, true); }
+  else if (a === 'delbac'){ const i = +b.dataset.i; o.bacs.splice(i, 1); if (o.eqPos) o.eqPos.splice(i, 1); EQSEL = null; maj(o, true); }
+  else if (a === 'eqmode') basculerEqMode(!EQMODE);
+  else if (a === 'eqauto'){ o.eqPos = null; maj(o, true); }
+  else if (a === 'cote') activerCote();
+  else if (a === 'delcote'){ o.cotes.splice(+b.dataset.i, 1); dessiner(o); afficherInspecteur(); sauver(); }
+  else if (a === 'reloc'){ planifierLoc(o); }
+  else if (a === 'fiche') imprimerFiches(groupeDe(o));
+  else if (a === 'zoom') zoomer(o);
+  else if (a === 'dup') dupliquer(o);
+  else if (a === 'del') supprimer(o.id);
+});
+
+// =====================================================================
+//  LISTES DU PANNEAU DE GAUCHE
+// =====================================================================
+function majListe(){
+  const item = (o, ind) => `<li data-id="${o.id}" class="${SEL === o.id ? 'sel' : ''}${ind ? ' ind' : ''}" title="${esc(statut(o).lib)}">
+      <span class="pastille" style="background:${TYPES[o.type].coul}"></span>
+      <span class="nm"><b>${esc(ind ? o.code : (o.ref || o.code))}</b> ${esc(o.nom)}</span><span class="dim">${fr(o.L/100)} × ${fr(o.P/100)} m</span>
+      <span class="puce" style="background:${statut(o).c}"></span></li>`;
+  $('listeDalles').innerHTML = grouper(ETAT.objets).map(g => g.length > 1
+      ? `<li class="fiche-grp">Fiche ${esc(libelleGroupe(g))} · ${g.length} dalles</li>` + g.map(o => item(o, true)).join('')
+      : item(g[0], false)).join('')
+    || '<li class="vide">Aucune dalle placée.</li>';
+  const S = ETAT.objets.reduce((a, o) => a + surface(o), 0), V = ETAT.objets.reduce((a, o) => a + volume(o), 0);
+  $('totaux').textContent = ETAT.objets.length ? `${ETAT.objets.length} dalle(s) · ${fr(S)} m² · ${fr(V)} m³ de béton (théorique)` : '';
+}
+$('legendeStatuts').innerHTML = STATUTS.map(s => `<span><span class="puce" style="background:${s.c}"></span>${s.lib}</span>`).join('');
+$('listeDalles').addEventListener('click', e => {
+  const li = e.target.closest('li[data-id]'); if (!li) return;
+  const o = trouver(+li.dataset.id); selectionner(o.id); zoomer(o);
+});
+
+// =====================================================================
+//  SITES IMPORTÉS (Excel / CSV)
+// =====================================================================
+const COUCHE_SITES = L.layerGroup().addTo(map);
+function popupSite(i){
+  const s = ETAT.sites[i];
+  const autres = Object.entries(s.champs || {}).filter(([k]) => !/^(lat|lon|lng|x|y)/i.test(k)).slice(0, 10)
+    .map(([k, v]) => `<tr><td style="color:#666;padding-right:6px">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+  return `<b>${esc(s.ref ? s.ref + ' · ' : '')}${esc(s.nom || 'Site ' + (i + 1))}</b>${s.commune ? '<br>' + esc(s.commune) : ''}${s.type ? '<br><i>' + esc(s.type) + '</i>' : ''}
+    <table style="font-size:12px;margin:4px 0">${autres}</table>
+    <div style="font-weight:700;margin-top:4px">Placer une dalle ici :</div>
+    <div class="btns">${Object.keys(TYPES).map(t => `<button type="button" data-placer="${t}" data-site="${i}">${TYPES[t].nom}</button>`).join('')}</div>`;
+}
+function afficherSites(){
+  COUCHE_SITES.clearLayers();
+  ETAT.sites.forEach((s, i) => {
+    const m = L.circleMarker([s.lat, s.lng], {pane: 'sites', radius: 7, color: '#B91E27', weight: 2.5, fillColor: '#fff', fillOpacity: 1, bubblingMouseEvents: false});
+    m.on('click', () => { if (MODE) placerSurSite(MODE, i); else if (COTE) clicCote(m.getLatLng()); else L.popup({maxWidth: 300}).setLatLng(m.getLatLng()).setContent(popupSite(i)).openOn(map); });
+    m.bindTooltip(esc(s.ref || s.nom || 'Site ' + (i + 1)), {direction: 'top', offset: [0, -6]});
+    COUCHE_SITES.addLayer(m);
+  });
+  majListeSites();
+}
+function majListeSites(){
+  const f = $('filtreSites').value.trim().toLowerCase();
+  const li = ETAT.sites.map((s, i) => ({s, i})).filter(({s}) => !f || `${s.ref} ${s.nom} ${s.commune} ${s.type}`.toLowerCase().includes(f))
+    .map(({s, i}) => `<li data-site="${i}"><span class="nm">${s.ref ? '<b>' + esc(s.ref) + '</b> ' : ''}${esc(s.nom || 'Site ' + (i + 1))}</span><span class="dim">${esc(s.commune)}</span></li>`);
+  $('listeSites').innerHTML = li.join('') || `<li class="vide">${ETAT.sites.length ? 'Aucun site ne correspond.' : 'Aucun site chargé.'}</li>`;
+}
+$('filtreSites').addEventListener('input', majListeSites);
+$('listeSites').addEventListener('click', e => {
+  const li = e.target.closest('li[data-site]'); if (!li) return;
+  const i = +li.dataset.site, s = ETAT.sites[i];
+  map.setView([s.lat, s.lng], 20);
+  L.popup({maxWidth: 300}).setLatLng([s.lat, s.lng]).setContent(popupSite(i)).openOn(map);
+});
+document.addEventListener('click', e => { const b = e.target.closest('[data-placer]'); if (b) placerSurSite(b.dataset.placer, +b.dataset.site); });
+$('bSitesSuppr').addEventListener('click', () => { if (ETAT.sites.length && confirm('Retirer les sites importés de la carte ? (les dalles restent)')){ ETAT.sites = []; afficherSites(); sauver(); } });
+
+let IMPORT = null;
+$('bSites').addEventListener('click', () => $('fSites').click());
+$('fSites').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  if (typeof XLSX === 'undefined') return toast('Lecteur Excel non chargé : vérifiez la connexion internet.');
+  try {
+    let wb;
+    if (/\.csv$/i.test(f.name)){
+      const buf = await f.arrayBuffer();
+      let txt = new TextDecoder('utf-8').decode(buf);
+      if (txt.includes('\uFFFD')) txt = new TextDecoder('windows-1252').decode(buf);   // CSV Excel « à la française »
+      wb = XLSX.read(txt, {type: 'string'});
+    } else wb = XLSX.read(await f.arrayBuffer(), {type: 'array'});
+    IMPORT = {wb};
+    $('mTitre').textContent = f.name;
+    $('mFeuille').innerHTML = wb.SheetNames.map(n => `<option>${esc(n)}</option>`).join('');
+    chargerFeuille(); $('modal').hidden = false;
+  } catch (err){ toast('Lecture impossible : ' + err.message); }
+});
+function chargerFeuille(){
+  const ws = IMPORT.wb.Sheets[$('mFeuille').value];
+  IMPORT.rows = XLSX.utils.sheet_to_json(ws, {header: 1, defval: '', raw: true, blankrows: false});
+  let h = 1; for (let i = 0; i < Math.min(15, IMPORT.rows.length); i++){   // en-tête : 1re ligne avec ≥ 3 textes
+    if (IMPORT.rows[i].filter(v => typeof v === 'string' && v.trim()).length >= 3){ h = i + 1; break; } }
+  $('mEntete').value = h; remplirColonnes();
+}
+function remplirColonnes(){
+  const h = +$('mEntete').value || 1;
+  IMPORT.hdr = (IMPORT.rows[h - 1] || []).map((v, i) => String(v).trim() || 'Colonne ' + (i + 1));
+  const opts = '<option value="">—</option>' + IMPORT.hdr.map((v, i) => `<option value="${i}">${esc(v)}</option>`).join('');
+  const regles = {mRef: /^(id|ref|r[ée]f|code|n°|num)/i, mNom: /^(nom|libell|site|emplacement|lieu|adresse)/i, mCommune: /commune|ville/i, mType: /type|[ée]quip/i,
+                  mX: /^(x\b|x_|lon|lng|longitude|coord_?x)/i, mY: /^(y\b|y_|lat|latitude|coord_?y)/i};
+  for (const [id, re] of Object.entries(regles)){ const s = $(id); s.innerHTML = opts; const i = IMPORT.hdr.findIndex(v => re.test(v)); if (i >= 0) s.value = String(i); }
+  if ($('mX').value === '' && $('mY').value === ''){ const i = IMPORT.hdr.findIndex(v => /gps|coord/i.test(v)); if (i >= 0){ $('mX').value = $('mY').value = String(i); } }
+  apercu();
+}
+function convertir(x, y){
+  if (!isFinite(x) || !isFinite(y)) return null;
+  if (Math.abs(x) > 1000 && Math.abs(y) > 1000){
+    if (typeof proj4 === 'undefined') return null;
+    const [lng, lat] = proj4(L93, 'EPSG:4326', [x, y]); return {lat, lng, l93: true};
+  }
+  let lat = y, lng = x;
+  if (!(lat >= 41 && lat <= 52) && lng >= 41 && lng <= 52) [lat, lng] = [lng, lat];   // colonnes inversées
+  if (lat < 41 || lat > 52 || lng < -6 || lng > 10) return null;
+  return {lat, lng};
+}
+function lireSites(){
+  const h = +$('mEntete').value || 1, col = id => $(id).value === '' ? -1 : +$(id).value;
+  const iR = col('mRef'), iN = col('mNom'), iC = col('mCommune'), iT = col('mType'), iX = col('mX'), iY = col('mY');
+  if (iX < 0 || iY < 0) return {sites: [], rej: 0, err: 'Choisissez les colonnes de coordonnées.'};
+  const sites = []; let rej = 0, l93 = false;
+  IMPORT.rows.slice(h).forEach(r => {
+    let x, y;
+    if (iX === iY){ const nb = String(r[iX]).match(/-?\d+(?:[.,]\d+)?/g) || []; if (nb.length < 2){ rej++; return; } y = num(nb[0]); x = num(nb[1]); }
+    else { x = num(r[iX]); y = num(r[iY]); }
+    const ll = convertir(x, y); if (!ll){ rej++; return; }
+    if (ll.l93) l93 = true;
+    const champs = {}; IMPORT.hdr.forEach((k, i) => { if (r[i] !== '' && r[i] != null) champs[k] = String(r[i]); });
+    const txt = i => i >= 0 ? String(r[i] ?? '').trim() : '';
+    sites.push({ref: txt(iR), nom: txt(iN), commune: txt(iC), type: txt(iT), lat: ll.lat, lng: ll.lng, champs});
+  });
+  return {sites, rej, l93};
+}
+function apercu(){
+  const r = lireSites();
+  $('mInfo').textContent = r.err || `${r.sites.length} site(s) localisé(s)${r.rej ? `, ${r.rej} ligne(s) ignorée(s) (coordonnées absentes ou hors Normandie)` : ''}. `
+    + (r.sites.length ? (r.l93 ? 'Lambert-93 détecté, converti en GPS.' : 'Coordonnées GPS en degrés.') : '');
+}
+$('mFeuille').addEventListener('change', chargerFeuille);
+$('mEntete').addEventListener('input', remplirColonnes);
+['mRef', 'mNom', 'mCommune', 'mType', 'mX', 'mY'].forEach(id => $(id).addEventListener('change', apercu));
+$('mAnnuler').addEventListener('click', () => $('modal').hidden = true);
+$('mValider').addEventListener('click', () => {
+  const r = lireSites(); if (!r.sites.length) return toast('Aucun site localisable avec ces colonnes.');
+  ETAT.sites = r.sites; $('modal').hidden = true; afficherSites(); sauver();
+  map.fitBounds(L.latLngBounds(r.sites.map(s => [s.lat, s.lng])), {padding: [40, 40], maxZoom: 18});
+  toast(`${r.sites.length} site(s) affiché(s).`);
+});
+
+// =====================================================================
+//  BARRE DE RECHERCHE : dalles, sites importés, coordonnées, adresses
+// =====================================================================
+const REPERE = L.circleMarker([0, 0], {radius: 10, color: '#1565c0', weight: 3, fillColor: '#1565c0', fillOpacity: .15, bubblingMouseEvents: false});
+REPERE.on('click', () => REPERE.openPopup());
+let tAdr, RES = [], ACT = -1, NUM_RCH = 0;
+const sansAccent = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const TYPES_BAN = {housenumber: 'Adresse', street: 'Voie', locality: 'Lieu-dit', municipality: 'Commune'};
+
+// Coordonnées tapées : « 49.28, -0.12 » (GPS) ou « 476711 6915384 » (Lambert-93)
+function lireCoordonnees(q){
+  const nb = q.match(/-?\d+(?:[.,]\d+)?/g);
+  if (!nb || nb.length !== 2 || /[a-z]{3,}/i.test(q)) return null;
+  const a = num(nb[0]), b = num(nb[1]);
+  const ll = Math.abs(a) > 1000 && Math.abs(b) > 1000 ? convertir(Math.min(a, b), Math.max(a, b))   // Lambert-93 : X < Y
+                                                      : convertir(b, a);                             // GPS : « lat, lon »
+  if (ll && (ll.lat < 41 || ll.lat > 52)) return null;
+  return ll ? {lat: ll.lat, lng: ll.lng, l93: ll.l93} : null;
+}
+function rechercheLocale(q){
+  const m = sansAccent(q), r = [];
+  ETAT.objets.forEach(o => { if (sansAccent(`${o.ref} ${o.code} ${o.nom} ${o.site} ${o.loc && o.loc.adr ? o.loc.adr.label : ''}`).includes(m))
+    r.push({grp: 'Dalles placées', titre: `${o.ref ? o.ref + ' · ' : ''}${o.code} ${o.nom}`, sous: TYPES[o.type].nom, dalle: o.id}); });
+  ETAT.sites.forEach((s, i) => { if (sansAccent(`${s.ref} ${s.nom} ${s.commune} ${s.type}`).includes(m))
+    r.push({grp: 'Sites importés', titre: `${s.ref ? s.ref + ' · ' : ''}${s.nom || 'Site ' + (i + 1)}`, sous: s.commune, site: i}); });
+  return r.slice(0, 8);
+}
+async function rechercheAdresses(q){
+  const c = map.getCenter(), p = `?q=${encodeURIComponent(q)}&limit=7&autocomplete=1&lat=${c.lat}&lon=${c.lng}`;
+  for (const base of ['https://data.geopf.fr/geocodage/search', 'https://api-adresse.data.gouv.fr/search/']){
+    try {
+      const r = await fetch(base + p); if (!r.ok) continue;
+      const j = await r.json();
+      return (j.features || []).map(f => ({grp: 'Adresses et lieux', titre: f.properties.label,
+        sous: [TYPES_BAN[f.properties.type], f.properties.context].filter(Boolean).join(' · '),
+        ll: {lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}, zoom: f.properties.type === 'municipality' ? 15 : f.properties.type === 'street' ? 18 : 20}));
+    } catch (err){ /* service suivant */ }
+  }
+  return null;   // service indisponible
+}
+function afficherResultats(liste, enCours){
+  RES = liste; ACT = liste.length ? 0 : -1;
+  const ul = $('resAdr'); let h = '', grp = '';
+  liste.forEach((r, i) => { if (r.grp !== grp){ grp = r.grp; h += `<li class="grp">${esc(grp)}</li>`; }
+    h += `<li class="r ${i === ACT ? 'act' : ''}" data-i="${i}"><span>${esc(r.titre)}</span>${r.sous ? `<small>${esc(r.sous)}</small>` : ''}</li>`; });
+  if (enCours) h += `<li class="info">${enCours}</li>`;
+  else if (!liste.length) h += '<li class="info">Aucun résultat.</li>';
+  ul.innerHTML = h; ul.hidden = false;
+}
+async function lancerRecherche(q){
+  const n = ++NUM_RCH, coord = lireCoordonnees(q);
+  const locaux = (coord ? [{grp: 'Coordonnées', titre: coord.l93 ? `Lambert-93 : ${q}` : `GPS : ${coord.lat.toFixed(6)}, ${coord.lng.toFixed(6)}`,
+                           sous: coord.l93 ? `GPS ${txtGPS(coord)}` : `Lambert-93 ${txtL93(coord)}`, ll: coord, zoom: 20}] : []).concat(rechercheLocale(q));
+  afficherResultats(locaux, q.length >= 3 && !coord ? 'Recherche des adresses…' : '');
+  if (q.length < 3 || coord) return;
+  const adr = await rechercheAdresses(q);
+  if (n !== NUM_RCH) return;   // une frappe plus récente a pris le relais
+  afficherResultats(locaux.concat(adr || []), adr === null ? 'Recherche d\'adresses indisponible (connexion ?).' : '');
+}
+function popupLieu(r){
+  return `<b>${esc(r.titre)}</b>${r.sous ? '<br><small>' + esc(r.sous) + '</small>' : ''}
+    <div style="font-weight:700;margin-top:6px">Placer une dalle ici :</div>
+    <div class="btns">${Object.keys(TYPES).map(t => `<button type="button" data-poser="${t}">${TYPES[t].nom}</button>`).join('')}</div>`;
+}
+function choisir(i){
+  const r = RES[i]; if (!r) return;
+  $('resAdr').hidden = true; $('qAdr').blur();
+  if (r.dalle){ const o = trouver(r.dalle); if (o){ selectionner(o.id); zoomer(o); } return; }
+  if (r.site !== undefined){ const s = ETAT.sites[r.site]; map.setView([s.lat, s.lng], 20);
+    L.popup({maxWidth: 300}).setLatLng([s.lat, s.lng]).setContent(popupSite(r.site)).openOn(map); return; }
+  map.setView(r.ll, r.zoom || 19);
+  REPERE.setLatLng(r.ll).addTo(map).bindPopup(popupLieu(r), {maxWidth: 300}).openPopup();
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-poser]'); if (!b) return;
+  const ll = REPERE.getLatLng(); map.closePopup(); map.removeLayer(REPERE);
+  ajouter(nouvelObjet(b.dataset.poser, {lat: ll.lat, lng: ll.lng}));
+});
+$('qAdr').addEventListener('input', e => {
+  clearTimeout(tAdr); const q = e.target.value.trim();
+  $('bEffacerRch').hidden = !q;
+  if (!q){ $('resAdr').hidden = true; RES = []; return; }
+  tAdr = setTimeout(() => lancerRecherche(q), 250);
+});
+$('qAdr').addEventListener('keydown', e => {
+  const items = [...$('resAdr').querySelectorAll('li.r')];
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    e.preventDefault(); if (!items.length) return;
+    ACT = (ACT + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+    items.forEach((li, i) => li.classList.toggle('act', i === ACT)); items[ACT].scrollIntoView({block: 'nearest'});
+  } else if (e.key === 'Enter'){ e.preventDefault(); if (ACT >= 0) choisir(ACT); }
+  else if (e.key === 'Escape'){ $('resAdr').hidden = true; e.target.blur(); }
+});
+$('qAdr').addEventListener('focus', () => { if (RES.length || $('qAdr').value.trim()) $('resAdr').hidden = false; });
+$('resAdr').addEventListener('mousedown', e => { const li = e.target.closest('li.r'); if (li){ e.preventDefault(); choisir(+li.dataset.i); } });
+$('bEffacerRch').addEventListener('click', () => { $('qAdr').value = ''; $('bEffacerRch').hidden = true; $('resAdr').hidden = true; RES = []; map.removeLayer(REPERE); $('qAdr').focus(); });
+document.addEventListener('mousedown', e => { if (!e.target.closest('#recherche')) $('resAdr').hidden = true; });
+L.DomEvent.disableClickPropagation($('recherche')); L.DomEvent.disableScrollPropagation($('recherche'));
+// Raccourci : touche « / » pour aller dans la recherche
+document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.matches('input, textarea, select')){ e.preventDefault(); $('qAdr').focus(); $('qAdr').select(); } });
+
+// =====================================================================
+//  CARRÉ ÉTALON 10 × 10 m
+// =====================================================================
+function dessinerEtalon(){
+  const {c, g} = ETALON; g.clearLayers();
+  const st = {pane: 'zones', color: '#1565c0', interactive: false};
+  for (let i = -4; i <= 4; i++){
+    g.addLayer(L.polyline([deplacer(c, i, -5), deplacer(c, i, 5)], {...st, weight: .7, opacity: .6}));
+    g.addLayer(L.polyline([deplacer(c, -5, i), deplacer(c, 5, i)], {...st, weight: .7, opacity: .6}));
+  }
+  g.addLayer(L.polygon([[-5, -5], [5, -5], [5, 5], [-5, 5]].map(([e, n]) => deplacer(c, e, n)), {...st, weight: 2.5, dashArray: '6 4', fill: false}));
+  g.addLayer(L.marker(deplacer(c, 0, 5), {icon: L.divIcon({className: 'lbl-etalon', html: '10 × 10 m (quadrillage 1 m)', iconSize: null}), interactive: false}));
+}
+$('bEtalon').addEventListener('click', () => {
+  if (ETALON){ map.removeLayer(ETALON.g); map.removeLayer(ETALON.m); ETALON = null; return; }
+  const c = map.getCenter();
+  ETALON = {c: {lat: c.lat, lng: c.lng}, g: L.layerGroup().addTo(map),
+            m: L.marker(c, {draggable: true, icon: icone('pe', IC.move, 'Déplacer le carré étalon'), zIndexOffset: 900}).addTo(map)};
+  ETALON.m.on('drag', e => { const ll = e.target.getLatLng(); ETALON.c = {lat: ll.lat, lng: ll.lng}; dessinerEtalon(); });
+  dessinerEtalon();
+});
+$('bToutVoir').addEventListener('click', () => {
+  const pts = ETAT.objets.map(o => [o.c.lat, o.c.lng]).concat(ETAT.sites.map(s => [s.lat, s.lng]));
+  if (pts.length) map.fitBounds(L.latLngBounds(pts), {padding: [50, 50], maxZoom: 20}); else toast('Rien à afficher pour le moment.');
+});
+
+// =====================================================================
+//  PARAMÈTRES DES FICHES ET LOGO
+// =====================================================================
+function majParamUI(){
+  document.querySelectorAll('[data-p]').forEach(i => { i.value = ETAT.param[i.dataset.p] ?? ''; });
+  $('logoEntete').innerHTML = ETAT.param.logo ? `<img class="logo" src="${ETAT.param.logo}" alt="Logo">` : '<span class="logo-txt">NCPA</span>';
+}
+document.querySelectorAll('[data-p]').forEach(i => i.addEventListener('input', () => {
+  ETAT.param[i.dataset.p] = i.type === 'number' ? (parseFloat(i.value) || 0) : i.value; sauver();
+  if (i.dataset.p === 'regroupement'){ majListe(); majGroupeInsp(); }
+}));
+$('bLogo').addEventListener('click', () => $('fLogo').click());
+$('fLogo').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const lr = new FileReader();
+  lr.onload = () => { const img = new Image(); img.onload = () => {   // réduit le logo (≤ 400 px) pour garder un projet léger
+      const k = Math.min(1, 400 / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      ETAT.param.logo = cv.toDataURL('image/png'); majParamUI(); sauver(); };
+    img.src = lr.result; };
+  lr.readAsDataURL(f);
+});
+$('bLogoSuppr').addEventListener('click', () => { ETAT.param.logo = ''; majParamUI(); sauver(); });
+
+// =====================================================================
+//  PROJET : SAUVEGARDE AUTO, ENREGISTRER, OUVRIR, NOUVEAU
+// =====================================================================
+function serialiser(){
+  const c = map.getCenter();
+  return {app: 'implantation-dalles-ncpa', version: 2, enregistre: new Date().toISOString(), nom: $('nomProjet').value, param: ETAT.param,
+          compteurs: ETAT.compteurs, nextId: ETAT.nextId, objets: ETAT.objets, sites: ETAT.sites, vue: {c: {lat: c.lat, lng: c.lng}, z: map.getZoom()}};
+}
+function charger(d){
+  if (!d || d.app !== 'implantation-dalles-ncpa') throw new Error('fichier non reconnu');
+  COUCHES.forEach(g => map.removeLayer(g)); COUCHES.clear(); SEL = null; EQMODE = false; quitterPose(); quitterCote();
+  const objets = (d.objets || []).filter(o => TYPES[o.type]).map(o => ({...defauts(o.type), ...o, cotes: o.cotes || []}));
+  ETAT = {compteurs: {borne: 0, cabane: 0, pdr: 0, libre: 0, ...(d.compteurs || {})},
+          nextId: Math.max(d.nextId || 1, ...objets.map(o => o.id + 1)), objets, sites: (d.sites || []).map(s => ({ref: '', ...s})),
+          param: {...PARAM_DEF, ...(d.param || {})}};
+  $('nomProjet').value = d.nom || '';
+  ETAT.objets.forEach(dessiner); afficherSites(); placerPoignees(); afficherInspecteur(); majListe(); majParamUI();
+  if (d.vue && d.vue.c) map.setView(d.vue.c, d.vue.z || 18);
+}
+let tSauve;
+function sauver(){ clearTimeout(tSauve); tSauve = setTimeout(() => { try { localStorage.setItem(CLE, JSON.stringify(serialiser())); } catch (e){ /* stockage indisponible */ } }, 400); }
+map.on('moveend', sauver);
+$('nomProjet').addEventListener('input', sauver);
+$('bEnregistrer').addEventListener('click', () => {
+  telecharger(new Blob([JSON.stringify(serialiser(), null, 1)], {type: 'application/json'}), `${slug($('nomProjet').value)}_${aujourdhui()}.json`);
+});
+$('bOuvrir').addEventListener('click', () => $('fProjet').click());
+$('fProjet').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { charger(JSON.parse(await f.text())); sauver(); toast('Projet ouvert.'); } catch (err){ toast('Ouverture impossible : ' + err.message); }
+});
+$('bNouveau').addEventListener('click', () => {
+  if (!confirm('Repartir d\'un projet vide ? Pensez à « Enregistrer » avant si besoin.')) return;
+  charger({app: 'implantation-dalles-ncpa', objets: [], sites: [], param: ETAT.param, vue: {c: map.getCenter(), z: map.getZoom()}}); sauver();
+});
+
+// =====================================================================
+//  EXPORT EXCEL
+// =====================================================================
+function lignes(){
+  const groupes = grouper(ETAT.objets);
+  return ETAT.objets.map(o => {
+    const p = enL93(o.c) || [null, null], loc = o.loc || {}, adr = loc.adr || {};
+    return {
+      'Fiche': libelleGroupe(groupes.find(g => g.includes(o)) || [o]), 'Référence site': o.ref, 'Code': o.code, 'Nom': o.nom, 'Type': TYPES[o.type].nom, 'Statut': statut(o).lib,
+      'Commune': adr.commune || '', 'Adresse la plus proche': adr.label || '', 'Distance adresse (m)': adr.dist != null ? Math.round(adr.dist) : '',
+      'Cadastre': loc.cad ? texteCadastre(loc.cad).t : '',
+      'Longueur (m)': r2(o.L / 100), 'Profondeur (m)': r2(o.P / 100), 'Surface (m²)': r2(surface(o)),
+      'Épaisseur (cm)': o.ep, 'Béton théorique (m³)': r2(volume(o)), 'Béton +10 % (m³)': r2(volume(o) * 1.1),
+      'Orientation de l\'avant': capAvant(o), 'Équipements': libEquip(o),
+      'Cotes de repérage': o.cotes.map((c, i) => `C${i + 1} ${frf(coteGeo(o, c).d)} m depuis ${decrireAncre(c.a)}${c.lib ? ' → ' + c.lib : ''}`).join(' ; '),
+      'X Lambert-93': p[0] != null ? r2(p[0]) : '', 'Y Lambert-93': p[1] != null ? r2(p[1]) : '',
+      'Latitude': +o.c.lat.toFixed(7), 'Longitude': +o.c.lng.toFixed(7), 'Commentaire': o.com
+    };
+  });
+}
+$('bExcel').addEventListener('click', () => {
+  if (typeof XLSX === 'undefined') return toast('Bibliothèque Excel non chargée : vérifiez la connexion internet.');
+  if (!ETAT.objets.length) return toast('Aucune dalle à exporter.');
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(lignes());
+  ws['!cols'] = [16, 14, 7, 24, 20, 18, 16, 34, 10, 40, 10, 11, 10, 10, 14, 13, 18, 34, 40, 13, 13, 11, 11, 30].map(w => ({wch: w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Dalles');
+  const synth = Object.keys(TYPES).map(t => { const os = ETAT.objets.filter(o => o.type === t);
+    return {'Type': TYPES[t].nom, 'Nombre': os.length, 'Surface (m²)': r2(os.reduce((a, o) => a + surface(o), 0)),
+            'Béton théorique (m³)': r2(os.reduce((a, o) => a + volume(o), 0)), 'Béton +10 % (m³)': r2(os.reduce((a, o) => a + volume(o) * 1.1, 0))}; })
+    .filter(l => l['Nombre']);
+  synth.push({'Type': 'TOTAL', 'Nombre': ETAT.objets.length, 'Surface (m²)': r2(synth.reduce((a, l) => a + l['Surface (m²)'], 0)),
+              'Béton théorique (m³)': r2(synth.reduce((a, l) => a + l['Béton théorique (m³)'], 0)), 'Béton +10 % (m³)': r2(synth.reduce((a, l) => a + l['Béton +10 % (m³)'], 0))});
+  const ws2 = XLSX.utils.json_to_sheet(synth); ws2['!cols'] = [24, 9, 13, 20, 17].map(w => ({wch: w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Synthèse béton');
+  XLSX.writeFile(wb, `dalles_${slug($('nomProjet').value)}_${aujourdhui()}.xlsx`);
+});
+
+// =====================================================================
+//  FICHES D'IMPLANTATION (une fiche A4 par site)
+// =====================================================================
+// --- Schéma coté d'une dalle (SVG, en cm, l'arrière en haut) ---
+function coteSVG(x1, y1, x2, y2, txt, fs, col = '#333'){
+  const h = Math.abs(y1 - y2) < 1e-6, t = fs * 0.35, mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  const tk = h ? `M${x1} ${y1 - t}L${x1} ${y1 + t}M${x2} ${y2 - t}L${x2} ${y2 + t}` : `M${x1 - t} ${y1}L${x1 + t} ${y1}M${x2 - t} ${y2}L${x2 + t} ${y2}`;
+  const tx = h ? `<text x="${mx}" y="${my - fs * 0.3}" text-anchor="middle" font-size="${fs}" fill="${col}">${txt}</text>`
+               : `<text x="${mx - fs * 0.3}" y="${my}" text-anchor="middle" font-size="${fs}" fill="${col}" transform="rotate(-90 ${mx - fs * 0.3} ${my})">${txt}</text>`;
+  return `<path d="M${x1} ${y1}L${x2} ${y2}${tk}" stroke="${col}" stroke-width="${fs * 0.08}" fill="none"/>${tx}`;
+}
+function schemaSVG(o){
+  const k = calc(o), M = Math.max(o.L, o.P), fs = M / 16, pad = fs * 3.2;
+  const bas = Math.max(o.zoneAv || 0, o.type === 'cabane' ? o.vant : 0, fs * 1.4) + fs * 2.4;
+  let s = `<svg viewBox="${-pad} ${-pad} ${o.L + pad * 2} ${o.P + pad + bas}" xmlns="http://www.w3.org/2000/svg" font-family="Calibri, Arial, sans-serif">`;
+  if (o.zoneAv > 0) s += `<rect x="0" y="${o.P}" width="${o.L}" height="${o.zoneAv}" fill="#B1B993" fill-opacity=".35" stroke="#6f7852" stroke-dasharray="${fs * .4}" stroke-width="${fs * .06}"/>`;
+  s += `<rect x="0" y="0" width="${o.L}" height="${o.P}" fill="#e6e1d6" stroke="#333" stroke-width="${fs * .12}"/>`;
+  k.claustra.forEach(p => { s += `<polygon points="${p.map(q => q.join(',')).join(' ')}" fill="#8b5a2b"/>`; });
+  k.portes.forEach(p => { s += `<polygon points="${p.map(q => q.join(',')).join(' ')}" fill="#B91E27" fill-opacity=".1" stroke="#B91E27" stroke-width="${fs * .05}" stroke-dasharray="${fs * .25}"/>`; });
+  k.eq.forEach(r => { s += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.coul}" fill-opacity=".55" stroke="#222" stroke-width="${fs * .06}"/>
+      <text x="${r.x + r.w / 2}" y="${r.y + r.h / 2}" font-size="${Math.min(fs * .8, r.w / 4.5)}" text-anchor="middle" dominant-baseline="middle" fill="#111" font-weight="700">${esc(r.lab)}</text>`; });
+  // Cotes générales
+  s += coteSVG(0, -pad * .55, o.L, -pad * .55, fr(o.L, 1), fs);
+  s += coteSVG(-pad * .55, 0, -pad * .55, o.P, fr(o.P, 1), fs);
+  // Marges réelles autour des équipements
+  if (k.m){
+    const xm = o.L + pad * .45, ym = -pad * .18, f2 = fs * .75, col = '#8f161e';
+    if (k.m.ar > 0.5) s += coteSVG(xm, 0, xm, k.m.ar, fr(k.m.ar, 1), f2, col);
+    if (k.m.av > 0.5) s += coteSVG(xm, o.P - k.m.av, xm, o.P, fr(k.m.av, 1), f2, col);
+    if (k.m.g > 0.5) s += coteSVG(0, ym, k.m.g, ym, fr(k.m.g, 1), f2, col);
+    if (k.m.d > 0.5) s += coteSVG(o.L - k.m.d, ym, o.L, ym, fr(k.m.d, 1), f2, col);
+  }
+  // Avant + nord
+  const f = Math.min(fs * 1.1, o.L / 6), yb = o.P + Math.max(o.zoneAv || 0, o.type === 'cabane' ? o.vant : 0);
+  s += `<path d="M${o.L / 2 - f} ${o.P}L${o.L / 2 + f} ${o.P}L${o.L / 2} ${o.P + f * 1.2}Z" fill="#B91E27"/>`;
+  s += `<text x="${o.L / 2}" y="${yb + fs * 2.3}" text-anchor="middle" font-size="${fs * .85}" fill="#B91E27" font-weight="700">AVANT (côté usagers) · ${capAvant(o)}</text>`;
+  s += `<g transform="translate(${-pad * .62} ${-pad * .45}) rotate(${-o.rot})"><path d="M0 ${-fs}L${fs * .45} ${fs * .6}L0 ${fs * .3}L${-fs * .45} ${fs * .6}Z" fill="#333"/><text y="${-fs * 1.2}" font-size="${fs * .8}" text-anchor="middle" font-weight="700">N</text></g>`;
+  return s + '</svg>';
+}
+
+// --- Contenu d'une fiche ---
+// Une fiche = les dalles d'une même référence site, plus les dalles sans référence situées
+// à moins de « regroupement » mètres d'une dalle du groupe. « Fiche séparée » force une fiche à part.
+function grouper(objets){
+  const seuil = +ETAT.param.regroupement || 0, groupes = [], parRef = new Map();
+  const ref = o => (o.ref || '').trim();
+  objets.forEach(o => {
+    if (o.seule){ groupes.push({ref: ref(o), m: [o], seule: true}); return; }
+    if (!ref(o)) return;
+    if (!parRef.has(ref(o))){ const g = {ref: ref(o), m: []}; parRef.set(ref(o), g); groupes.push(g); }
+    parRef.get(ref(o)).m.push(o);
+  });
+  objets.filter(o => !o.seule && !ref(o)).forEach(o => {
+    const dist = g => Math.min(...g.m.map(x => distance(x.c, o.c)));
+    const proches = seuil > 0 ? groupes.filter(g => !g.seule && dist(g) <= seuil) : [];
+    if (!proches.length){ groupes.push({ref: '', m: [o]}); return; }
+    const avecRef = proches.filter(g => g.ref).sort((a, b) => dist(a) - dist(b));
+    if (avecRef.length){ avecRef[0].m.push(o); return; }        // rejoint le site référencé le plus proche
+    const cible = proches[0]; cible.m.push(o);                   // sinon fusionne les groupes sans référence voisins
+    proches.slice(1).forEach(g => { cible.m.push(...g.m); groupes.splice(groupes.indexOf(g), 1); });
+  });
+  return groupes.map(g => g.m);
+}
+const groupeDe = o => grouper(ETAT.objets).find(g => g.includes(o)) || [o];
+const libelleGroupe = g => (g.find(o => (o.ref || '').trim()) || {}).ref?.trim() || g.map(o => o.code).join(' + ');
+const centreGroupe = g => ({lat: g.reduce((a, o) => a + o.c.lat, 0) / g.length, lng: g.reduce((a, o) => a + o.c.lng, 0) / g.length});
+function cadastreGroupe(g){
+  if (!g.every(o => o.loc && o.loc.cad && o.loc.cad.ok)) return {ok: false};
+  const m = new Map(); g.forEach(o => o.loc.cad.parcelles.forEach(p => m.set(p.idu || fmtParcelle(p), p)));
+  return {ok: true, parcelles: [...m.values()]};
+}
+function ficheHTML(g, i, n){
+  const P = ETAT.param, o0 = g[0], adr = (o0.loc && o0.loc.adr) || {}, cad = cadastreGroupe(g), tc = texteCadastre(cad);
+  const ref = libelleGroupe(g), parc0 = (cad.parcelles || [])[0] || {};
+  const commune = adr.commune || parc0.commune || '—', insee = adr.insee || parc0.insee || '';
+  const c = centreGroupe(g), s = +P.surlargeur || 0;
+  const emprise = g.reduce((a, o) => a + (o.L + 2 * s) * (o.P + 2 * s) / 1e4, 0);
+  const prof = Math.max(...g.map(o => o.ep)) + (+P.forme || 0);
+  const types = [...new Set(g.map(o => TYPES[o.type].nom))].join(' + ');
+  const logo = P.logo ? `<img class="logo" src="${P.logo}" alt="Logo">` : '<span class="logo-txt">NCPA</span>';
+  const ligne = (k, v) => `<tr><th>${k}</th><td>${v}</td></tr>`;
+  const cotes = g.flatMap(o => o.cotes.map((ct, j) => ({o, ct, j})));
+  const sommets = g.map(o => `<div><b>${esc(o.code)}</b> : ${coins(o, s).map(p => { const q = enL93(p); return q ? `(${frf(q[0], 1)} ; ${frf(q[1], 1)})` : ''; }).join(' ')}</div>`).join('');
+  const obs = g.filter(o => o.com).map(o => `<div><b>${esc(o.code)}</b> : ${esc(o.com)}</div>`).join('') || '<div class="trait" style="margin:1mm 0"></div><div class="trait" style="margin:1mm 0"></div>';
+  return `<section class="fiche">
+  <div class="f-cart">
+    <div>${logo}</div>
+    <div><div class="st">FICHE D'IMPLANTATION · DALLE${g.length > 1 ? 'S' : ''} BÉTON</div>
+      <h2>${esc(ref)} · ${esc(commune)}</h2>
+      <div>${esc(types)} · ${g.length} dalle${g.length > 1 ? 's' : ''}${adr.label ? ' · ' + esc(adr.label) : ''}</div></div>
+    <div><table>
+      <tr><td>Édition</td><td><b>${dateFr()}</b></td></tr>
+      <tr><td>Rédacteur</td><td>${esc(P.redacteur) || '<span class="ligne-a-remplir"></span>'}</td></tr>
+      <tr><td>Service</td><td>${esc(P.service)}</td></tr>
+      ${$('nomProjet').value ? `<tr><td>Projet</td><td>${esc($('nomProjet').value)}</td></tr>` : ''}
+      <tr><td>Fiche</td><td>${i + 1} / ${n}</td></tr></table></div>
+  </div>
+  <div class="f-row" style="grid-template-columns:1fr 70mm">
+    <div class="f-box"><h4>Localisation</h4><table>
+      ${ligne('Commune', esc(commune) + (insee ? ` (INSEE ${esc(insee)})` : ''))}
+      ${ligne('Adresse la plus proche', esc(texteAdresse(adr)))}
+      ${ligne('Cadastre', esc(tc.t))}
+      ${ligne('Centre (Lambert-93)', txtL93(c))}
+      ${ligne('Centre (GPS)', txtGPS(c))}
+      ${ligne('Orientation de l\'avant', g.map(o => `${esc(o.code)} : ${capAvant(o)}`).join(' · '))}
+      ${ligne('Statut', g.map(o => `${esc(o.code)} : ${statut(o).lib}`).join(' · '))}
+    </table></div>
+    <div class="f-carte" style="height:42mm"><div class="m" id="fsit${i}"></div><div class="titre">Situation</div></div>
+  </div>
+  <div class="f-carte" style="height:60mm"><div class="m" id="fplan${i}"></div><div class="titre">Plan d'implantation · photo aérienne IGN et cadastre</div><div class="nord">${IC.nord}</div></div>
+  <div class="f-row" style="grid-template-columns:1fr 1fr">
+    <div style="display:flex;flex-direction:column;gap:2.2mm"><div class="f-box"><h4>Schéma${g.length > 1 ? 's' : ''} coté${g.length > 1 ? 's' : ''} (cm, arrière en haut)</h4>
+      <div class="f-schemas">${g.map(o => `<figure><figcaption>${esc(o.code)} · ${esc(TYPES[o.type].nom)}</figcaption>${schemaSVG(o)}</figure>`).join('')}</div></div>
+      <div class="f-box"><h4>Observations</h4>${obs}</div>
+      <div class="f-box"><h4>Suivi administratif (DMD)</h4>
+        <div class="sv"><span class="coche"></span>Convention signée<span class="coche" style="margin-left:4mm"></span>CERFA 14023 signé</div>
+        <div class="sv"><span class="coche"></span>DT-DICT envoyée le<span class="trait"></span>n°<span class="trait"></span></div>
+        <div class="sv"><span class="coche"></span>Récépissés reçus<span class="coche" style="margin-left:4mm"></span>Marquage-piquetage fait</div>
+        <div class="sv">Intervention prévue le<span class="trait"></span></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2.2mm">
+      <div class="f-box"><h4>Cotes de repérage (implantation terrain)</h4>
+        ${cotes.length ? `<table class="f-tab"><thead><tr><th>N°</th><th>Depuis</th><th>Jusqu'à</th><th>m</th></tr></thead>
+          ${cotes.map(({o, ct, j}) => `<tr><td>${esc(o.code)}-C${j + 1}</td><td>${decrireAncre(ct.a)} ${esc(o.code)}</td><td>${esc(ct.lib) || 'repère'}</td><td class="n"><b>${frf(coteGeo(o, ct).d)}</b></td></tr>`).join('')}</table>
+          <div class="note" style="font-size:7pt">Gauche / droite : face à la dalle, depuis l'avant.</div>`
+          : '<div class="note">Aucune cote saisie : relever les distances aux repères lors de l\'implantation.</div>'}</div>
+      <div class="f-box"><h4>Éléments pour la DT-DICT</h4><table>
+        ${ligne('Emprise des travaux', `<b>${fr(emprise)} m²</b> (dalle${g.length > 1 ? 's' : ''} + ${fr(s, 0)} cm de sur-largeur) ${emprise < 100 ? '· inférieure à 100 m²' : '· <b>≥ 100 m²</b>'}`)}
+        ${ligne('Profondeur max.', `<b>${fr(prof, 1)} cm</b> (dalle ${fr(Math.max(...g.map(o => o.ep)), 1)} cm + forme ${fr(+P.forme || 0, 1)} cm)`)}
+        ${ligne('Sommets de l\'emprise', `<div style="font-size:6.8pt;line-height:1.25">Lambert-93 (m)${sommets}</div>`)}
+      </table>
+      <div class="note" style="font-size:7pt">DT-DICT conjointe envisageable si emprise &lt; 100 m², courte durée et localisation des réseaux certaine.</div></div>
+    </div>
+  </div>
+  <table class="f-tab"><thead><tr><th>Dalle</th><th>Type</th><th>Dimensions (m)</th><th>Surface (m²)</th><th>Ép. (cm)</th><th>Béton (m³)</th><th>+10 %</th><th>Équipements</th></tr></thead>
+    ${g.map(o => `<tr><td><b>${esc(o.code)}</b> ${esc(o.nom)}</td><td>${TYPES[o.type].nom}</td><td class="n">${frf(o.L / 100)} × ${frf(o.P / 100)}</td><td class="n">${frf(surface(o))}</td>
+      <td class="n">${fr(o.ep, 1)}</td><td class="n">${frf(volume(o))}</td><td class="n">${frf(volume(o) * 1.1)}</td><td>${esc(libEquip(o))}</td></tr>`).join('')}
+    ${g.length > 1 ? `<tr><th colspan="3">Total</th><th class="n">${frf(g.reduce((a, o) => a + surface(o), 0))}</th><th></th><th class="n">${frf(g.reduce((a, o) => a + volume(o), 0))}</th><th class="n">${frf(g.reduce((a, o) => a + volume(o) * 1.1, 0))}</th><th></th></tr>` : ''}
+  </table>
+  <div class="rappel">Aucun coulage tant que les récépissés DT-DICT ne sont pas reçus et que la convention avec la commune n'est pas signée.</div>
+  <div class="f-pied"><span>NCPA · ${esc(P.service)} · Document de travail, à vérifier sur le terrain</span><span>${esc(ref)} · fiche ${i + 1} / ${n}</span></div>
+</section>`;
+}
+
+// --- Cartes des fiches ---
+let CARTES_FICHE = [];
+function carteFiche(div){
+  const m = L.map(div, {zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false,
+                        touchZoom: false, zoomSnap: 0.25, zoomAnimation: false, fadeAnimation: false, maxZoom: 23, preferCanvas: true});
+  m.attributionControl.setPrefix(false); creerPanes(m); CARTES_FICHE.push(m); return m;
+}
+const attendreTuiles = (couche, ms = 6000) => new Promise(res => { const t = setTimeout(res, ms); couche.once('load', () => { clearTimeout(t); setTimeout(res, 300); }); });
+function carteSituation(div, g){
+  const m = carteFiche(div), c = centreGroupe(g);
+  m.setView(c, 16);
+  const f = FOND.plan(), pret = attendreTuiles(f); f.addTo(m);
+  L.circleMarker(c, {radius: 9, color: '#B91E27', weight: 3, fillColor: '#B91E27', fillOpacity: .25}).addTo(m);
+  L.control.scale({imperial: false, position: 'bottomright', maxWidth: 90}).addTo(m);
+  return pret;
+}
+function cartePlan(div, g){
+  const m = carteFiche(div);
+  const pts = g.flatMap(o => [...coins(o, Math.max(60, o.zoneAv || 0, o.type === 'cabane' ? o.vant : 0)), ...o.cotes.map(c => c.b)]);
+  m.fitBounds(L.latLngBounds(pts).pad(0.3), {maxZoom: +ETAT.param.zoomPlan || 20.5});
+  const f = FOND.ortho(), pret = attendreTuiles(f); f.addTo(m); FOND.cadastre(.55).addTo(m);
+  g.forEach(o => {
+    formes(o).forEach(fm => L.polygon(fm.pts.map(([x, y]) => versCarte(o, x, y)), {pane: fm.pane, interactive: false, ...fm.st}).addTo(m));
+    o.cotes.forEach((c, j) => coteCouches(o, c, j).forEach(l => l.addTo(m)));
+    if (g.length > 1) L.marker(versCarte(o, o.L / 2, -25), {pane: 'cotes', interactive: false, icon: L.divIcon({className: 'lbl-code', html: `<span>${esc(o.code)}</span>`, iconSize: null})}).addTo(m);
+  });
+  L.control.scale({imperial: false, position: 'bottomleft', maxWidth: 120}).addTo(m);
+  return pret;
+}
+
+// --- Impression ---
+async function imprimerFiches(objets){
+  if (!objets.length) return toast('Aucune dalle à mettre en fiche.');
+  quitterPose(); quitterCote();
+  const tous = objets.length === ETAT.objets.length;
+  const groupes = tous ? grouper(objets) : [objets];
+  if (groupes.length > 25 && !confirm(`${groupes.length} fiches à générer : cela peut prendre un moment. Continuer ?`)) return;
+  const aLoc = objets.filter(o => !o.loc || o.loc.etat !== 'ok');
+  if (aLoc.length){ toast('Recherche des adresses et des parcelles…'); await Promise.all(aLoc.map(o => localiser(o))); }
+  $('impression').innerHTML = `<div id="barreApercu"><span id="etatApercu">Préparation des cartes…</span>
+      <button type="button" class="p" id="bPdf" disabled>Télécharger le PDF</button>
+      <button type="button" id="bImprimerApercu" disabled>Imprimer</button>
+      <button type="button" id="bFermerApercu">Fermer l'aperçu</button></div>`
+    + groupes.map((g, i) => ficheHTML(g, i, groupes.length)).join('');
+  document.body.classList.add('impression'); window.scrollTo(0, 0);
+  NOM_PDF = 'fiches_implantation_' + slug(groupes.length === 1 ? libelleGroupe(groupes[0]) : $('nomProjet').value) + '_' + aujourdhui();
+  TITRE_ORIGINE = document.title; document.title = NOM_PDF;   // nom proposé par « Enregistrer en PDF »
+  $('bFermerApercu').onclick = fermerApercu; $('bImprimerApercu').onclick = () => window.print(); $('bPdf').onclick = exporterPDF;
+  await Promise.all(groupes.flatMap((g, i) => [carteSituation($('fsit' + i), g), cartePlan($('fplan' + i), g)]));
+  if (!$('bPdf')) return;   // aperçu fermé entre-temps
+  $('etatApercu').textContent = `${groupes.length} fiche${groupes.length > 1 ? 's' : ''} prête${groupes.length > 1 ? 's' : ''}`;
+  $('bPdf').disabled = false; $('bImprimerApercu').disabled = false;
+}
+let NOM_PDF = 'fiches_implantation', TITRE_ORIGINE = document.title;
+// Vrai fichier PDF : chaque fiche est rendue par le navigateur en image haute définition, puis assemblée page par page
+async function exporterPDF(){
+  if (!window.htmlToImage || !window.jspdf) return toast('Bibliothèques PDF non chargées : vérifiez la connexion, ou utilisez Imprimer > Enregistrer en PDF.');
+  const b = $('bPdf'), etat = $('etatApercu'), fiches = [...document.querySelectorAll('#impression .fiche')];
+  b.disabled = true;
+  try {
+    const pdf = new window.jspdf.jsPDF({unit: 'mm', format: 'a4', orientation: 'portrait', compress: true});
+    pdf.setProperties({title: NOM_PDF, subject: 'Fiches d\'implantation des dalles béton', author: ETAT.param.redacteur || 'NCPA', creator: 'NCPA – outil d\'implantation des dalles'});
+    for (let i = 0; i < fiches.length; i++){
+      etat.textContent = `Génération du PDF… fiche ${i + 1} / ${fiches.length}`;
+      const cv = await htmlToImage.toCanvas(fiches[i], {pixelRatio: 2.5, backgroundColor: '#ffffff', style: {margin: '0'}});
+      let w = 210, h = 210 * cv.height / cv.width; if (h > 297){ w = w * 297 / h; h = 297; }
+      if (i) pdf.addPage();
+      pdf.addImage(cv.toDataURL('image/jpeg', 0.9), 'JPEG', (210 - w) / 2, 0, w, h, undefined, 'FAST');
+    }
+    pdf.save(NOM_PDF + '.pdf');
+    etat.textContent = 'PDF téléchargé.';
+  } catch (err){
+    etat.textContent = 'Export direct impossible : utilisez « Imprimer » puis « Enregistrer au format PDF ».';
+    console.error(err);
+  }
+  b.disabled = false;
+}
+function fermerApercu(){
+  CARTES_FICHE.forEach(m => m.remove()); CARTES_FICHE = [];
+  $('impression').innerHTML = ''; document.body.classList.remove('impression'); document.title = TITRE_ORIGINE;
+  setTimeout(() => map.invalidateSize(), 50);
+}
+$('bFiches').addEventListener('click', () => imprimerFiches(ETAT.objets));
+
+// =====================================================================
+//  DÉMARRAGE : reprise du dernier travail gardé dans ce navigateur
+// =====================================================================
+try {
+  const d = JSON.parse(localStorage.getItem(CLE) || 'null');
+  if (d && (d.objets?.length || d.sites?.length || d.param)){ charger(d); if (d.objets?.length || d.sites?.length) toast('Dernier travail restauré.'); }
+} catch (e){ /* rien à restaurer */ }
+majListe(); majListeSites(); majParamUI();
+setTimeout(() => map.invalidateSize(), 50);
+</script>
+</body>
+</html>
