@@ -172,6 +172,16 @@ body.impression #impression{display:block}
 .ligne-a-remplir{display:inline-block;min-width:28mm;border-bottom:0.25mm dotted #333}
 .rappel{border-left:1.2mm solid var(--rouge);background:#fbeff0;padding:1.2mm 2mm;font-weight:700;font-size:8pt}
 .f-pied{margin-top:auto;display:flex;justify-content:space-between;font-size:7pt;color:#555;border-top:0.3mm solid #999;padding-top:1mm}
+/* --- Annexe DT-DICT --- */
+.a-leg{display:flex;flex-wrap:wrap;gap:1.5mm 5mm;font-size:7.8pt;margin-top:1.6mm;align-items:center}
+.a-leg span{display:inline-flex;align-items:center;gap:1.4mm;white-space:nowrap}
+.a-leg i{display:inline-block;width:6mm;height:3mm}
+.a-note p{margin:0 0 1.3mm;font-size:8.4pt;line-height:1.35}
+.a-svg svg{width:100%;max-height:82mm;display:block;margin:0 auto}
+.a-schemas{display:flex;flex-wrap:wrap;gap:2mm;align-items:flex-start}
+.a-schemas figure{margin:0;flex:1 1 0;min-width:0}
+.a-schemas figcaption{font-weight:700;font-size:8pt}
+.a-schemas svg{width:100%;max-height:78mm}
 @page{size:A4 portrait;margin:0}
 #barreApercu{position:sticky;top:0;z-index:2000;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px;background:#333;color:#fff;margin-bottom:8mm}
 #barreApercu button:disabled{opacity:.5;cursor:wait}
@@ -240,7 +250,12 @@ body.impression #impression{display:block}
     <label class="l">Service <input type="text" data-p="service" style="width:160px"></label>
     <label class="l">Sur-largeur de travail (cm) <input type="number" data-p="surlargeur" min="0" step="5"></label>
     <label class="l">Couche de forme sous dalle (cm) <input type="number" data-p="forme" min="0" step="1"></label>
-    <p class="note">Emprise DT-DICT = dalle + sur-largeur de chaque côté. Profondeur de terrassement = épaisseur de dalle + couche de forme.</p>
+    <label class="l">Profondeur déclarée (cm) <input type="number" data-p="profMax" min="0" step="1"></label>
+    <p class="note">Emprise DT-DICT = dalle + sur-largeur de chaque côté. Profondeur déclarée : 0 = épaisseur de dalle + couche de forme ; sinon la valeur saisie (avec marge).</p>
+    <label class="l">Engins <input type="text" data-p="engins" style="width:160px"></label>
+    <label class="l">Durée d'intervention <input type="text" data-p="duree" style="width:160px"></label>
+    <label class="l">Contenu des fiches <select data-p="contenu"><option value="annexe">Annexe DT-DICT (2 pages)</option><option value="complet">Annexe + fiche chantier interne</option></select></label>
+    <p class="note">La fiche chantier interne (quantitatif béton, équipements, suivi administratif) s'ajoute en 3e page.</p>
     <label class="l">Plan d'implantation <select data-p="zoomPlan"><option value="19.5">Vue large (net)</option><option value="20.5">Équilibré</option><option value="21.5">Rapproché (flou)</option></select></label>
     <p class="note">La photo IGN a une résolution d'environ 20 cm : plus le plan est rapproché, plus elle est agrandie et floue.</p>
     <label class="l">Regrouper les dalles distantes de moins de (m) <input type="number" data-p="regroupement" min="0" step="1"></label>
@@ -380,7 +395,7 @@ const STATUTS = [
 const statut = o => STATUTS.find(s => s.k === o.statut) || STATUTS[0];
 // Toutes les longueurs en centimètres
 function defauts(type){
-  const c = {rot:0, zoneAv:0, com:'', site:'', ref:'', statut:'projet', cotes:[], loc:null, eqPos:null, seule:false};
+  const c = {rot:0, zoneAv:0, com:'', equipPrevu:'', site:'', ref:'', statut:'projet', cotes:[], loc:null, eqPos:null, seule:false};
   if (type === 'borne')  return {...c, auto:true,  L:281.6, P:251.6, ep:12, n:1, eL:181.6, eP:151.6, gap:20, cAv:50, cCo:50, cAr:50};
   if (type === 'cabane') return {...c, auto:false, L:355, P:225, ep:10, n:1, eL:185, eP:163, gap:30, cAv:42, cCo:85, cAr:20, vant:82.5, ang:90};
   if (type === 'pdr')    return {...c, auto:true,  L:300, P:100, ep:12.5, cAv:20, cCo:10, cAr:10, gap:5,
@@ -439,7 +454,8 @@ const volume  = o => surface(o) * o.ep / 100;         // m³
 //  ÉTAT
 // =====================================================================
 const CLE = 'ncpa_implantation_dalles_v1';
-const PARAM_DEF = {redacteur:'', service:'Direction de la Maîtrise des Déchets', surlargeur:50, forme:10, logo:'', regroupement:15, zoomPlan:'20.5'};
+const PARAM_DEF = {redacteur:'', service:'Direction de la Maîtrise des Déchets', surlargeur:30, forme:10, logo:'', regroupement:15, zoomPlan:'20.5',
+                   profMax:0, engins:'Mini-pelle, camion toupie', duree:'1 à 2 jours', contenu:'annexe'};
 let ETAT = {compteurs:{borne:0, cabane:0, pdr:0, libre:0}, nextId:1, objets:[], sites:[], param:{...PARAM_DEF}};
 let SEL = null, MODE = null, DRAGH = null, ANCRE = null, ETIQ = true, ETALON = null;
 let EQMODE = false, EQSEL = null;   // mode « Ajuster les équipements » + équipement actif
@@ -850,6 +866,7 @@ function afficherInspecteur(ouvrir){
   h += volet('ident', 'Identification',
     `<label class="l">Référence site <input type="text" data-k="ref" value="${esc(o.ref)}" placeholder="ex. DOZ-03"></label>
      <label class="l">Nom <input type="text" data-k="nom" value="${esc(o.nom)}"></label>
+     <label class="l">Équipements prévus <input type="text" data-k="equipPrevu" value="${esc(o.equipPrevu)}" placeholder="ex. cabane à cartons + colonne à verre"></label>
      <label class="l">Statut <select data-k="statut">${STATUTS.map(s => `<option value="${s.k}" ${o.statut === s.k ? 'selected' : ''}>${s.lib}</option>`).join('')}</select></label>
      ${o.site ? `<p class="note">Site importé : ${esc(o.site)}</p>` : ''}
      <label class="c"><input type="checkbox" data-k="seule" ${o.seule ? 'checked' : ''}> Toujours sur une fiche séparée</label>
@@ -944,7 +961,7 @@ function majPosInsp(o){
     if (f && document.activeElement !== f) f.value = r1(r[c]); }));
   $('insp').querySelectorAll('.poseq').forEach(d => d.classList.toggle('actif', EQMODE && +d.dataset.i === EQSEL));
 }
-const CLES_SANS_GEOM = ['nom', 'com', 'ref', 'statut', 'seule'];
+const CLES_SANS_GEOM = ['nom', 'com', 'equipPrevu', 'ref', 'statut', 'seule'];
 function maj(o, reconstruire, cle){
   dessiner(o); placerPoignees();
   if (reconstruire) afficherInspecteur(); else { majResume(o); majPosInsp(o); if (o.auto){ majChampInsp('L', o.L); majChampInsp('P', o.P); } }
@@ -1500,6 +1517,159 @@ function ficheHTML(g, i, n){
 </section>`;
 }
 
+// =====================================================================
+//  ANNEXE DT-DICT (2 pages par site : plan d'emprise, puis schéma, coupe et note)
+// =====================================================================
+// Schéma coté d'une dalle avec son emprise de travaux (cm, l'arrière en haut, sans équipements)
+function schemaEmpriseSVG(o, s){
+  const W = o.L + 2 * s, H = o.P + 2 * s, fs = Math.max(W, H) / 15, pad = fs * 3.4, rouge = '#B91E27';
+  let v = `<svg viewBox="${-s - pad} ${-s - pad} ${W + pad * 2} ${H + pad * 2}" xmlns="http://www.w3.org/2000/svg" font-family="Calibri, Arial, sans-serif">`;
+  if (s > 0) v += `<rect x="${-s}" y="${-s}" width="${W}" height="${H}" fill="${rouge}" fill-opacity=".08" stroke="${rouge}" stroke-width="${fs * .09}" stroke-dasharray="${fs * .5} ${fs * .3}"/>`;
+  v += `<rect x="0" y="0" width="${o.L}" height="${o.P}" fill="#e3e0d8" stroke="#222" stroke-width="${fs * .12}"/>`;
+  v += `<text x="${o.L / 2}" y="${o.P / 2}" font-size="${fs * 1.1}" text-anchor="middle" dominant-baseline="middle" font-weight="700" fill="#222">${esc(o.code)}</text>`;
+  v += coteSVG(0, -s - pad * .45, o.L, -s - pad * .45, fr(o.L, 1), fs);
+  v += coteSVG(-s - pad * .45, 0, -s - pad * .45, o.P, fr(o.P, 1), fs);
+  if (s > 0){
+    v += coteSVG(-s, o.P + s + pad * .55, o.L + s, o.P + s + pad * .55, fr(W, 1) + ' (emprise)', fs * .85, rouge);
+    v += coteSVG(o.L + s + pad * .55, -s, o.L + s + pad * .55, o.P + s, fr(H, 1) + ' (emprise)', fs * .85, rouge);
+    v += `<text x="${-s}" y="${-s - fs * .3}" font-size="${fs * .7}" fill="${rouge}">sur-largeur ${fr(s, 0)}</text>`;
+  }
+  v += `<g transform="translate(${o.L + s + pad * .55} ${-s - pad * .55}) rotate(${-o.rot})"><path d="M0 ${-fs}L${fs * .45} ${fs * .6}L0 ${fs * .3}L${-fs * .45} ${fs * .6}Z" fill="#333"/><text y="${-fs * 1.2}" font-size="${fs * .8}" text-anchor="middle" font-weight="700">N</text></g>`;
+  return v + '</svg>';
+}
+// Coupe type (schéma de principe, sans échelle)
+function coupeSVG(ep, forme, prof, s){
+  const rouge = '#B91E27', sl = s > 0 ? 14 : 0, x0 = 90 - sl, x1 = 290 + sl;
+  return `<svg viewBox="0 0 380 370" xmlns="http://www.w3.org/2000/svg" font-family="Calibri, Arial, sans-serif" font-size="13">
+  <defs><pattern id="cpG" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="2" fill="#9a9488"/><circle cx="8" cy="8" r="1.6" fill="#9a9488"/></pattern>
+  <pattern id="cpT" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#b9a78a" stroke-width="1.2"/></pattern></defs>
+  <rect x="10" y="110" width="360" height="160" fill="url(#cpT)"/>
+  <line x1="10" y1="110" x2="${x0}" y2="110" stroke="#6b5a3e" stroke-width="2"/><line x1="${x1}" y1="110" x2="370" y2="110" stroke="#6b5a3e" stroke-width="2"/>
+  <text x="12" y="102" fill="#6b5a3e">Terrain naturel</text>
+  <rect x="${x0}" y="110" width="${x1 - x0}" height="105" fill="#fff" stroke="${rouge}" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <rect x="90" y="110" width="200" height="50" fill="#d6d3cb" stroke="#222" stroke-width="1.5"/>
+  <text x="190" y="140" text-anchor="middle" font-weight="700">Dalle béton ${ep} cm</text>
+  ${forme > 0 ? `<rect x="${x0}" y="160" width="${x1 - x0}" height="45" fill="url(#cpG)" stroke="#555"/>
+  <rect x="86" y="171" width="208" height="22" fill="#fff" opacity=".88"/><text x="190" y="187" text-anchor="middle" font-size="12">Couche de forme en grave · ${fr(forme, 1)} cm</text>` : ''}
+  <line x1="340" y1="110" x2="340" y2="215" stroke="${rouge}" stroke-width="1.5"/><line x1="334" y1="110" x2="346" y2="110" stroke="${rouge}"/><line x1="334" y1="215" x2="346" y2="215" stroke="${rouge}"/>
+  <rect x="318" y="147" width="46" height="32" fill="#fff"/><text x="341" y="161" text-anchor="middle" fill="${rouge}" font-weight="700">${fr(prof, 1)}</text><text x="341" y="175" text-anchor="middle" fill="${rouge}" font-size="11">max</text>
+  ${s > 0 ? `<line x1="${x0}" y1="235" x2="90" y2="235" stroke="#222"/><text x="${x0 + 7}" y="252" text-anchor="middle" font-size="11">${fr(s, 0)}</text>
+  <line x1="290" y1="235" x2="${x1}" y2="235" stroke="#222"/><text x="${x1 - 7}" y="252" text-anchor="middle" font-size="11">${fr(s, 0)}</text>` : ''}
+  <text x="190" y="295" text-anchor="middle" fill="${rouge}" font-size="12">Fond de fouille : ${fr(prof, 1)} cm maximum sous le terrain naturel</text>
+  ${s > 0 ? `<text x="190" y="312" text-anchor="middle" font-size="12" fill="#555">Sur-largeur de ${fr(s, 0)} cm de part et d'autre pour le coffrage</text>` : ''}
+  <text x="190" y="350" text-anchor="middle" font-size="12" fill="#555">Schéma de principe, sans échelle</text></svg>`;
+}
+// Finalité des travaux : champ « Équipements prévus », sinon déduite du type de dalle
+function finaliteGroupe(g){
+  const t = [];
+  g.forEach(o => {
+    if ((o.equipPrevu || '').trim()) t.push(o.equipPrevu.trim());
+    else if (o.type === 'borne') t.push(o.n > 1 ? `${o.n} colonnes à verre` : 'une colonne à verre');
+    else if (o.type === 'cabane') t.push(o.n > 1 ? `${o.n} cabanes à cartons` : 'une cabane à cartons');
+    else if (o.type === 'pdr') t.push('un point de regroupement de bacs' + (o.cl ? ' avec claustra bois' : ''));
+  });
+  return [...new Set(t)];
+}
+// Sommets de l'emprise nommés par leur position (nord-ouest…)
+function sommetsNommes(o, s){
+  const pts = coins(o, s).map(p => { const v = ecart(o.c, p); return {p, nom: (v.n >= 0 ? 'Nord' : 'Sud') + '-' + (v.e >= 0 ? 'est' : 'ouest')}; });
+  const ordre = ['Nord-ouest', 'Nord-est', 'Sud-est', 'Sud-ouest'];
+  if (new Set(pts.map(x => x.nom)).size < 4) return pts.map((x, k) => ({...x, nom: 'S' + (k + 1)}));
+  return pts.sort((a, b) => ordre.indexOf(a.nom) - ordre.indexOf(b.nom));
+}
+function annexeHTML(g, i, n, nbPages){
+  const P = ETAT.param, o0 = g[0], adr = (o0.loc && o0.loc.adr) || {}, cad = cadastreGroupe(g);
+  const ref = libelleGroupe(g), parc0 = (cad.parcelles || [])[0] || {};
+  const commune = adr.commune || parc0.commune || '—', insee = adr.insee || parc0.insee || '';
+  const c = centreGroupe(g), s = +P.surlargeur || 0, plur = g.length > 1;
+  const emprise = g.reduce((a, o) => a + (o.L + 2 * s) * (o.P + 2 * s) / 1e4, 0);
+  const eps = [...new Set(g.map(o => o.ep))].sort((a, b) => a - b), epMax = eps[eps.length - 1];
+  const prof = +P.profMax > 0 ? +P.profMax : epMax + (+P.forme || 0);
+  const conjointe = emprise < 100;
+  const logo = P.logo ? `<img class="logo" src="${P.logo}" alt="Logo">` : '<span class="logo-txt">NCPA</span>';
+  const ligne = (k, v) => `<tr><th>${k}</th><td>${v}</td></tr>`;
+  const txtEmprise = plur ? `<b>${frf(emprise)} m²</b> (${g.length} dalles)`
+    : `<b>${frf((o0.L + 2 * s) / 100)} × ${frf((o0.P + 2 * s) / 100)} m = ${frf(emprise)} m²</b>`;
+  const parcelles = cad.ok ? (cad.parcelles.length ? cad.parcelles.map(fmtParcelle).join(', ') : 'Domaine public non cadastré') : '—';
+  const fin = finaliteGroupe(g);
+  const objet = `Réalisation par NCPA, en régie, ${plur ? `de ${g.length} dalles béton destinées` : 'd\'une dalle béton destinée'} à accueillir des équipements de collecte des déchets${fin.length ? ' : ' + esc(fin.join(', ').replace(/, ([^,]*)$/, ' et $1')) : ''}.`;
+  const cotes = g.flatMap(o => o.cotes.map((ct, j) => ({o, ct, j})));
+  const sommets = g.flatMap(o => sommetsNommes(o, s).map(x => { const q = enL93(x.p);
+    return `<tr>${plur ? `<td><b>${esc(o.code)}</b></td>` : ''}<td>${x.nom}</td><td>${q ? frf(q[0]) : '—'}</td><td>${q ? frf(q[1]) : '—'}</td><td>${x.p.lat.toFixed(6)}</td><td>${x.p.lng.toFixed(6)}</td></tr>`; })).join('');
+  const pied = p => `<div class="f-pied"><span>NCPA · ${esc(P.service)} · Annexe DT-DICT${conjointe ? ' conjointe' : ''} · ${esc(ref)} · ${esc(commune)}</span><span>Page ${p} / ${nbPages}${n > 1 ? ` · site ${i + 1} / ${n}` : ''}</span></div>`;
+  const p1 = `<section class="fiche">
+  <div class="f-cart">
+    <div>${logo}</div>
+    <div><div class="st">ANNEXE À LA DÉCLARATION DT-DICT${conjointe ? ' CONJOINTE' : ''}</div>
+      <h2>Dalle${plur ? 's' : ''} béton ${esc(ref)} · ${esc(commune)}</h2>
+      <div>Support d'équipements de collecte des déchets${adr.label ? ' · ' + esc(adr.label) : ''}</div></div>
+    <div><table>
+      <tr><td>Date</td><td><b>${dateFr()}</b></td></tr>
+      <tr><td>Déclarant</td><td>NCPA – ${esc(P.service)}</td></tr>
+      <tr><td>Contact</td><td>${esc(P.redacteur) || '<span class="ligne-a-remplir"></span>'}</td></tr>
+      <tr><td>Mode</td><td>Travaux en régie (responsable de projet = exécutant)</td></tr></table></div>
+  </div>
+  <div class="f-row" style="grid-template-columns:1fr 78mm">
+    <div class="f-box"><h4>Localisation</h4><table>
+      ${ligne('Commune', esc(commune) + (insee ? ` (INSEE ${esc(insee)})` : ''))}
+      ${ligne('Adresse la plus proche', esc(texteAdresse(adr)))}
+      ${ligne('Parcelle cadastrale', esc(parcelles))}
+      ${ligne('Centre (Lambert-93)', txtL93(c))}
+      ${ligne('Centre (GPS)', txtGPS(c))}
+      ${ligne('Emprise des travaux', txtEmprise)}
+      ${ligne('Profondeur maximale', `<b>${fr(prof, 1)} cm</b>`)}
+      ${ligne('Engins', esc(P.engins))}
+    </table></div>
+    <div class="f-carte" style="height:50mm"><div class="m" id="asit${i}"></div><div class="titre">Plan de situation</div></div>
+  </div>
+  <div class="f-box" style="flex:1;display:flex;flex-direction:column"><h4>Plan d'emprise des travaux · photographie aérienne IGN et cadastre</h4>
+    <div class="f-carte" style="flex:1;min-height:150mm"><div class="m" id="aplan${i}"></div><div class="nord">${IC.nord}</div></div>
+    <div class="a-leg"><span><i style="background:#e3e0d8;border:0.3mm solid #222"></i>Dalle${plur ? 's' : ''} béton</span>
+      ${s > 0 ? `<span><i style="background:rgba(185,30,39,.12);border:0.5mm dashed #B91E27"></i>Emprise des travaux (dalle + ${fr(s, 0)} cm)</span>` : ''}
+      <span><i style="border-top:0.8mm solid #f08a1c;height:0"></i>Limites cadastrales</span>
+      <span>Les coordonnées Lambert-93 font foi.</span></div>
+  </div>
+  ${pied(1)}
+</section>`;
+  const p2 = `<section class="fiche">
+  <div class="f-row" style="grid-template-columns:1fr 1fr">
+    <div class="f-box"><h4>Schéma${plur ? 's' : ''} coté${plur ? 's' : ''} (vue en plan, cm)</h4>
+      <div class="a-schemas">${g.map(o => `<figure>${plur ? `<figcaption>${esc(o.code)}</figcaption>` : ''}${schemaEmpriseSVG(o, s)}</figure>`).join('')}</div></div>
+    <div class="f-box a-svg"><h4>Coupe type (cm)</h4>${coupeSVG(eps.length > 1 ? `${fr(eps[0], 1)} à ${fr(epMax, 1)}` : fr(epMax, 1), +P.forme || 0, prof, s)}</div>
+  </div>
+  ${cotes.length ? `<div class="f-box"><h4>Cotes de repérage</h4><table class="f-tab"><thead><tr><th>N°</th><th>Depuis</th><th>Jusqu'à</th><th>m</th></tr></thead>
+    ${cotes.map(({o, ct, j}) => `<tr><td>${esc(o.code)}-C${j + 1}</td><td>${decrireAncre(ct.a)} ${esc(o.code)}</td><td>${esc(ct.lib) || 'repère'}</td><td class="n"><b>${frf(coteGeo(o, ct).d)}</b></td></tr>`).join('')}</table></div>` : ''}
+  <div class="f-box a-note"><h4>Note descriptive des travaux</h4>
+    <p><b>Objet.</b> ${objet}</p>
+    <p><b>Déroulement.</b> Décapage superficiel et terrassement de faible profondeur, mise en place et compactage d'une couche de forme en grave, coffrage, coulage du béton et finition. Les équipements sont posés sur la dalle après séchage, sans terrassement supplémentaire.</p>
+    <p><b>Techniques exclues.</b> Aucun forage, fonçage, pieu, brise-roche ni tranchée. Aucun terrassement en dehors de l'emprise déclarée.</p>
+    <p><b>Engins et circulation.</b> ${esc(P.engins)}. Stationnement temporaire des engins sur la chaussée à proximité immédiate pendant le coulage.</p>
+    <p><b>Durée.</b> Intervention de courte durée : ${esc(P.duree)}, hors temps de séchage.</p>
+    <p><b>Découverte d'un ouvrage non signalé.</b> Arrêt immédiat des travaux et information de l'exploitant concerné.</p>
+  </div>
+  <div class="f-box"><h4>Sommets de l'emprise des travaux</h4>
+    <table class="f-tab"><thead><tr>${plur ? '<th>Dalle</th>' : ''}<th>Sommet</th><th>X Lambert-93 (m)</th><th>Y Lambert-93 (m)</th><th>Latitude</th><th>Longitude</th></tr></thead>${sommets}</table>
+    <div class="note" style="font-size:7.5pt;margin-top:1.2mm">${conjointe
+      ? 'Emprise inférieure à 100 m², travaux de courte durée, responsable de projet et exécutant identiques : DT-DICT conjointe (art. R. 554-25 du code de l\'environnement).'
+      : 'Emprise d\'au moins 100 m² : DT puis DICT séparées.'}</div>
+  </div>
+  ${pied(2)}
+</section>`;
+  return p1 + p2;
+}
+function cartePlanAnnexe(div, g){
+  const m = carteFiche(div), s = +ETAT.param.surlargeur || 0;
+  m.fitBounds(L.latLngBounds(g.flatMap(o => coins(o, Math.max(s, 300)))).pad(0.2), {maxZoom: (+ETAT.param.zoomPlan || 20.5) + 0.75});   // carte 3 fois plus grande que sur l'ancienne fiche
+  const f = FOND.ortho(), pret = attendreTuiles(f); f.addTo(m); FOND.cadastre(.55).addTo(m);
+  g.forEach(o => {
+    if (s > 0) L.polygon(coins(o, s), {pane: 'zones', interactive: false, color: '#B91E27', weight: 2.5, dashArray: '7 5', fillColor: '#B91E27', fillOpacity: .12}).addTo(m);
+    L.polygon(coins(o), {pane: 'dalles', interactive: false, color: '#222', weight: 2, fillColor: '#e3e0d8', fillOpacity: .95}).addTo(m);
+    L.marker(o.c, {pane: 'cotes', interactive: false, icon: L.divIcon({className: 'lbl-code', html: `<span>${esc(o.code)}</span>`, iconSize: null})}).addTo(m);
+  });
+  L.control.scale({imperial: false, position: 'bottomleft', maxWidth: 120}).addTo(m);
+  return pret;
+}
+
 // --- Cartes des fiches ---
 let CARTES_FICHE = [];
 function carteFiche(div){
@@ -1537,20 +1707,22 @@ async function imprimerFiches(objets){
   const tous = objets.length === ETAT.objets.length;
   const groupes = tous ? grouper(objets) : [objets];
   if (groupes.length > 25 && !confirm(`${groupes.length} fiches à générer : cela peut prendre un moment. Continuer ?`)) return;
+  const complet = ETAT.param.contenu === 'complet';
   const aLoc = objets.filter(o => !o.loc || o.loc.etat !== 'ok');
   if (aLoc.length){ toast('Recherche des adresses et des parcelles…'); await Promise.all(aLoc.map(o => localiser(o))); }
   $('impression').innerHTML = `<div id="barreApercu"><span id="etatApercu">Préparation des cartes…</span>
       <button type="button" class="p" id="bPdf" disabled>Télécharger le PDF</button>
       <button type="button" id="bImprimerApercu" disabled>Imprimer</button>
       <button type="button" id="bFermerApercu">Fermer l'aperçu</button></div>`
-    + groupes.map((g, i) => ficheHTML(g, i, groupes.length)).join('');
+    + groupes.map((g, i) => annexeHTML(g, i, groupes.length, complet ? 3 : 2) + (complet ? ficheHTML(g, i, groupes.length) : '')).join('');
   document.body.classList.add('impression'); window.scrollTo(0, 0);
-  NOM_PDF = 'fiches_implantation_' + slug(groupes.length === 1 ? libelleGroupe(groupes[0]) : $('nomProjet').value) + '_' + aujourdhui();
+  NOM_PDF = (complet ? 'annexe_DT-DICT_et_fiche_' : 'annexe_DT-DICT_') + slug(groupes.length === 1 ? libelleGroupe(groupes[0]) : $('nomProjet').value) + '_' + aujourdhui();
   TITRE_ORIGINE = document.title; document.title = NOM_PDF;   // nom proposé par « Enregistrer en PDF »
   $('bFermerApercu').onclick = fermerApercu; $('bImprimerApercu').onclick = () => window.print(); $('bPdf').onclick = exporterPDF;
-  await Promise.all(groupes.flatMap((g, i) => [carteSituation($('fsit' + i), g), cartePlan($('fplan' + i), g)]));
+  await Promise.all(groupes.flatMap((g, i) => [carteSituation($('asit' + i), g), cartePlanAnnexe($('aplan' + i), g)]
+    .concat(complet ? [carteSituation($('fsit' + i), g), cartePlan($('fplan' + i), g)] : [])));
   if (!$('bPdf')) return;   // aperçu fermé entre-temps
-  $('etatApercu').textContent = `${groupes.length} fiche${groupes.length > 1 ? 's' : ''} prête${groupes.length > 1 ? 's' : ''}`;
+  $('etatApercu').textContent = `${groupes.length} site${groupes.length > 1 ? 's' : ''} prêt${groupes.length > 1 ? 's' : ''} (${groupes.length * (complet ? 3 : 2)} pages)`;
   $('bPdf').disabled = false; $('bImprimerApercu').disabled = false;
 }
 let NOM_PDF = 'fiches_implantation', TITRE_ORIGINE = document.title;
@@ -1561,9 +1733,9 @@ async function exporterPDF(){
   b.disabled = true;
   try {
     const pdf = new window.jspdf.jsPDF({unit: 'mm', format: 'a4', orientation: 'portrait', compress: true});
-    pdf.setProperties({title: NOM_PDF, subject: 'Fiches d\'implantation des dalles béton', author: ETAT.param.redacteur || 'NCPA', creator: 'NCPA – outil d\'implantation des dalles'});
+    pdf.setProperties({title: NOM_PDF, subject: 'Annexe DT-DICT des dalles béton', author: ETAT.param.redacteur || 'NCPA', creator: 'NCPA – outil d\'implantation des dalles'});
     for (let i = 0; i < fiches.length; i++){
-      etat.textContent = `Génération du PDF… fiche ${i + 1} / ${fiches.length}`;
+      etat.textContent = `Génération du PDF… page ${i + 1} / ${fiches.length}`;
       const cv = await htmlToImage.toCanvas(fiches[i], {pixelRatio: 2.5, backgroundColor: '#ffffff', style: {margin: '0'}});
       let w = 210, h = 210 * cv.height / cv.width; if (h > 297){ w = w * 297 / h; h = 297; }
       if (i) pdf.addPage();
