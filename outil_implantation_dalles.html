@@ -117,6 +117,9 @@ ul.liste li.ind{padding-left:18px}
 .leaflet-tooltip.lbl{background:rgba(255,255,255,.9);border:none;box-shadow:none;font-size:11px;line-height:1.15;padding:1px 4px;text-align:center;color:#111}
 .leaflet-tooltip.lbl::before{display:none}
 .lbl-cote span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;background:#fff;color:var(--bleu);border:1px solid var(--bleu);border-radius:3px;padding:0 4px;font-size:11px;font-weight:700}
+.lbl-voie span{font-family:Calibri,"Segoe UI",system-ui,sans-serif;position:absolute;white-space:nowrap;background:rgba(255,255,255,.88);color:#222;border-radius:3px;padding:0 5px;font-size:12px;font-style:italic;cursor:move;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.lbl-bulle .b{font-family:Calibri,"Segoe UI",system-ui,sans-serif;position:absolute;white-space:nowrap;background:#fff;border:1.5px solid #222;border-radius:4px;padding:2px 7px;font-size:11px;line-height:1.3;color:#222}
+.lbl-bulle .b b{display:block;font-size:11.5px}
 .lbl-code span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;background:rgba(255,255,255,.9);color:#111;border-radius:3px;padding:0 3px;font-size:10px;font-weight:700}
 .sans-etiquettes .leaflet-tooltip.lbl,.sans-etiquettes .lbl-cote{display:none}
 .lbl-etalon{color:#1565c0;font-weight:700;font-size:12px;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff;transform:translate(-50%,-120%)}
@@ -395,7 +398,7 @@ const STATUTS = [
 const statut = o => STATUTS.find(s => s.k === o.statut) || STATUTS[0];
 // Toutes les longueurs en centimètres
 function defauts(type){
-  const c = {rot:0, zoneAv:0, com:'', equipPrevu:'', site:'', ref:'', statut:'projet', cotes:[], loc:null, eqPos:null, seule:false};
+  const c = {rot:0, zoneAv:0, com:'', equipPrevu:'', voie:null, zoneEng:null, site:'', ref:'', statut:'projet', cotes:[], loc:null, eqPos:null, seule:false};
   if (type === 'borne')  return {...c, auto:true,  L:281.6, P:251.6, ep:12, n:1, eL:181.6, eP:151.6, gap:20, cAv:50, cCo:50, cAr:50};
   if (type === 'cabane') return {...c, auto:false, L:355, P:225, ep:10, n:1, eL:185, eP:163, gap:30, cAv:42, cCo:85, cAr:20, vant:82.5, ang:90};
   if (type === 'pdr')    return {...c, auto:true,  L:300, P:100, ep:12.5, cAv:20, cCo:10, cAr:10, gap:5,
@@ -460,11 +463,14 @@ let ETAT = {compteurs:{borne:0, cabane:0, pdr:0, libre:0}, nextId:1, objets:[], 
 let SEL = null, MODE = null, DRAGH = null, ANCRE = null, ETIQ = true, ETALON = null;
 let EQMODE = false, EQSEL = null;   // mode « Ajuster les équipements » + équipement actif
 let COTE = null;                    // cote en cours de tracé
+let ENG = null;                     // zone engins en cours de tracé
 const COUCHES = new Map();
 const trouver = id => ETAT.objets.find(o => o.id === id);
 
+// Prochain numéro libre (les identifiants pouvant être renommés à la main)
+function codeLibre(type){ let n; do { n = ++ETAT.compteurs[type]; } while (ETAT.objets.some(x => x.code === TYPES[type].pre + n)); return n; }
 function nouvelObjet(type, ll){
-  const n = ++ETAT.compteurs[type];
+  const n = codeLibre(type);
   return {...defauts(type), id: ETAT.nextId++, type, code: TYPES[type].pre + n, nom: TYPES[type].nom + ' ' + n, c: {lat: ll.lat, lng: ll.lng}};
 }
 
@@ -500,6 +506,7 @@ $('map').addEventListener('mousemove', ev => {
   const ll = map.mouseEventToLatLng(ev);
   $('coords').textContent = `Lambert-93 : ${txtL93(ll)}  |  GPS : ${txtGPS(ll)}`;
   if (COTE && COTE.a) majCoteProvisoire(ll);
+  if (ENG && ENG.a) majEngProvisoire(ll);
 });
 
 // =====================================================================
@@ -550,15 +557,86 @@ function dessiner(o){
   const sel = SEL === o.id, eqMode = sel && EQMODE, g = L.layerGroup();
   formes(o, sel, eqMode).forEach(f => {
     const l = L.polygon(f.pts.map(([x, y]) => versCarte(o, x, y)), {pane: f.pane, bubblingMouseEvents: false, ...f.st});
-    l.on('mousedown', e => { if (MODE || COTE) return; if (eqMode){ if (f.eq !== undefined) debutGlisserEq(e, o, f.eq); } else debutGlisser(e, o); });
-    l.on('click', e => { L.DomEvent.stop(e); if (MODE || COTE) clicCarte(e.latlng); else selectionner(o.id); });
+    l.on('mousedown', e => { if (MODE || COTE || ENG) return; if (eqMode){ if (f.eq !== undefined) debutGlisserEq(e, o, f.eq); } else debutGlisser(e, o); });
+    l.on('click', e => { L.DomEvent.stop(e); if (MODE || COTE || ENG) clicCarte(e.latlng); else selectionner(o.id); });
     g.addLayer(l);
     if (f.role === 'dalle' && ETIQ) l.bindTooltip(`<b>${esc(o.code)}</b> ${esc(o.nom)}<br>${fr(o.L/100)} × ${fr(o.P/100)} m`,
                                                   {permanent: true, direction: 'center', className: 'lbl', interactive: false});
   });
   if (ETIQ) (o.cotes || []).forEach((c, i) => coteCouches(o, c, i).forEach(l => g.addLayer(l)));
+  if (o.zoneEng) g.addLayer(L.polygon(coinsEng(o), {pane: 'zones', interactive: false, ...STYLE_ENG}));
+  if (ETIQ && o.voie && o.voie.nom){
+    const mv = L.marker(o.voie, {pane: 'sites', draggable: true, icon: iconeVoie(o.voie), title: 'Glisser pour déplacer le nom de la voie'});
+    mv.on('dragend', () => { const p = mv.getLatLng(); o.voie = {...o.voie, lat: p.lat, lng: p.lng, auto: false}; sauver(); });
+    g.addLayer(mv);
+  }
   g.addTo(map); COUCHES.set(o.id, g);
 }
+
+// =====================================================================
+//  NOM DE VOIE ET ZONE ENGINS (pour le plan de l'annexe DT-DICT)
+// =====================================================================
+const STYLE_ENG = {color: '#1f5fa8', weight: 2, dashArray: '6 4', fillColor: '#1f5fa8', fillOpacity: .15};
+const coinsEng = o => { const z = o.zoneEng; return rect(z.x, z.y, z.w, z.h).map(([x, y]) => versCarte(o, x, y)); };
+const iconeVoie = v => L.divIcon({className: 'lbl-voie', iconSize: null,
+  html: `<span style="transform:translate(-50%,-50%) rotate(${v.ang || 0}deg)">${esc(v.nom)}</span>`});
+// Recherche du tronçon de route nommé le plus proche (BD TOPO IGN) : nom + position + angle de l'étiquette
+async function voieProche(o){
+  const a = deplacer(o.c, -60, -60), b = deplacer(o.c, 60, 60);
+  const url = 'https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=BDTOPO_V3:troncon_de_route&OUTPUTFORMAT=application/json&COUNT=200&BBOX='
+    + [a.lat, a.lng, b.lat, b.lng].join(',') + ',urn:ogc:def:crs:EPSG::4326';
+  try {
+    const r = await fetch(url); if (!r.ok) return null;
+    const j = await r.json(); let best = null;
+    (j.features || []).forEach(f => {
+      const p = f.properties || {}, g = f.geometry; if (!g) return;
+      const nom = ['nom_collaboratif_gauche', 'nom_collaboratif_droite', 'nom_voie_ban_gauche', 'nom_voie_ban_droite', 'alias_gauche', 'cpx_toponyme_route_nommee', 'cpx_numero']
+        .map(k => (p[k] || '').toString().trim()).find(Boolean);
+      if (!nom) return;
+      const lignes = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [];
+      lignes.forEach(l => {
+        // Ordre des coordonnées : lon/lat ou lat/lon selon le service, détecté par proximité avec la dalle
+        const ll = l.map(c => Math.abs(c[1] - o.c.lat) < Math.abs(c[0] - o.c.lat) ? {lat: c[1], lng: c[0]} : {lat: c[0], lng: c[1]});
+        const pts = ll.map(q => ecart(o.c, q));
+        for (let i = 0; i < pts.length - 1; i++){
+          const A = pts[i], B = pts[i + 1], dx = B.e - A.e, dy = B.n - A.n, L2 = dx * dx + dy * dy; if (!L2) continue;
+          const t = Math.max(0, Math.min(1, -(A.e * dx + A.n * dy) / L2)), px = A.e + t * dx, py = A.n + t * dy, d = Math.hypot(px, py);
+          if (!best || d < best.d) best = {d, nom, px, py, ux: dx / Math.sqrt(L2), uy: dy / Math.sqrt(L2)};
+        }
+      });
+    });
+    if (!best) return {nom: '', auto: true};
+    // Étiquette posée sur la voie, décalée de 8 m vers le haut de la carte pour laisser la place aux annotations
+    const sens = best.uy >= 0 ? 1 : -1, pos = deplacer(o.c, best.px + sens * 8 * best.ux, best.py + sens * 8 * best.uy);
+    let ang = -Math.atan2(best.uy, best.ux) * 180 / Math.PI; if (ang >= 90) ang -= 180; if (ang < -90) ang += 180;
+    return {nom: best.nom, lat: pos.lat, lng: pos.lng, ang: Math.round(ang), auto: true};
+  } catch (e){ return null; }   // service indisponible : on garde l'existant
+}
+async function majVoie(o, forcer){
+  if (!forcer && o.voie && !o.voie.auto) return;   // étiquette retouchée à la main : on n'y touche plus
+  const v = await voieProche(o), cur = trouver(o.id); if (!cur || !v) return;
+  cur.voie = v; dessiner(cur); if (SEL === cur.id) majChampInsp('voieNom', v.nom); sauver();
+}
+function activerEng(){
+  const o = trouver(SEL); if (!o) return;
+  if (EQMODE) basculerEqMode(false); quitterCote();
+  ENG = {id: o.id, a: null, tmp: L.layerGroup().addTo(map)};
+  $('map').classList.add('pose');
+  banniere('1/2 · Cliquez sur un <b>premier angle</b> de la zone de stationnement des engins', quitterEng);
+}
+function clicEng(ll){
+  const o = trouver(ENG.id); if (!o) return quitterEng();
+  if (!ENG.a){ ENG.a = versLocal(o, ll); banniere('2/2 · Cliquez sur l\'<b>angle opposé</b> (la zone suit l\'orientation de la dalle)', quitterEng); return; }
+  const b = versLocal(o, ll), a = ENG.a;
+  o.zoneEng = {x: cinq(Math.min(a.x, b.x)), y: cinq(Math.min(a.y, b.y)), w: cinq(Math.abs(b.x - a.x)), h: cinq(Math.abs(b.y - a.y))};
+  quitterEng(); dessiner(o); afficherInspecteur('annexe'); sauver();
+}
+function majEngProvisoire(ll){
+  const o = trouver(ENG.id); if (!o) return;
+  const a = ENG.a, b = versLocal(o, ll), pts = rect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y)).map(([x, y]) => versCarte(o, x, y));
+  ENG.tmp.clearLayers(); ENG.tmp.addLayer(L.polygon(pts, {interactive: false, ...STYLE_ENG}));
+}
+function quitterEng(){ if (!ENG) return; map.removeLayer(ENG.tmp); ENG = null; $('map').classList.remove('pose'); cacherBanniere(); }
 
 // Glisser la dalle directement (souris uniquement ; au doigt, utiliser la poignée centrale)
 function debutGlisser(e, o){
@@ -673,6 +751,7 @@ async function localiser(o){
   const cur = trouver(id); if (!cur) return;
   cur.loc = {etat: 'ok', adr, cad, date: new Date().toISOString()};
   majLocInsp(cur); majListe(); sauver();
+  majVoie(cur);
 }
 async function adresseProche(c){
   for (const base of ['https://data.geopf.fr/geocodage/reverse', 'https://api-adresse.data.gouv.fr/reverse/']){
@@ -808,6 +887,7 @@ function ajouter(o){
 function clicCarte(ll){
   if (MODE) return ajouter(nouvelObjet(MODE, ll));
   if (COTE) return clicCote(ll);
+  if (ENG) return clicEng(ll);
   if (SEL) selectionner(null);
 }
 function placerSurSite(type, i){
@@ -824,8 +904,8 @@ function supprimer(id){
   selectionner(null); sauver();
 }
 function dupliquer(o){
-  const c = JSON.parse(JSON.stringify(o)), n = ++ETAT.compteurs[o.type];
-  c.id = ETAT.nextId++; c.code = TYPES[o.type].pre + n; c.nom = o.nom + ' (copie)'; c.cotes = []; c.loc = null;
+  const c = JSON.parse(JSON.stringify(o)), n = codeLibre(o.type);
+  c.id = ETAT.nextId++; c.code = TYPES[o.type].pre + n; c.nom = o.nom + ' (copie)'; c.cotes = []; c.loc = null; c.voie = null; c.zoneEng = null;
   c.c = versCarte(o, o.L * 1.5 + 100, o.P / 2);   // posée 1 m à droite
   ETAT.objets.push(c); dessiner(c); selectionner(c.id); sauver();
 }
@@ -836,8 +916,8 @@ document.querySelectorAll('[data-pose]').forEach(b => b.addEventListener('click'
 
 document.addEventListener('keydown', e => {
   if (e.target.matches('input, textarea, select')) return;
-  if (e.key === 'Escape'){ if (COTE) quitterCote(); else if (MODE) quitterPose(); else if (EQMODE) basculerEqMode(false); else if (SEL) selectionner(null); }
-  const o = SEL && trouver(SEL); if (!o || COTE) return;
+  if (e.key === 'Escape'){ if (ENG) quitterEng(); else if (COTE) quitterCote(); else if (MODE) quitterPose(); else if (EQMODE) basculerEqMode(false); else if (SEL) selectionner(null); }
+  const o = SEL && trouver(SEL); if (!o || COTE || ENG) return;
   if (e.key === 'Delete'){ supprimer(o.id); return; }
   if (EQMODE && EQSEL !== null){   // équipement actif : 5 cm (Maj : 25 cm), dans le repère de la dalle
     const s = e.shiftKey ? 25 : 5, d = {ArrowUp:[0, -s], ArrowDown:[0, s], ArrowLeft:[-s, 0], ArrowRight:[s, 0]}[e.key];
@@ -864,7 +944,8 @@ function afficherInspecteur(ouvrir){
   let h = `<div class="ihead"><span class="pastille" style="background:${T.coul}"></span><b>${esc(o.code)}</b>&nbsp;· ${T.nom}<button type="button" class="x" data-act="fermer" title="Fermer">×</button></div>`;
 
   h += volet('ident', 'Identification',
-    `<label class="l">Référence site <input type="text" data-k="ref" value="${esc(o.ref)}" placeholder="ex. DOZ-03"></label>
+    `<label class="l">Identifiant <input type="text" data-k="code" value="${esc(o.code)}" placeholder="ex. D2"></label>
+     <label class="l">Référence site <input type="text" data-k="ref" value="${esc(o.ref)}" placeholder="ex. DOZ-03"></label>
      <label class="l">Nom <input type="text" data-k="nom" value="${esc(o.nom)}"></label>
      <label class="l">Équipements prévus <input type="text" data-k="equipPrevu" value="${esc(o.equipPrevu)}" placeholder="ex. cabane à cartons + colonne à verre"></label>
      <label class="l">Statut <select data-k="statut">${STATUTS.map(s => `<option value="${s.k}" ${o.statut === s.k ? 'selected' : ''}>${s.lib}</option>`).join('')}</select></label>
@@ -919,6 +1000,14 @@ function afficherInspecteur(ouvrir){
     + `<div class="btns"><button type="button" data-act="cote">+ Ajouter une cote</button></div>
        <p class="note">Pour l'équipe terrain : distances de la dalle à des repères fixes visibles sur place.</p>`);
 
+  h += volet('annexe', 'Plan de l\'annexe DT-DICT',
+    `<label class="l">Nom de la voie <input type="text" data-voie="1" data-k="voieNom" value="${esc((o.voie && o.voie.nom) || '')}" placeholder="ex. Rue de Cagny"></label>
+     <div class="btns"><button type="button" data-act="voie">Rechercher la voie</button></div>
+     <p class="note">Nom trouvé automatiquement (BD TOPO IGN). L'étiquette se déplace en la glissant sur la carte.</p>
+     <h3>Zone de stationnement des engins</h3>
+     <div class="btns"><button type="button" data-act="eng">${o.zoneEng ? 'Redessiner la zone' : 'Dessiner la zone'}</button>${o.zoneEng ? '<button type="button" data-act="engsuppr" class="danger">Supprimer</button>' : ''}</div>
+     <p class="note">${o.zoneEng ? `Zone de ${frf(o.zoneEng.w / 100)} × ${frf(o.zoneEng.h / 100)} m, en bleu sur la carte.` : 'Deux clics sur la carte : angles opposés de la zone (toupie, mini-pelle).'}</p>`);
+
   h += volet('abords', 'Abords et commentaire', champ('Zone dégagée devant la dalle (cm)', 'zoneAv', o)
      + `<p class="note">Zone verte, hors dalle. Repère cheminement piéton : 140 cm (120 sans obstacle latéral).</p>`
      + `<textarea data-k="com" rows="3" placeholder="Observations (accès, contraintes, réseaux visibles…)">${esc(o.com)}</textarea>`);
@@ -961,7 +1050,7 @@ function majPosInsp(o){
     if (f && document.activeElement !== f) f.value = r1(r[c]); }));
   $('insp').querySelectorAll('.poseq').forEach(d => d.classList.toggle('actif', EQMODE && +d.dataset.i === EQSEL));
 }
-const CLES_SANS_GEOM = ['nom', 'com', 'equipPrevu', 'ref', 'statut', 'seule'];
+const CLES_SANS_GEOM = ['nom', 'com', 'equipPrevu', 'ref', 'statut', 'seule', 'code'];
 function maj(o, reconstruire, cle){
   dessiner(o); placerPoignees();
   if (reconstruire) afficherInspecteur(); else { majResume(o); majPosInsp(o); if (o.auto){ majChampInsp('L', o.L); majChampInsp('P', o.P); } }
@@ -974,7 +1063,17 @@ $('insp').addEventListener('input', e => {
   if (t.dataset.bac !== undefined){ o.bacs[+t.dataset.bac][t.dataset.f] = t.value; return maj(o, false); }
   if (t.dataset.eq !== undefined){ const v = parseFloat(t.value); if (!isFinite(v)) return;
     figerEquipements(o); o.eqPos[+t.dataset.eq][t.dataset.c] = v; return maj(o, false); }
+  if (t.dataset.voie){   // nom de voie saisi à la main
+    const v = o.voie && o.voie.lat ? o.voie : {...deplacer(versCarte(o, -300, o.P / 2), 0, 0), ang: 0};
+    o.voie = {...v, nom: t.value, auto: false}; dessiner(o); return sauver();
+  }
   const k = t.dataset.k; if (!k) return;
+  if (k === 'code'){   // identifiant : non vide et unique
+    const v = t.value.trim(); if (!v) return;
+    if (ETAT.objets.some(x => x !== o && x.code === v)){ t.style.outline = '2px solid #B91E27'; return toast(`« ${v} » est déjà utilisé par une autre dalle.`); }
+    t.style.outline = ''; o.code = v; const b = $('insp').querySelector('.ihead b'); if (b) b.textContent = v;
+    return maj(o, false, k);
+  }
   if (t.type === 'checkbox'){ o[k] = t.checked; if (k === 'auto' && t.checked) o.eqPos = null; return maj(o, k !== 'seule', k); }
   if (t.type === 'number'){
     const v = parseFloat(t.value); if (!isFinite(v)) return;
@@ -1001,6 +1100,9 @@ $('insp').addEventListener('click', e => {
   else if (a === 'cote') activerCote();
   else if (a === 'delcote'){ o.cotes.splice(+b.dataset.i, 1); dessiner(o); afficherInspecteur(); sauver(); }
   else if (a === 'reloc'){ planifierLoc(o); }
+  else if (a === 'voie'){ toast('Recherche de la voie…'); majVoie(o, true).then(() => { if (!(o.voie && o.voie.nom)) toast('Aucune voie nommée trouvée : saisissez le nom à la main.'); }); }
+  else if (a === 'eng') activerEng();
+  else if (a === 'engsuppr'){ o.zoneEng = null; dessiner(o); afficherInspecteur(); sauver(); }
   else if (a === 'fiche') imprimerFiches(groupeDe(o));
   else if (a === 'zoom') zoomer(o);
   else if (a === 'dup') dupliquer(o);
@@ -1626,6 +1728,7 @@ function annexeHTML(g, i, n, nbPages){
     <div class="f-carte" style="flex:1;min-height:150mm"><div class="m" id="aplan${i}"></div><div class="nord">${IC.nord}</div></div>
     <div class="a-leg"><span><i style="background:#e3e0d8;border:0.3mm solid #222"></i>Dalle${plur ? 's' : ''} béton</span>
       ${s > 0 ? `<span><i style="background:rgba(185,30,39,.12);border:0.5mm dashed #B91E27"></i>Emprise des travaux (dalle + ${fr(s, 0)} cm)</span>` : ''}
+      ${g.some(o => o.zoneEng) ? '<span><i style="background:rgba(31,95,168,.15);border:0.5mm dashed #1f5fa8"></i>Zone engins (temporaire)</span>' : ''}
       <span><i style="border-top:0.8mm solid #f08a1c;height:0"></i>Limites cadastrales</span>
       <span>Les coordonnées Lambert-93 font foi.</span></div>
   </div>
@@ -1658,13 +1761,36 @@ function annexeHTML(g, i, n, nbPages){
   return p1 + p2;
 }
 function cartePlanAnnexe(div, g){
-  const m = carteFiche(div), s = +ETAT.param.surlargeur || 0;
-  m.fitBounds(L.latLngBounds(g.flatMap(o => coins(o, Math.max(s, 300)))).pad(0.2), {maxZoom: (+ETAT.param.zoomPlan || 20.5) + 0.75});   // carte 3 fois plus grande que sur l'ancienne fiche
+  const m = carteFiche(div), P = ETAT.param, s = +P.surlargeur || 0;
+  const cadre = g.flatMap(o => [...coins(o, Math.max(s, 300)), ...(o.zoneEng ? coinsEng(o) : []), ...(o.voie && o.voie.lat ? [o.voie] : [])]);
+  m.fitBounds(L.latLngBounds(cadre).pad(0.2), {maxZoom: (+P.zoomPlan || 20.5) + 0.25});
   const f = FOND.ortho(), pret = attendreTuiles(f); f.addTo(m); FOND.cadastre(.55).addTo(m);
+  const prof = +P.profMax > 0 ? +P.profMax : Math.max(...g.map(o => o.ep)) + (+P.forme || 0), seul = g.length === 1;
+  // Bulle d'annotation : boîte reliée par un trait à un point de l'objet (positions calculées en pixels)
+  const W = m.getSize().x, H = m.getSize().y;
+  const bulle = (ancre, dx, dy, titre, txt, coul) => {
+    const a = m.latLngToContainerPoint(ancre);
+    let d = dx; if (d > 0 && a.x + d + 230 > W) d = -dx; else if (d < 0 && a.x + d - 230 < 0) d = -dx;   // la bulle reste dans le cadre
+    const gauche = d < 0, p = L.point(Math.min(Math.max(a.x + d, 10), W - 10), Math.min(Math.max(a.y + dy, 20), H - 20)), pl = m.containerPointToLatLng(p);
+    L.polyline([ancre, pl], {color: coul, weight: 1.5, interactive: false}).addTo(m);
+    L.marker(pl, {pane: 'sites', interactive: false, icon: L.divIcon({className: 'lbl-bulle', iconSize: null,
+      html: `<div class="b" style="border-color:${coul};transform:translate(${gauche ? '-100%' : '0'},-50%)"><b style="color:${coul}">${titre}</b>${txt}</div>`})}).addTo(m);
+  };
+  // L'objet le plus à droite / en haut / en bas parmi des points, en pixels
+  const extreme = (pts, fn) => pts.map(q => ({q, p: m.latLngToContainerPoint(q)})).sort((u, v) => fn(u.p) - fn(v.p))[0].q;
   g.forEach(o => {
+    if (o.zoneEng) L.polygon(coinsEng(o), {pane: 'zones', interactive: false, ...STYLE_ENG}).addTo(m);
     if (s > 0) L.polygon(coins(o, s), {pane: 'zones', interactive: false, color: '#B91E27', weight: 2.5, dashArray: '7 5', fillColor: '#B91E27', fillOpacity: .12}).addTo(m);
     L.polygon(coins(o), {pane: 'dalles', interactive: false, color: '#222', weight: 2, fillColor: '#e3e0d8', fillOpacity: .95}).addTo(m);
     L.marker(o.c, {pane: 'cotes', interactive: false, icon: L.divIcon({className: 'lbl-code', html: `<span>${esc(o.code)}</span>`, iconSize: null})}).addTo(m);
+    if (o.voie && o.voie.nom && o.voie.lat) L.marker(o.voie, {pane: 'sites', interactive: false, icon: iconeVoie(o.voie)}).addTo(m);
+    const dim = `${frf(o.L / 100)} × ${frf(o.P / 100)} m · ${frf(surface(o))} m²`;
+    if (seul){
+      if (s > 0){ const W2 = (o.L + 2 * s) / 100, H2 = (o.P + 2 * s) / 100;
+        bulle(extreme(coins(o, s), p => p.y - p.x), 60, -45, 'Emprise des travaux', `${frf(W2)} × ${frf(H2)} m · ${frf(W2 * H2)} m² · prof. ${fr(prof, 1)} cm`, '#B91E27'); }
+      bulle(extreme(coins(o), p => -p.y - p.x), 70, 45, 'Dalle béton', dim, '#222');
+    } else bulle(extreme(coins(o), p => -p.x), 50, 0, esc(o.code), dim, '#222');
+    if (o.zoneEng) bulle(extreme(coinsEng(o), p => p.x - p.y), -50, 45, 'Stationnement temporaire', 'engins de chantier (chaussée)', '#1f5fa8');
   });
   L.control.scale({imperial: false, position: 'bottomleft', maxWidth: 120}).addTo(m);
   return pret;
@@ -1710,6 +1836,7 @@ async function imprimerFiches(objets){
   const complet = ETAT.param.contenu === 'complet';
   const aLoc = objets.filter(o => !o.loc || o.loc.etat !== 'ok');
   if (aLoc.length){ toast('Recherche des adresses et des parcelles…'); await Promise.all(aLoc.map(o => localiser(o))); }
+  await Promise.all(objets.filter(o => !o.voie).map(o => majVoie(o)));
   $('impression').innerHTML = `<div id="barreApercu"><span id="etatApercu">Préparation des cartes…</span>
       <button type="button" class="p" id="bPdf" disabled>Télécharger le PDF</button>
       <button type="button" id="bImprimerApercu" disabled>Imprimer</button>
