@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Optimisation de tournée — NCPA</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--rouge:#B91E27;--vert:#B1B993;--vert-f:#6f7a4c;--gris:#f4f4f2;--bord:#ddd;--txt:#222;}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:Calibri,"Segoe UI",system-ui,sans-serif;color:var(--txt);font-size:14px}
+body{display:flex;flex-direction:column;height:100vh}
+header{border-bottom:4px solid var(--rouge);padding:8px 16px 0;background:#fff;flex:0 0 auto;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap}
+header .t{padding-bottom:8px}
+header .eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--rouge);font-weight:700}
+header h1{margin:0;font-size:20px}
+nav.tabs{display:flex;gap:4px;margin-left:auto}
+nav.tabs button{border:1px solid var(--bord);border-bottom:0;border-radius:6px 6px 0 0;background:var(--gris);color:#444;padding:7px 16px;font-weight:700}
+nav.tabs button.active{background:var(--rouge);color:#fff;border-color:var(--rouge)}
+.view{flex:1 1 auto;min-height:0;display:none}
+.view.active{display:flex}
+#app{min-height:0}
+#panel{width:300px;flex:0 0 300px;overflow-y:auto;background:var(--gris);border-right:1px solid var(--bord);padding:10px 12px}
+#main{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;min-height:0}
+#mapwrap{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+#map{position:relative;height:0;flex:1 1 auto}
+#tablewrap{flex:0 0 auto;max-height:38vh;overflow:auto;border-top:2px solid var(--rouge);background:#fff;display:none}
+#tablewrap.open{display:block}
+#params{overflow-y:auto;padding:14px 18px;background:var(--gris);flex-direction:column}
+#params .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;align-items:start}
+.sec{background:#fff;border:1px solid var(--bord);border-radius:6px;padding:8px 10px;margin-bottom:10px}
+.sec h2{font-size:13px;margin:0 0 6px;color:var(--rouge);text-transform:uppercase;letter-spacing:.05em}
+#params .sec{padding:12px 14px}
+#params .sec h2{font-size:15px}
+label{display:block;font-size:12px;margin:5px 0 2px;color:#555}
+input[type=text],input[type=password],input[type=number],input[type=time],input[type=date],select{width:100%;padding:4px 6px;border:1px solid #bbb;border-radius:4px;font:inherit}
+.row{display:flex;gap:6px}.row>*{flex:1}
+button{font:inherit;border:1px solid var(--rouge);background:#fff;color:var(--rouge);border-radius:4px;padding:5px 8px;cursor:pointer}
+button:hover{background:#fbeaea}
+button:disabled{opacity:.5;cursor:default}
+button.primary{background:var(--rouge);color:#fff;width:100%;padding:8px;font-weight:700}
+button.primary:disabled{background:#c9a2a4;border-color:#c9a2a4;cursor:wait;opacity:1}
+button.on{background:var(--rouge);color:#fff}
+button.fill{background:var(--rouge);color:#fff}
+.small{font-size:11px;color:#666}
+.hint{font-size:12px;color:#555;margin:4px 0 8px}
+#drop{border:2px dashed #aaa;border-radius:6px;padding:12px;text-align:center;cursor:pointer;background:#fafafa}
+#drop.over{border-color:var(--rouge);background:#fbeaea}
+.warn{background:#fff6e0;border-left:3px solid #e0a000;padding:4px 6px;font-size:12px;margin-top:6px}
+.err{background:#fde8e8;border-left:3px solid var(--rouge);padding:4px 6px;font-size:12px;margin-top:6px}
+.ok{background:#eef1e4;border-left:3px solid var(--vert-f);padding:4px 6px;font-size:12px;margin-top:6px}
+.due{background:#eef1e4;border-radius:4px;padding:5px 7px;font-size:12px;margin-top:6px}
+#stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#stats div{background:#fff;border:1px solid var(--bord);border-radius:4px;padding:4px 6px}
+#stats b{display:block;font-size:16px;color:var(--rouge)}
+#stats span{font-size:11px;color:#666}
+#tourList div{display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 4px;border-radius:4px;cursor:pointer}
+#tourList div:hover{background:#f3f3f3}
+#tourList div.sel{background:#fff4c2}
+.chip{width:12px;height:12px;border-radius:3px;flex:0 0 12px}
+.legend div{display:flex;align-items:center;gap:6px;font-size:12px;margin:3px 0}
+.lg{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700}
+.lgline{width:22px;height:4px;background:var(--rouge);border-radius:2px}
+.lgline.dash{background:repeating-linear-gradient(90deg,#666 0 4px,transparent 4px 8px)}
+.pin{border-radius:50%;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45);font-size:11px}
+.pin.todo{background:#7d7d7d}.pin.excl{background:#ccc;color:#666}.pin.off{background:#fff;border:2px dashed #999;box-shadow:none}
+.pin.dep{background:var(--vert-f);font-size:13px}.pin.exu{background:#222;font-size:13px}
+.pin.sel{outline:3px solid #ffcc00}
+.pin.faded{opacity:.3}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid #eee;padding:4px 8px;text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:#fff;cursor:pointer;border-bottom:2px solid var(--vert);z-index:1}
+tr.sel td{background:#fff4c2}
+#tbl tbody tr:hover td{background:#f7f7f7;cursor:pointer}
+#toolbar{display:flex;gap:6px;padding:4px 8px;background:#fff;border-top:1px solid var(--bord);flex-wrap:wrap;align-items:center}
+#toolbar .sp{flex:1}
+.mode-pick #map{cursor:crosshair}
+#pickhint{display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--rouge);color:#fff;padding:6px 12px;border-radius:4px;font-weight:700}
+.mode-pick #pickhint{display:block}
+.popup b{color:var(--rouge)}.popup button{margin:3px 3px 0 0;font-size:12px;padding:3px 6px}
+#freqWrap{max-height:60vh;overflow:auto;border:1px solid var(--bord);border-radius:4px;margin-top:8px}
+#freqTbl td,#freqTbl th{padding:3px 6px}
+#freqTbl select{width:auto;padding:2px 4px}
+#freqTbl td.yes{color:var(--vert-f);font-weight:700}
+#freqTbl td.no{color:#aaa}
+.toolsrow{display:flex;gap:6px;flex-wrap:wrap;align-items:end}
+.toolsrow>div{min-width:130px}
+.radio label{display:flex;gap:6px;align-items:center;font-size:13px;color:#222;margin:4px 0}
+#tourNames input{margin-bottom:4px}
+.counter{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin-top:6px}
+.counter span{background:var(--gris);border-radius:4px;padding:2px 6px}
+@media (max-width:840px){#app{flex-direction:column}#panel{width:100%;flex:0 0 auto;max-height:45vh;border-right:0;border-bottom:1px solid var(--bord)}#main{min-height:55vh}}
+@media print{#panel,#toolbar,header{display:none}#tablewrap{display:block;max-height:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="t">
+    <div class="eyebrow">NCPA · Direction de la Maîtrise des Déchets</div>
+    <h1>Optimisation de tournée — camion benne</h1>
+  </div>
+  <nav class="tabs">
+    <button data-v="app" class="active">Tournée</button>
+    <button data-v="params">Paramètres</button>
+  </nav>
+</header>
+
+<div id="app" class="view active">
+  <aside id="panel">
+    <div class="sec">
+      <h2>1. Clé openrouteservice</h2>
+      <input type="password" id="apikey" placeholder="Coller la clé API (gratuite)">
+      <div class="small">Clé gratuite sur account.heigit.org (compte HeiGIT / openrouteservice). Elle reste dans ce navigateur.</div>
+      <label><input type="checkbox" id="volOiseau"> Aperçu à vol d'oiseau (sans clé, ordre indicatif seulement)</label>
+    </div>
+
+    <div class="sec">
+      <h2>2. Points à collecter</h2>
+      <div id="drop">Glisser un fichier GeoJSON ici<br><span class="small">ou cliquer pour choisir</span></div>
+      <input type="file" id="file" accept=".geojson,.json" hidden>
+      <div id="fieldsSummary" class="small" style="margin-top:4px"></div>
+      <div id="dataMsg"></div>
+    </div>
+
+    <div class="sec">
+      <h2>3. Départ et exutoire</h2>
+      <div class="row">
+        <button id="btnDep">📍 Placer le départ</button>
+        <button id="btnExu">🏁 Placer l'exutoire</button>
+      </div>
+      <label><input type="checkbox" id="sameEnd"> Exutoire = départ (retour au dépôt)</label>
+      <div class="small">Clic sur la carte, ou bouton dans la popup d'un point. Marqueurs déplaçables.</div>
+      <div id="depMsg" class="small"></div>
+    </div>
+
+    <div class="sec">
+      <h2>4. Tournée du jour</h2>
+      <div class="row">
+        <div><label>Date de la tournée</label><input type="date" id="hDate"></div>
+        <div><label>Heure de départ</label><input type="time" id="hDep" value="07:00"></div>
+      </div>
+      <label>Chauffeur (PDF)</label><input type="text" id="driver" placeholder="facultatif">
+      <label><input type="checkbox" id="applyFreq" checked> Ne garder que les points dus ce jour (fréquences)</label>
+      <div id="dueInfo" class="due"></div>
+    </div>
+
+    <div class="sec">
+      <h2>5. Camion</h2>
+      <div class="row">
+        <div><label>Hauteur (m)</label><input type="number" id="vH" step="0.1" value="3.6"></div>
+        <div><label>Largeur (m)</label><input type="number" id="vW" step="0.05" value="2.55"></div>
+      </div>
+      <div class="row">
+        <div><label>Longueur (m)</label><input type="number" id="vL" step="0.1" value="9.5"></div>
+        <div><label>Poids total (t)</label><input type="number" id="vP" step="0.5" value="19"></div>
+      </div>
+      <div class="row">
+        <div><label>Charge/essieu (t)</label><input type="number" id="vA" step="0.5" value="11.5"></div>
+        <div><label>Temps/arrêt (min)</label><input type="number" id="svc" step="0.5" value="3"></div>
+      </div>
+      <div class="row">
+        <div><label>Optimiser</label><select id="metric"><option value="duration">la durée</option><option value="distance">la distance</option></select></div>
+        <div style="display:flex;align-items:end"><label><input type="checkbox" id="avoidHw" checked> Éviter les autoroutes</label></div>
+      </div>
+      <div id="multiSummary" class="small" style="margin-top:6px"></div>
+    </div>
+
+    <button class="primary" id="btnRun">Calculer la tournée</button>
+    <div id="runMsg"></div>
+
+    <div class="sec" style="margin-top:10px">
+      <h2>Résultat</h2>
+      <select id="tourView" style="margin-bottom:6px" disabled><option value="all">Toutes les tournées</option></select>
+      <div id="stats">
+        <div><b id="sPts">–</b><span>points collectés</span></div>
+        <div><b id="sKm">–</b><span>km</span></div>
+        <div><b id="sDrive">–</b><span>de conduite</span></div>
+        <div><b id="sTot">–</b><span>avec arrêts</span></div>
+      </div>
+      <div id="sEnd" class="small" style="margin-top:4px"></div>
+      <div id="tourList" style="margin-top:6px"></div>
+    </div>
+
+    <div class="sec legend">
+      <h2>Légende</h2>
+      <div><span class="lg" style="background:var(--vert-f)">D</span> Départ</div>
+      <div><span class="lg" style="background:#222">E</span> Exutoire</div>
+      <div><span class="lg" style="background:var(--rouge)">1</span> Point dans la tournée (couleur = tournée)</div>
+      <div><span class="lg" style="background:#7d7d7d"></span> Point à collecter, pas encore calculé</div>
+      <div><span class="lg" style="background:#fff;border:2px dashed #999"></span> Pas à collecter ce jour (fréquence)</div>
+      <div><span class="lg" style="background:#ccc"></span> Point exclu à la main</div>
+      <div><span class="lgline"></span> Tracé poids lourd</div>
+      <div><span class="lgline dash"></span> Aperçu vol d'oiseau</div>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div id="mapwrap">
+      <div id="map"><div id="pickhint">Cliquer sur la carte pour placer le point</div></div>
+    </div>
+    <div id="toolbar">
+      <button id="btnTable">Afficher la fiche de tournée</button>
+      <span class="sp"></span>
+      <button id="exCsv" disabled>CSV (Excel)</button>
+      <button id="exGeo" disabled>GeoJSON (QGIS)</button>
+      <button id="exGpx" disabled>GPX (GPS)</button>
+      <button id="exPrint" disabled>Imprimer</button>
+      <button id="exPdf" disabled class="fill">PDF chauffeur</button>
+    </div>
+    <div id="tablewrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+  </main>
+</div>
+
+<div id="params" class="view">
+  <div class="grid">
+    <div class="sec">
+      <h2>Champs du fichier</h2>
+      <div class="hint">Colonnes du GeoJSON utilisées par l'outil. Devinées au chargement, modifiables ici.</div>
+      <div class="row">
+        <div><label>Identifiant unique</label><select id="fId"></select></div>
+        <div><label>Libellé du point</label><select id="fLabel"></select></div>
+      </div>
+      <div class="row">
+        <div><label>Commune</label><select id="fCommune"></select></div>
+        <div><label>Consigne / remarque (PDF)</label><select id="fNote"></select></div>
+      </div>
+      <div class="row">
+        <div><label>Fréquence (si présente)</label><select id="fFreq"></select></div>
+        <div><label>Groupe (si présent)</label><select id="fGrp"></select></div>
+      </div>
+      <div id="fieldsMsg"></div>
+      <div class="small" style="margin-top:6px">L'identifiant sert à retrouver les fréquences saisies ici quand vous rechargez le fichier (elles sont gardées dans ce navigateur, et dans l'export GeoJSON).</div>
+    </div>
+
+    <div class="sec">
+      <h2>Plusieurs tournées</h2>
+      <div class="hint">Répartit les points du jour entre plusieurs tournées (plusieurs camions, ou plusieurs passages dans la journée), toutes avec le même départ et le même exutoire.</div>
+      <div class="radio">
+        <label><input type="radio" name="mmode" value="single" checked> Une seule tournée</label>
+        <label><input type="radio" name="mmode" value="k"> Nombre de tournées fixé : <input type="number" id="mK" min="2" max="10" value="2" style="width:60px"></label>
+        <label><input type="radio" name="mmode" value="max"> Autant que nécessaire, durée maxi par tournée : <input type="number" id="mMax" min="0.5" step="0.25" value="3.5" style="width:70px"> h</label>
+      </div>
+      <div class="small">Durée = conduite + arrêts. Les tournées sont équilibrées en durée.</div>
+      <label style="margin-top:8px">Noms des tournées (facultatif, ex. « Camion 1 », « Matin »)</label>
+      <div id="tourNames"></div>
+    </div>
+
+    <div class="sec">
+      <h2>PDF chauffeur</h2>
+      <label><input type="checkbox" id="pZoom" checked> Ajouter une page de zoom par commune</label>
+      <div class="row">
+        <div><label>Seulement si la commune a au moins</label><input type="number" id="pZoomMin" min="1" value="2"></div>
+        <div style="display:flex;align-items:end;padding-bottom:6px">point(s) dans la tournée</div>
+      </div>
+      <label><input type="checkbox" id="pLabels" checked> Afficher les libellés sur les cartes de zoom</label>
+      <div class="small">Nécessite le champ « Commune » (ci-contre). Chaque page : carte zoomée sur les points de la commune + liste avec heure de passage.</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Fréquences de collecte par point</h2>
+    <div class="hint" id="weekInfo"></div>
+    <div class="toolsrow">
+      <div><label>Filtrer</label><input type="text" id="qFilter" placeholder="libellé, identifiant…"></div>
+      <div><label>Commune</label><select id="qCommune"><option value="">Toutes</option></select></div>
+      <div><label>Pour la sélection : fréquence</label><select id="bFreq"></select></div>
+      <div><label>groupe</label><select id="bGrp"><option value="">(auto)</option><option>A</option><option>B</option><option>S1</option><option>S2</option><option>S3</option><option>S4</option></select></div>
+      <div><button id="bApply">Appliquer à la sélection</button></div>
+      <div><button id="bAuto" title="Répartit les points « toutes les 2/4 semaines » en groupes équilibrés et géographiquement regroupés">Répartir les groupes automatiquement</button></div>
+    </div>
+    <div class="counter" id="freqCount"></div>
+    <div id="freqWrap"><table id="freqTbl"><thead></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<script id="core">
+
+/* ===== Cœur de calcul (sans dépendance carte) ===== */
+
+// Lambert-93 (EPSG:2154) -> WGS84 [lon, lat]
+function lambert93ToWgs84(x, y){
+  const n=0.7256077650, C=11754255.426, Xs=700000, Ys=12655612.050, e=0.08181919106, lon0=3*Math.PI/180;
+  const dx=x-Xs, dy=y-Ys;
+  const R=Math.sqrt(dx*dx+dy*dy), g=Math.atan(dx/-dy);
+  const lon=lon0+g/n, L=-Math.log(R/C)/n;
+  let phi=2*Math.atan(Math.exp(L))-Math.PI/2;
+  for(let i=0;i<12;i++){const s=e*Math.sin(phi);phi=2*Math.atan(Math.pow((1+s)/(1-s),e/2)*Math.exp(L))-Math.PI/2;}
+  return [lon*180/Math.PI, phi*180/Math.PI];
+}
+
+function haversine(a,b){ // [lon,lat] -> mètres
+  const R=6371000, t=Math.PI/180;
+  const dLa=(b[1]-a[1])*t, dLo=(b[0]-a[0])*t;
+  const h=Math.sin(dLa/2)**2+Math.cos(a[1]*t)*Math.cos(b[1]*t)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+
+// Lit un GeoJSON et renvoie {points:[{id,coord,props}], warnings:[]}
+function parseGeoJSON(gj){
+  const warnings=[]; const points=[];
+  let feats = gj.type==='FeatureCollection' ? gj.features : gj.type==='Feature' ? [gj] : [];
+  const crsName = (gj.crs&&gj.crs.properties&&gj.crs.properties.name)||'';
+  let is2154 = /2154/.test(crsName);
+  let skipped=0;
+  feats.forEach((f,i)=>{
+    if(!f||!f.geometry){skipped++;return;}
+    let c=null;
+    if(f.geometry.type==='Point') c=f.geometry.coordinates;
+    else if(f.geometry.type==='MultiPoint' && f.geometry.coordinates.length){ c=f.geometry.coordinates[0]; if(f.geometry.coordinates.length>1) warnings.push(`Entité ${i+1} : MultiPoint à plusieurs points, seul le premier est pris.`);}
+    else {skipped++;return;}
+    if(!c||c.length<2||!isFinite(c[0])||!isFinite(c[1])){skipped++;return;}
+    points.push({idx:points.length, coord:[+c[0],+c[1]], props:f.properties||{}});
+  });
+  if(skipped) warnings.push(`${skipped} entité(s) ignorée(s) (pas de géométrie point valide).`);
+  if(!is2154 && points.some(p=>Math.abs(p.coord[0])>180||Math.abs(p.coord[1])>90)){
+    is2154=true; warnings.push('Coordonnées en mètres détectées : interprétées en Lambert-93 (EPSG:2154).');
+  }
+  if(is2154) points.forEach(p=>p.coord=lambert93ToWgs84(p.coord[0],p.coord[1]));
+  // contrôles qualité
+  const seen={};
+  points.forEach(p=>{const k=p.coord[0].toFixed(5)+','+p.coord[1].toFixed(5); (seen[k]=seen[k]||[]).push(p.idx+1);});
+  Object.values(seen).filter(v=>v.length>1).forEach(v=>warnings.push(`Points superposés (même position) : n° ${v.join(', ')}.`));
+  if(points.length>2){
+    points.forEach(p=>{
+      let best=Infinity; points.forEach(q=>{if(q!==p){const d=haversine(p.coord,q.coord); if(d<best)best=d;}});
+      if(best>15000) warnings.push(`Point n° ${p.idx+1} isolé (plus de 15 km du plus proche) : position à vérifier.`);
+    });
+  }
+  const bad=points.filter(p=>p.coord[1]<41||p.coord[1]>52||p.coord[0]<-6||p.coord[0]>10);
+  if(bad.length) warnings.push(`${bad.length} point(s) hors de France métropolitaine : projection à vérifier.`);
+  return {points, warnings};
+}
+
+/* Voyageur de commerce à chemin ouvert : départ = nœud 0 fixe, arrivée = nœud N-1 fixe.
+   M = matrice (asymétrique acceptée, sens uniques). Renvoie l'ordre des nœuds intermédiaires. */
+function solveOpenTSP(M, opts={}){
+  const N=M.length, start=0, end=N-1;
+  const inner=[]; for(let i=1;i<N-1;i++) inner.push(i);
+  if(inner.length<=1) return {order:inner, cost:pathCost(M,[start,...inner,end])};
+  const timeBudget=opts.timeMs||1500, t0=Date.now();
+  function cost(seq){let c=M[start][seq[0]];for(let i=0;i<seq.length-1;i++)c+=M[seq[i]][seq[i+1]];return c+M[seq[seq.length-1]][end];}
+  function nearest(randomize){
+    const left=new Set(inner), seq=[]; let cur=start;
+    while(left.size){
+      let cand=[...left].sort((a,b)=>M[cur][a]-M[cur][b]);
+      let pick=cand[0];
+      if(randomize && cand.length>1 && Math.random()<0.3) pick=cand[Math.min(cand.length-1, 1+Math.floor(Math.random()*2))];
+      seq.push(pick); left.delete(pick); cur=pick;
+    }
+    return seq;
+  }
+  function improve(seq){
+    let best=cost(seq), improved=true;
+    while(improved){
+      improved=false;
+      // 2-opt (inversion de segment), évaluation complète car matrice asymétrique
+      for(let i=0;i<seq.length-1;i++){
+        for(let j=i+1;j<seq.length;j++){
+          const s=seq.slice(0,i).concat(seq.slice(i,j+1).reverse(),seq.slice(j+1));
+          const c=cost(s); if(c<best-1e-9){seq=s;best=c;improved=true;}
+        }
+      }
+      // Or-opt (déplacer un bloc de 1 à 3 points)
+      for(let len=1;len<=3;len++){
+        for(let i=0;i+len<=seq.length;i++){
+          const blk=seq.slice(i,i+len), rest=seq.slice(0,i).concat(seq.slice(i+len));
+          for(let k=0;k<=rest.length;k++){
+            if(k===i) continue;
+            const s=rest.slice(0,k).concat(blk,rest.slice(k));
+            const c=cost(s); if(c<best-1e-9){seq=s;best=c;improved=true;break;}
+          }
+        }
+      }
+    }
+    return {seq,best};
+  }
+  let r=improve(nearest(false)), bestSeq=r.seq, bestCost=r.best, runs=1;
+  while(Date.now()-t0<timeBudget && runs<200){
+    let s;
+    if(runs%2){ // perturbation de la meilleure solution (double-bridge)
+      s=bestSeq.slice();
+      if(s.length>=8){const a=1+Math.floor(Math.random()*(s.length/4)),b=a+1+Math.floor(Math.random()*(s.length/4)),c=b+1+Math.floor(Math.random()*(s.length/4));
+        s=s.slice(0,a).concat(s.slice(c),s.slice(b,c),s.slice(a,b));}
+      else s.sort(()=>Math.random()-.5);
+    } else s=nearest(true);
+    r=improve(s); runs++;
+    if(r.best<bestCost-1e-9){bestCost=r.best;bestSeq=r.seq;}
+  }
+  return {order:bestSeq, cost:bestCost, runs};
+}
+function pathCost(M,p){let c=0;for(let i=0;i<p.length-1;i++)c+=M[p[i]][p[i+1]];return c;}
+
+function fmtDur(s){s=Math.round(s/60);const h=Math.floor(s/60),m=s%60;return h?`${h} h ${String(m).padStart(2,'0')}`:`${m} min`;}
+function fmtClock(base,sec){const [h,m]=base.split(':').map(Number);let t=h*60+m+Math.round(sec/60);t=((t%1440)+1440)%1440;return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
+
+/* ===== Fréquences de collecte ===== */
+// Cycles calés sur une semaine de référence fixe (lundi 1er janvier 2024) : pas de rupture en fin d'année.
+const REF_MONDAY=Date.UTC(2024,0,1);
+function weekIndex(dateStr){
+  const d=new Date(dateStr+'T12:00:00Z'); const day=(d.getUTCDay()+6)%7;
+  const mon=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-day);
+  return Math.round((mon-REF_MONDAY)/(7*864e5));
+}
+function weekInfo(dateStr){const w=weekIndex(dateStr);return {w,ab:(((w%2)+2)%2)===0?'A':'B',s:'S'+((((w%4)+4)%4)+1)};}
+const FREQS={hebdo:'Chaque semaine','2sem':'Toutes les 2 semaines','4sem':'Toutes les 4 semaines',demande:'À la demande',inactif:'Inactif (jamais)'};
+function groupsFor(f){return f==='2sem'?['A','B']:f==='4sem'?['S1','S2','S3','S4']:[];}
+function isDue(f,g,onDemand,dateStr){
+  const wi=weekInfo(dateStr);
+  switch(f){
+    case '2sem': return !g||g===wi.ab;
+    case '4sem': return !g||g===wi.s;
+    case 'demande': return !!onDemand;
+    case 'inactif': return false;
+    default: return true;
+  }
+}
+function parseFreq(v){
+  if(v===null||v===undefined||v==='') return null;
+  const t=String(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+  if(FREQS[t]) return t;
+  if(/inact|jamais|aucun|^non$/.test(t)) return 'inactif';
+  if(/dem|appel/.test(t)) return 'demande';
+  if(/4|mens|mois/.test(t)) return '4sem';
+  if(/15|2 ?sem|quinz|bi-?hebdo|14/.test(t)) return '2sem';
+  if(/hebdo|semaine|1/.test(t)) return 'hebdo';
+  return null;
+}
+function parseGroup(f,v){
+  if(v===null||v===undefined) return null;
+  const t=String(v).toUpperCase().trim();
+  if(f==='2sem'&&/^(A|B)$/.test(t)) return t;
+  if(f==='4sem'){const m=t.match(/^S?([1-4])$/); if(m) return 'S'+m[1];}
+  return null;
+}
+
+/* ===== Plusieurs tournées =====
+   Nœud 0 = départ, nœuds 1..n = points, nœud N-1 = exutoire (communs à toutes les tournées).
+   1) une grande tournée optimisée, 2) découpage optimal en K morceaux consécutifs (durées équilibrées),
+   3) échanges de points entre tournées, 4) réoptimisation de l'ordre dans chaque tournée. */
+function tourCost(M,seq,svc,end){
+  if(!seq.length) return 0;
+  let c=M[0][seq[0]]; for(let i=0;i<seq.length-1;i++) c+=M[seq[i]][seq[i+1]];
+  return c+M[seq[seq.length-1]][end]+svc*seq.length;
+}
+function subTSP(M,nodes,end,timeMs){
+  if(nodes.length<=1) return nodes.slice();
+  const idx=[0,...nodes,end], sub=idx.map(a=>idx.map(b=>M[a][b]));
+  return solveOpenTSP(sub,{timeMs}).order.map(k=>idx[k]);
+}
+function splitGiant(M,g,svc,K,end){
+  const L=g.length, pre=[0]; for(let t=0;t<L-1;t++) pre.push(pre[t]+M[g[t]][g[t+1]]);
+  const seg=(i,j)=>M[0][g[i]]+pre[j]-pre[i]+M[g[j]][end]+svc*(j-i+1);
+  const dp=Array.from({length:K+1},()=>new Array(L).fill(Infinity)), cut=Array.from({length:K+1},()=>new Array(L).fill(-1));
+  for(let j=0;j<L;j++) dp[1][j]=seg(0,j);
+  for(let k=2;k<=K;k++) for(let j=k-1;j<L;j++) for(let i=k-1;i<=j;i++){
+    const v=Math.max(dp[k-1][i-1],seg(i,j)); if(v<dp[k][j]){dp[k][j]=v;cut[k][j]=i;}
+  }
+  const tours=[]; let j=L-1;
+  for(let k=K;k>=2;k--){const i=cut[k][j]; tours.unshift(g.slice(i,j+1)); j=i-1;}
+  tours.unshift(g.slice(0,j+1));
+  return tours;
+}
+function planTours(M,svc,K,opts={}){
+  const N=M.length, end=N-1, n=N-2;
+  K=Math.max(1,Math.min(K,n));
+  const giant=opts.giant||solveOpenTSP(M,{timeMs:opts.timeMs||1500}).order;
+  if(K===1) return [giant.slice()];
+  let tours=splitGiant(M,giant,svc,K,end);
+  const obj=T=>Math.max(...T)+0.05*T.reduce((a,b)=>a+b,0);
+  const relocate=()=>{
+    let T=tours.map(t=>tourCost(M,t,svc,end)), it=0, improved=true;
+    while(improved&&it++<400){
+      improved=false;
+      outer: for(let a=0;a<tours.length;a++){
+        if(tours[a].length<=1) continue;
+        for(let pos=0;pos<tours[a].length;pos++){
+          const node=tours[a][pos], ta=tours[a].slice(0,pos).concat(tours[a].slice(pos+1)), Ta=tourCost(M,ta,svc,end);
+          for(let b=0;b<tours.length;b++){
+            if(b===a) continue;
+            let bestTb=Infinity,bestSeq=null;
+            for(let q=0;q<=tours[b].length;q++){
+              const tb=tours[b].slice(0,q).concat([node],tours[b].slice(q)), c=tourCost(M,tb,svc,end);
+              if(c<bestTb){bestTb=c;bestSeq=tb;}
+            }
+            const nT=T.slice(); nT[a]=Ta; nT[b]=bestTb;
+            if(obj(nT)<obj(T)-1e-6){tours[a]=ta;tours[b]=bestSeq;T=nT;improved=true;break outer;}
+          }
+        }
+      }
+    }
+  };
+  for(let round=0;round<2;round++){
+    relocate();
+    tours=tours.map(t=>subTSP(M,t,end,opts.subMs||250));
+  }
+  return tours.filter(t=>t.length);
+}
+// Nombre de tournées déterminé par une durée maximale (secondes)
+function planToursMaxDur(M,svc,maxSec,opts={}){
+  const n=M.length-2, giant=solveOpenTSP(M,{timeMs:opts.timeMs||1500}).order;
+  let last=null;
+  for(let K=1;K<=Math.min(opts.kMax||10,n);K++){
+    const tours=planTours(M,svc,K,{giant,subMs:opts.subMs});
+    const mx=Math.max(...tours.map(t=>tourCost(M,t,svc,M.length-1)));
+    last={tours,K,ok:mx<=maxSec,max:mx};
+    if(mx<=maxSec) return last;
+  }
+  return last;
+}
+
+/* Répartition géographique équilibrée en groupes (secteurs angulaires autour d'un centre) */
+function sectorGroups(coords,center,nGroups){
+  const ang=coords.map((c,i)=>({i,a:Math.atan2(c[1]-center[1],(c[0]-center[0])*Math.cos(center[1]*Math.PI/180))}));
+  ang.sort((x,y)=>x.a-y.a);
+  // rotation de départ choisie pour couper au plus grand vide angulaire
+  let gap=-1,startK=0;
+  for(let k=0;k<ang.length;k++){const nx=ang[(k+1)%ang.length].a+(k+1===ang.length?2*Math.PI:0);if(nx-ang[k].a>gap){gap=nx-ang[k].a;startK=(k+1)%ang.length;}}
+  const ord=ang.slice(startK).concat(ang.slice(0,startK)), res=new Array(coords.length);
+  ord.forEach((o,k)=>res[o.i]=Math.min(nGroups-1,Math.floor(k*nGroups/ord.length)));
+  return res;
+}
+
+</script>
+<script>
+/* ===== Application ===== */
+// Adresse actuelle de l'API (api.openrouteservice.org est fermée depuis le 28/09/2026)
+const ORS='https://api.heigit.org/openrouteservice';
+const $=id=>document.getElementById(id);
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const COLORS=['#B91E27','#1f5fa8','#6f7a4c','#d97706','#7c3aed','#0f766e','#be185d','#4b5563','#0e7490','#92400e'];
+const F={id:'',label:'',commune:'',note:'',freq:'',grp:''};
+const state={points:[],dep:null,exu:null,picking:null,res:null,view:'all',sortKey:'ordre',sortAsc:true,sel:null,keys:[],freqSel:new Set()};
+let FREQSTORE={}; try{FREQSTORE=JSON.parse(store.get('tournee_freq_v1')||'{}')}catch(e){}
+
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function label(p){const v=F.label&&p.props[F.label];return (v!==undefined&&v!==null&&v!=='')?String(v):`Point ${p.idx+1}`;}
+function commune(p){const v=F.commune&&p.props[F.commune];return (v!==undefined&&v!==null&&v!=='')?String(v).trim():'';}
+function pkey(p){const v=F.id&&p.props[F.id];return (v!==undefined&&v!==null&&v!=='')?'id:'+v:'xy:'+p.coord[0].toFixed(5)+','+p.coord[1].toFixed(5);}
+function dateStr(){return $('hDate').value||new Date().toISOString().slice(0,10);}
+function dueToday(p){return isDue(p.freq,p.grp,p.dem,dateStr());}
+function inPlay(p){return !p.excluded && (!$('applyFreq').checked || dueToday(p));}
+
+/* --- Onglets --- */
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('active',x===b));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===b.dataset.v));
+  if(b.dataset.v==='app') setTimeout(()=>map.invalidateSize(),50); else renderFreqTable();
+});
+
+/* --- Carte --- */
+const map=L.map('map',{zoomControl:true}).setView([49.25,-0.05],11);
+const plan=L.maplibreGL({preserveDrawingBuffer:true,style:'https://tiles.openfreemap.org/styles/positron',attribution:'© <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">contributeurs OpenStreetMap</a>'});
+const ortho=L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image%2Fjpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',{maxZoom:21,maxNativeZoom:19,crossOrigin:true,attribution:'© IGN / Géoplateforme'});
+plan.addTo(map);
+L.control.layers({'Plan (Positron)':plan,'Orthophoto IGN':ortho},null,{collapsed:false}).addTo(map);
+L.control.scale({imperial:false}).addTo(map);
+const ptLayer=L.layerGroup().addTo(map), routeLayer=L.layerGroup().addTo(map);
+let depMk=null, exuMk=null;
+setTimeout(()=>map.invalidateSize(),100);
+function icon(cls,txt,size=24,color){return L.divIcon({className:'',html:`<div class="pin ${cls}" style="width:${size}px;height:${size}px;${color?'background:'+color:''}">${txt}</div>`,iconSize:[size,size],iconAnchor:[size/2,size/2],popupAnchor:[0,-size/2]});}
+
+/* --- Import --- */
+const drop=$('drop');
+drop.onclick=()=>$('file').click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('over');};
+drop.ondragleave=()=>drop.classList.remove('over');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0]);};
+$('file').onchange=e=>{if(e.target.files[0])readFile(e.target.files[0]);e.target.value='';};
+
+function guess(keys,res){for(const re of res){const k=keys.find(k=>re.test(k)); if(k) return k;} return '';}
+function fillSelect(id,keys,val,none){$(id).innerHTML=`<option value="">${none}</option>`+keys.map(k=>`<option ${k===val?'selected':''}>${esc(k)}</option>`).join('');}
+
+function readFile(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    let gj; try{gj=JSON.parse(r.result);}catch(e){$('dataMsg').innerHTML='<div class="err">Fichier illisible : ce n\'est pas un GeoJSON valide.</div>';return;}
+    const {points,warnings}=parseGeoJSON(gj);
+    if(!points.length){$('dataMsg').innerHTML='<div class="err">Aucun point trouvé dans le fichier.</div>';return;}
+    points.forEach(p=>{p.excluded=false;});
+    state.points=points; state.fileName=file.name.replace(/\.(geo)?json$/i,'');
+    const keys=state.keys=[...new Set(points.flatMap(p=>Object.keys(p.props)))].filter(k=>!/^_(ordre|passage|troncon_km|trajet_min|cumul_km|tournee|exclu|role)$/.test(k));
+    F.id=guess(keys,[/^id[ _]?unique$/i,/^(id|fid|identifiant|code)$/i,/^id/i,/identifiant/i]);
+    F.label=guess(keys,[/^(nom|name|libel|label)/i,/^(adresse|address|lieu|site)/i,/(nom|libel|adress|lieu)/i])||F.id;
+    F.commune=guess(keys,[/^commune$/i,/commune/i,/^(ville|nom_com)/i]);
+    F.note=guess(keys,[/(consigne|remarq|observ|acc[eè]s|alerte)/i]);
+    F.freq=guess(keys,[/^_frequence$/i,/fr[eé]quence/i,/^freq/i]);
+    F.grp=guess(keys,[/^_groupe$/i,/^groupe/i]);
+    syncFieldSelects();
+    applyFreqFromSources();
+    let html=`<div class="ok">${points.length} point(s) chargé(s) depuis « ${esc(file.name)} ».</div>`;
+    warnings.forEach(w=>html+=`<div class="warn">${esc(w)}</div>`);
+    $('dataMsg').innerHTML=html;
+    checkFields();
+    clearRoute(); drawPoints(); updDue(); renderFreqTable();
+    map.fitBounds(L.latLngBounds(points.map(p=>[p.coord[1],p.coord[0]])).pad(0.1));
+  };
+  r.readAsText(file);
+}
+function syncFieldSelects(){
+  const k=state.keys;
+  fillSelect('fId',k,F.id,'— aucun (position) —'); fillSelect('fLabel',k,F.label,'— numéro —');
+  fillSelect('fCommune',k,F.commune,'— aucun —'); fillSelect('fNote',k,F.note,'— aucun —');
+  fillSelect('fFreq',k,F.freq,'— aucun —'); fillSelect('fGrp',k,F.grp,'— aucun —');
+  const c=$('qCommune'), cs=[...new Set(state.points.map(commune).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  c.innerHTML='<option value="">Toutes</option>'+cs.map(x=>`<option>${esc(x)}</option>`).join('');
+  $('fieldsSummary').innerHTML=state.points.length?`Libellé : <b>${esc(F.label||'numéro')}</b> · Commune : <b>${esc(F.commune||'—')}</b> · Identifiant : <b>${esc(F.id||'position')}</b><br>(modifiable dans l'onglet Paramètres)`:'';
+}
+[['fId','id'],['fLabel','label'],['fCommune','commune'],['fNote','note'],['fFreq','freq'],['fGrp','grp']].forEach(([id,k])=>$(id).onchange=e=>{
+  F[k]=e.target.value; syncFieldSelects(); checkFields();
+  if(k==='id'||k==='freq'||k==='grp'){applyFreqFromSources();updDue();clearRoute();}
+  drawPoints(); renderTable(); renderFreqTable();
+});
+function checkFields(){
+  let h='';
+  if(F.id){const seen={},dup=[];state.points.forEach(p=>{const v=p.props[F.id];if(v===undefined||v===null||v==='')return;if(seen[v])dup.push(v);seen[v]=1;});
+    if(dup.length) h+=`<div class="warn">Identifiants en double : ${esc([...new Set(dup)].join(', '))}. Les fréquences de ces points se mélangeront.</div>`;}
+  else h+='<div class="warn">Pas d\'identifiant : les fréquences sont rattachées à la position du point (perdues si le point est déplacé).</div>';
+  if(!F.commune) h+='<div class="warn">Pas de champ commune : pas de pages de zoom par commune dans le PDF.</div>';
+  $('fieldsMsg').innerHTML=h;
+}
+// Fréquence : champ du fichier s'il existe et est lisible, sinon dernière saisie dans ce navigateur, sinon hebdo
+function applyFreqFromSources(){
+  state.points.forEach(p=>{
+    const saved=FREQSTORE[pkey(p)]||{};
+    const ff=F.freq?parseFreq(p.props[F.freq]):null;
+    p.freq=ff||saved.f||'hebdo';
+    const fg=F.grp?parseGroup(p.freq,p.props[F.grp]):null;
+    p.grp=fg||(ff?null:saved.g)||groupsFor(p.freq)[0]||'';
+    if(!groupsFor(p.freq).includes(p.grp)) p.grp=groupsFor(p.freq)[0]||'';
+    p.dem=!!saved.d;
+  });
+}
+function saveFreq(p){FREQSTORE[pkey(p)]={f:p.freq,g:p.grp,d:p.dem};store.set('tournee_freq_v1',JSON.stringify(FREQSTORE));}
+
+/* --- Points sur la carte --- */
+function stopInfo(p){
+  if(!state.res) return null;
+  for(const t of state.res.tours){const k=t.stops.findIndex(s=>s.p.idx===p.idx); if(k>=0) return {t,n:k+1,s:t.stops[k]};}
+  return null;
+}
+function drawPoints(){
+  ptLayer.clearLayers();
+  state.points.forEach(p=>{
+    const si=stopInfo(p), play=inPlay(p);
+    let cls, txt='', size=16, color=null;
+    if(p.excluded) cls='excl';
+    else if(si){cls=''; txt=si.n; size=24; color=si.t.color; if(state.view!=='all'&&state.view!==si.t.i) cls='faded';}
+    else if(!play) cls='off';
+    else cls='todo';
+    const mk=L.marker([p.coord[1],p.coord[0]],{icon:icon(cls+(state.sel===p.idx?' sel':''),txt,size,color),zIndexOffset:si?500:0}).addTo(ptLayer);
+    mk.bindPopup(()=>popupHtml(p,si));
+    mk.on('click',()=>selectRow(p.idx,false));
+    p.mk=mk;
+  });
+}
+function popupHtml(p,si){
+  const rows=Object.entries(p.props).slice(0,10).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v??'')}</td></tr>`).join('');
+  const g=p.grp?` · groupe ${p.grp}`:'';
+  return `<div class="popup"><b>${si?(state.res.tours.length>1?esc(si.t.name)+' · ':'')+'n° '+si.n+' — ':''}${esc(label(p))}</b>
+  ${si?`<div class="small">Passage estimé ${si.s.heure} · ${(si.s.dist/1000).toFixed(1)} km depuis le précédent</div>`:''}
+  <div class="small">Fréquence : ${FREQS[p.freq]}${g} — ${dueToday(p)?'à collecter ce jour':'pas à collecter ce jour'}</div>
+  <table style="font-size:11px">${rows}</table>
+  <button onclick="setFromPoint(${p.idx},'dep')">Départ ici</button><button onclick="setFromPoint(${p.idx},'exu')">Exutoire ici</button>
+  <button onclick="toggleExcl(${p.idx})">${p.excluded?'Réintégrer':'Exclure de la tournée'}</button></div>`;
+}
+window.toggleExcl=i=>{const p=state.points[i];p.excluded=!p.excluded;map.closePopup();clearRoute();drawPoints();updDue();};
+window.setFromPoint=(i,which)=>{const c=state.points[i].coord;setEndpoint(which,L.latLng(c[1],c[0]));map.closePopup();};
+
+/* --- Départ / exutoire --- */
+function setEndpoint(which,ll){
+  if(which==='dep'){ if(depMk) depMk.setLatLng(ll); else {depMk=L.marker(ll,{icon:icon('dep','D',28),draggable:true,zIndexOffset:1000}).addTo(map).bindTooltip('Départ');depMk.on('dragend',()=>{state.dep=depMk.getLatLng();clearRoute();updDep();});} state.dep=ll; }
+  else { if(exuMk) exuMk.setLatLng(ll); else {exuMk=L.marker(ll,{icon:icon('exu','E',28),draggable:true,zIndexOffset:1000}).addTo(map).bindTooltip('Exutoire');exuMk.on('dragend',()=>{state.exu=exuMk.getLatLng();clearRoute();updDep();});} state.exu=ll; $('sameEnd').checked=false; }
+  clearRoute(); updDep();
+}
+function updDep(){
+  const f=ll=>ll?`${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`:'non placé';
+  $('depMsg').innerHTML=`Départ : ${f(state.dep)}<br>Exutoire : ${$('sameEnd').checked?'= départ':f(state.exu)}`;
+  if(exuMk) exuMk.setOpacity($('sameEnd').checked?0.35:1);
+  store.set('tournee_dep',state.dep?JSON.stringify(state.dep):''); store.set('tournee_exu',state.exu?JSON.stringify(state.exu):''); store.set('tournee_same',$('sameEnd').checked?'1':'');
+}
+function startPick(which){
+  state.picking=state.picking===which?null:which;
+  document.body.classList.toggle('mode-pick',!!state.picking);
+  $('btnDep').classList.toggle('on',state.picking==='dep'); $('btnExu').classList.toggle('on',state.picking==='exu');
+}
+$('btnDep').onclick=()=>startPick('dep'); $('btnExu').onclick=()=>startPick('exu');
+$('sameEnd').onchange=()=>{clearRoute();updDep();};
+map.on('click',e=>{if(state.picking){setEndpoint(state.picking,e.latlng);startPick(state.picking);}});
+
+/* --- Tournée du jour (fréquences) --- */
+function updDue(){
+  const wi=weekInfo(dateStr());
+  const txt=`Semaine <b>${wi.ab}</b> (cycle 2 sem.) · <b>${wi.s}</b> (cycle 4 sem.)`;
+  $('weekInfo').innerHTML=`Pour la date de tournée choisie (${new Date(dateStr()+'T12:00').toLocaleDateString('fr-FR')}) : ${txt}. Un point « toutes les 2 semaines » du groupe A est collecté les semaines A, etc. Les cycles sont continus d'une année sur l'autre.`;
+  if(!state.points.length){$('dueInfo').innerHTML=txt;return;}
+  const n=state.points.filter(inPlay).length;
+  $('dueInfo').innerHTML=`${txt}<br><b>${n}</b> point(s) à collecter sur ${state.points.length}${$('applyFreq').checked?'':' (fréquences ignorées)'}`;
+}
+$('hDate').onchange=()=>{updDue();clearRoute();renderFreqTable();};
+$('applyFreq').onchange=()=>{updDue();clearRoute();};
+
+/* --- Paramètres : fréquences --- */
+$('bFreq').innerHTML=Object.entries(FREQS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+function freqRows(){
+  const q=$('qFilter').value.trim().toLowerCase(), c=$('qCommune').value;
+  return state.points.filter(p=>(!c||commune(p)===c)&&(!q||(label(p)+' '+(F.id?p.props[F.id]:'')+' '+commune(p)).toLowerCase().includes(q)));
+}
+function renderFreqTable(){
+  const th=$('freqTbl').querySelector('thead'), tb=$('freqTbl').querySelector('tbody');
+  if(!state.points.length){th.innerHTML='';tb.innerHTML='<tr><td class="small">Charger un fichier de points dans l\'onglet Tournée.</td></tr>';$('freqCount').innerHTML='';return;}
+  const rows=freqRows();
+  th.innerHTML=`<tr><th><input type="checkbox" id="selAll"></th><th>N°</th><th>Identifiant</th><th>Point</th><th>Commune</th><th>Fréquence</th><th>Groupe</th><th>Ce jour</th></tr>`;
+  tb.innerHTML=rows.map(p=>{
+    const gs=groupsFor(p.freq);
+    const grp=p.freq==='demande'?`<label style="margin:0;color:#222"><input type="checkbox" data-dem="${p.idx}" ${p.dem?'checked':''}> à collecter</label>`
+      :gs.length?`<select data-grp="${p.idx}">${gs.map(g=>`<option ${g===p.grp?'selected':''}>${g}</option>`).join('')}</select>`:'–';
+    const d=dueToday(p);
+    return `<tr><td><input type="checkbox" data-sel="${p.idx}" ${state.freqSel.has(p.idx)?'checked':''}></td><td>${p.idx+1}</td><td>${esc(F.id?p.props[F.id]:'')}</td><td>${esc(label(p))}</td><td>${esc(commune(p))}</td>
+      <td><select data-freq="${p.idx}">${Object.entries(FREQS).map(([k,v])=>`<option value="${k}" ${k===p.freq?'selected':''}>${v}</option>`).join('')}</select></td>
+      <td>${grp}</td><td class="${d?'yes':'no'}">${p.excluded?'exclu':d?'✓ oui':'non'}</td></tr>`;
+  }).join('');
+  tb.querySelectorAll('[data-freq]').forEach(s=>s.onchange=()=>{const p=state.points[+s.dataset.freq];p.freq=s.value;p.grp=groupsFor(p.freq)[0]||'';saveFreq(p);freqChanged();});
+  tb.querySelectorAll('[data-grp]').forEach(s=>s.onchange=()=>{const p=state.points[+s.dataset.grp];p.grp=s.value;saveFreq(p);freqChanged();});
+  tb.querySelectorAll('[data-dem]').forEach(s=>s.onchange=()=>{const p=state.points[+s.dataset.dem];p.dem=s.checked;saveFreq(p);freqChanged();});
+  tb.querySelectorAll('[data-sel]').forEach(s=>s.onchange=()=>{const i=+s.dataset.sel;s.checked?state.freqSel.add(i):state.freqSel.delete(i);});
+  $('selAll').checked=rows.length>0&&rows.every(p=>state.freqSel.has(p.idx));
+  $('selAll').onchange=e=>{rows.forEach(p=>e.target.checked?state.freqSel.add(p.idx):state.freqSel.delete(p.idx));renderFreqTable();};
+  // compteurs
+  const cnt={};state.points.forEach(p=>{const k=FREQS[p.freq]+(p.grp?' '+p.grp:'');cnt[k]=(cnt[k]||0)+1;});
+  $('freqCount').innerHTML=Object.entries(cnt).map(([k,v])=>`<span>${esc(k)} : <b>${v}</b></span>`).join('')+`<span>À collecter le ${new Date(dateStr()+'T12:00').toLocaleDateString('fr-FR')} : <b>${state.points.filter(inPlay).length}</b></span>`;
+}
+function freqChanged(){clearRoute();drawPoints();updDue();renderFreqTable();}
+$('qFilter').oninput=renderFreqTable; $('qCommune').onchange=renderFreqTable;
+$('bApply').onclick=()=>{
+  const sel=state.points.filter(p=>state.freqSel.has(p.idx)); if(!sel.length){alert('Cocher au moins un point dans le tableau.');return;}
+  const f=$('bFreq').value, g=$('bGrp').value;
+  sel.forEach(p=>{p.freq=f;p.grp=groupsFor(f).includes(g)?g:(groupsFor(f)[0]||'');saveFreq(p);});
+  freqChanged();
+};
+$('bAuto').onclick=()=>{
+  const center=state.dep?[state.dep.lng,state.dep.lat]:null;
+  let msg=[];
+  [['2sem',['A','B']],['4sem',['S1','S2','S3','S4']]].forEach(([f,gs])=>{
+    const ps=state.points.filter(p=>p.freq===f&&!p.excluded); if(ps.length<2) return;
+    const c=center||[ps.reduce((a,p)=>a+p.coord[0],0)/ps.length,ps.reduce((a,p)=>a+p.coord[1],0)/ps.length];
+    const g=sectorGroups(ps.map(p=>p.coord),c,gs.length);
+    ps.forEach((p,k)=>{p.grp=gs[g[k]];saveFreq(p);});
+    msg.push(`${ps.length} points « ${FREQS[f].toLowerCase()} » répartis en ${gs.join('/')}`);
+  });
+  if(!msg.length){alert('Aucun point en « toutes les 2 semaines » ou « toutes les 4 semaines » à répartir.');return;}
+  freqChanged(); alert(msg.join('\n')+'\n\nRépartition par secteurs géographiques autour du '+(center?'départ':'centre des points')+', avec le même nombre de points par groupe.');
+};
+
+/* --- Paramètres : plusieurs tournées --- */
+const P={mode:'single',K:2,maxH:3.5,names:[],zoom:true,zoomMin:2,zoomLabels:true};
+try{Object.assign(P,JSON.parse(store.get('tournee_params')||'{}'));}catch(e){}
+function saveParams(){store.set('tournee_params',JSON.stringify(P));}
+function renderNames(){
+  const n=P.mode==='k'?Math.max(2,Math.min(10,P.K)):P.mode==='max'?Math.max(4,P.names.length||0):1;
+  let h='';for(let i=0;i<Math.min(n,10);i++) h+=`<div style="display:flex;gap:6px;align-items:center"><span class="chip" style="background:${COLORS[i]}"></span><input type="text" data-name="${i}" placeholder="Tournée ${i+1}" value="${esc(P.names[i]||'')}"></div>`;
+  $('tourNames').innerHTML=h;
+  $('tourNames').querySelectorAll('[data-name]').forEach(inp=>inp.oninput=()=>{P.names[+inp.dataset.name]=inp.value.trim();saveParams();});
+  const s=P.mode==='single'?'Une seule tournée':P.mode==='k'?`${P.K} tournées équilibrées`:`Tournées de ${P.maxH} h maxi`;
+  $('multiSummary').innerHTML=`Répartition : <b>${s}</b> (onglet Paramètres)`;
+}
+document.querySelectorAll('input[name=mmode]').forEach(r=>{r.checked=r.value===P.mode;r.onchange=()=>{P.mode=r.value;saveParams();renderNames();clearRoute();};});
+$('mK').value=P.K; $('mK').onchange=()=>{P.K=Math.max(2,Math.min(10,+$('mK').value||2));$('mK').value=P.K;saveParams();renderNames();clearRoute();};
+$('mMax').value=P.maxH; $('mMax').onchange=()=>{P.maxH=Math.max(0.5,+$('mMax').value||3.5);saveParams();renderNames();clearRoute();};
+$('pZoom').checked=P.zoom; $('pZoom').onchange=()=>{P.zoom=$('pZoom').checked;saveParams();};
+$('pZoomMin').value=P.zoomMin; $('pZoomMin').onchange=()=>{P.zoomMin=Math.max(1,+$('pZoomMin').value||1);saveParams();};
+$('pLabels').checked=P.zoomLabels; $('pLabels').onchange=()=>{P.zoomLabels=$('pLabels').checked;saveParams();};
+const tourName=(i,n)=>P.names[i]||(n>1?`Tournée ${i+1}`:'Tournée');
+
+/* --- Appels openrouteservice --- */
+async function orsPost(path,body,key){
+  let r;
+  try{
+    r=await fetch(ORS+path,{method:'POST',headers:{'Authorization':key,'Content-Type':'application/json','Accept':'application/json, application/geo+json'},body:JSON.stringify(body)});
+  }catch(e){
+    throw new Error('Impossible de joindre openrouteservice ('+e.message+'). Causes possibles : pas de connexion internet, pare-feu/proxy du réseau qui bloque api.heigit.org, clé invalide ou quota dépassé (le serveur répond alors sans autorisation navigateur).');
+  }
+  const txt=await r.text(); let js=null; try{js=JSON.parse(txt);}catch(e){}
+  if(!r.ok){
+    let m=(js&&js.error&&(js.error.message||js.error))||txt.slice(0,200);
+    if(r.status===401||r.status===403) m='Clé API refusée ou absente ('+m+').';
+    if(r.status===429) m='Quota openrouteservice dépassé (par minute ou par jour). Réessayer plus tard.';
+    if(js&&js.error&&js.error.code===2010) m='Un point est trop loin d\'une route accessible au camion : '+m;
+    if(js&&js.error&&js.error.code===2009) m='Aucun itinéraire poids lourd trouvé entre deux points (restriction de gabarit ?) : '+m;
+    throw new Error(typeof m==='string'?m:JSON.stringify(m));
+  }
+  return js;
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function getMatrix(locs,key,progress){
+  const N=locs.length, M=Array.from({length:N},()=>new Array(N).fill(0)), D=Array.from({length:N},()=>new Array(N).fill(0));
+  const per=Math.max(1,Math.floor(3500/N));
+  for(let s=0;s<N;s+=per){
+    const sources=[];for(let i=s;i<Math.min(N,s+per);i++)sources.push(i);
+    progress(`Matrice des temps de trajet ${Math.min(N,s+per)}/${N}…`);
+    const js=await orsPost('/v2/matrix/driving-hgv',{locations:locs,sources,metrics:['duration','distance'],units:'m'},key);
+    sources.forEach((si,k)=>{for(let j=0;j<N;j++){
+      const du=js.durations[k][j], di=js.distances[k][j];
+      if(du===null||di===null) throw new Error(`Point non joignable en poids lourd (n° ${si}). Vérifier sa position.`);
+      M[si][j]=du; D[si][j]=di;}});
+    if(s+per<N) await sleep(1600);
+  }
+  return {dur:M,dist:D};
+}
+async function getRoute(coords,key,progress,label){
+  const restr={height:+$('vH').value,width:+$('vW').value,length:+$('vL').value,weight:+$('vP').value,axleload:+$('vA').value};
+  Object.keys(restr).forEach(k=>{if(!(restr[k]>0))delete restr[k];});
+  const options={vehicle_type:'hgv',profile_params:{restrictions:restr}};
+  if($('avoidHw').checked) options.avoid_features=['highways'];
+  const CH=50, legs=[], lines=[];
+  for(let s=0;s<coords.length-1;s+=CH-1){
+    const part=coords.slice(s,s+CH);
+    progress(`Tracé poids lourd ${label} ${Math.min(coords.length,s+CH)}/${coords.length}…`);
+    const js=await orsPost('/v2/directions/driving-hgv/geojson',{coordinates:part,radiuses:part.map(()=>-1),instructions:true,instructions_format:'text',language:'fr',options,continue_straight:false},key);
+    const f=js.features[0];
+    lines.push(...(lines.length?f.geometry.coordinates.slice(1):f.geometry.coordinates));
+    const segs=(f.properties&&f.properties.segments)||[];
+    for(let k=0;k<part.length-1;k++){const sg=segs[k];legs.push(sg?{dist:sg.distance||0,dur:sg.duration||0}:null);}
+    await sleep(1600);
+  }
+  return {legs,line:lines};
+}
+
+/* --- Calcul principal --- */
+$('btnRun').onclick=run;
+async function run(){
+  const msg=$('runMsg'), key=$('apikey').value.trim(), bird=$('volOiseau').checked;
+  const active=state.points.filter(inPlay);
+  const same=$('sameEnd').checked;
+  const fail=t=>{msg.innerHTML=`<div class="err">${esc(t)}</div>`;};
+  if(!state.points.length) return fail('Charger d\'abord un fichier de points.');
+  if(!active.length) return fail('Aucun point à collecter pour cette date (voir les fréquences dans l\'onglet Paramètres).');
+  if(!state.dep) return fail('Placer le point de départ.');
+  if(!same&&!state.exu) return fail('Placer l\'exutoire, ou cocher « Exutoire = départ ».');
+  if(!bird&&!key) return fail('Coller une clé openrouteservice, ou cocher l\'aperçu à vol d\'oiseau.');
+  store.set('tournee_key',key);
+  const end=same?state.dep:state.exu;
+  const locs=[[state.dep.lng,state.dep.lat],...active.map(p=>p.coord),[end.lng,end.lat]];
+  const btn=$('btnRun'); btn.disabled=true;
+  const progress=t=>msg.innerHTML=`<div class="ok">${esc(t)}</div>`;
+  try{
+    let mat;
+    if(bird){ const d=locs.map(a=>locs.map(b=>haversine(a,b)*1.3)); mat={dist:d,dur:d.map(r=>r.map(v=>v/(30/3.6)))}; }
+    else mat=await getMatrix(locs,key,progress);
+    progress('Recherche du meilleur ordre de passage…'); await sleep(30);
+    const M=$('metric').value==='distance'?mat.dist:mat.dur;
+    const svc=(+$('svc').value||0)*60;
+    // pour équilibrer/limiter, on raisonne toujours en temps (conduite + arrêts)
+    let groups, note='';
+    const tBudget=Math.min(4000,600+active.length*40);
+    if(P.mode==='single') groups=[solveOpenTSP(M,{timeMs:tBudget}).order];
+    else if(P.mode==='k') groups=planTours(mat.dur,svc,P.K,{timeMs:tBudget}).map(t=>t.length>2?subTSP(M,t,locs.length-1,300):t);
+    else {
+      const r=planToursMaxDur(mat.dur,svc,P.maxH*3600,{timeMs:tBudget});
+      groups=r.tours.map(t=>t.length>2?subTSP(M,t,locs.length-1,300):t);
+      note=r.ok?`${r.K} tournée(s) nécessaires pour rester sous ${P.maxH} h.`:`Impossible de rester sous ${P.maxH} h même avec ${r.K} tournées (la plus longue : ${fmtDur(r.max)}).`;
+    }
+    const hd=$('hDep').value||'07:00', tours=[];
+    for(let ti=0;ti<groups.length;ti++){
+      const order=groups[ti], nodeSeq=[0,...order,locs.length-1], coords=nodeSeq.map(i=>locs[i]);
+      const name=tourName(ti,groups.length);
+      let legs,line;
+      if(bird){ legs=nodeSeq.slice(1).map((n,k)=>({dist:mat.dist[nodeSeq[k]][n],dur:mat.dur[nodeSeq[k]][n]})); line=coords; }
+      else { const r=await getRoute(coords,key,progress,groups.length>1?`(${name})`:''); line=r.line;
+        legs=r.legs.map((lg,k)=>lg||{dist:mat.dist[nodeSeq[k]][nodeSeq[k+1]],dur:mat.dur[nodeSeq[k]][nodeSeq[k+1]]}); }
+      let t=0,km=0,drive=0; const stops=[];
+      order.forEach((node,k)=>{const lg=legs[k]||{dist:0,dur:0}; t+=lg.dur; drive+=lg.dur; km+=lg.dist;
+        stops.push({p:active[node-1],dist:lg.dist,dur:lg.dur,cumDist:km,heure:fmtClock(hd,t)}); t+=svc;});
+      const last=legs[legs.length-1]||{dist:0,dur:0}; t+=last.dur; drive+=last.dur; km+=last.dist;
+      tours.push({i:ti,name,color:COLORS[ti%COLORS.length],stops,km,drive,total:t,arrive:fmtClock(hd,t),last,line,coords});
+    }
+    state.res={real:!bird,tours,date:dateStr()}; state.view='all';
+    renderTourView(); drawRoute(); drawPoints(); renderTable(); renderStats();
+    msg.innerHTML=`<div class="ok">${tours.length>1?tours.length+' tournées calculées':'Tournée calculée'}${bird?' (vol d\'oiseau : ordre indicatif, distances estimées)':''}.${note?' '+esc(note):''}</div>`
+      +(!bird?'<div class="small">L\'ordre est optimisé sur le réseau poids lourd ; le tracé applique en plus le gabarit saisi. Contrôler les passages sensibles sur l\'orthophoto.</div>':'');
+    ['exCsv','exGeo','exGpx','exPrint','exPdf'].forEach(id=>$(id).disabled=false);
+    if(!$('tablewrap').classList.contains('open')) toggleTable();
+  }catch(e){ fail(e.message||String(e)); console.error(e); }
+  finally{ btn.disabled=false; }
+}
+function clearRoute(){
+  state.res=null; routeLayer.clearLayers(); renderStats(); renderTable(); renderTourView();
+  ['exCsv','exGeo','exGpx','exPrint','exPdf'].forEach(id=>$(id).disabled=true);
+  if(state.points.length) drawPoints();
+}
+function visTours(){if(!state.res)return[];return state.view==='all'?state.res.tours:[state.res.tours[state.view]];}
+function renderTourView(){
+  const s=$('tourView'), r=state.res;
+  if(!r||r.tours.length<2){s.innerHTML='<option value="all">'+(r?'Tournée unique':'Toutes les tournées')+'</option>';s.disabled=true;$('tourList').innerHTML='';return;}
+  s.disabled=false;
+  s.innerHTML='<option value="all">Toutes les tournées</option>'+r.tours.map(t=>`<option value="${t.i}" ${state.view===t.i?'selected':''}>${esc(t.name)}</option>`).join('');
+  $('tourList').innerHTML=r.tours.map(t=>`<div data-t="${t.i}" class="${state.view===t.i?'sel':''}"><span class="chip" style="background:${t.color}"></span><b>${esc(t.name)}</b>&nbsp;${t.stops.length} pts · ${(t.km/1000).toFixed(1)} km · ${fmtDur(t.total)}</div>`).join('');
+  $('tourList').querySelectorAll('[data-t]').forEach(d=>d.onclick=()=>setView(+d.dataset.t));
+}
+$('tourView').onchange=e=>setView(e.target.value==='all'?'all':+e.target.value);
+function setView(v){state.view=(v===state.view&&v!=='all')?'all':v;renderTourView();drawRoute();drawPoints();renderTable();renderStats();}
+function drawRoute(fit=true){
+  routeLayer.clearLayers(); const r=state.res; if(!r) return;
+  let bounds=null;
+  r.tours.forEach(t=>{
+    const on=state.view==='all'||state.view===t.i, ll=t.line.map(c=>[c[1],c[0]]);
+    if(r.real){
+      L.polyline(ll,{color:'#fff',weight:7,opacity:on?.9:.3}).addTo(routeLayer);
+      const pl=L.polyline(ll,{color:t.color,weight:4,opacity:on?1:.25}).addTo(routeLayer);
+      if(on){
+        const step=Math.max(8,Math.floor(ll.length/60));
+        for(let i=step;i<ll.length-1;i+=step){
+          const a=map.project(ll[i-1],15), b=map.project(ll[i],15), ang=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI;
+          L.marker(ll[i],{icon:L.divIcon({className:'',html:`<div style="transform:rotate(${ang}deg);color:${t.color};font-size:13px;line-height:13px;text-shadow:0 0 2px #fff">➤</div>`,iconSize:[13,13],iconAnchor:[6,6]}),interactive:false}).addTo(routeLayer);
+        }
+        bounds=bounds?bounds.extend(pl.getBounds()):pl.getBounds();
+      }
+    } else {
+      const pl=L.polyline(ll,{color:r.tours.length>1?t.color:'#555',weight:2,dashArray:'6 6',opacity:on?1:.25}).addTo(routeLayer);
+      if(on) bounds=bounds?bounds.extend(pl.getBounds()):pl.getBounds();
+    }
+  });
+  if(fit&&bounds) map.fitBounds(bounds.pad(0.05));
+}
+function renderStats(){
+  const ts=visTours(), sum=k=>ts.reduce((a,t)=>a+t[k],0);
+  $('sPts').textContent=ts.length?ts.reduce((a,t)=>a+t.stops.length,0):'–';
+  $('sKm').textContent=ts.length?(sum('km')/1000).toFixed(1):'–';
+  $('sDrive').textContent=ts.length?fmtDur(sum('drive')):'–';
+  $('sTot').textContent=ts.length?fmtDur(sum('total')):'–';
+  $('sEnd').textContent=ts.length===1?`Départ ${$('hDep').value} → arrivée exutoire vers ${ts[0].arrive}`:ts.length?`${ts.length} tournées · la plus longue : ${fmtDur(Math.max(...ts.map(t=>t.total)))}`:'';
+}
+
+/* --- Fiche de tournée (tableau) --- */
+function rowsData(){
+  const multi=state.res&&state.res.tours.length>1;
+  return visTours().flatMap(t=>t.stops.map((s,i)=>({idx:s.p.idx,tour:t.i,tname:multi?t.name:'',ordre:i+1,label:label(s.p),commune:commune(s.p),heure:s.heure,dist:+(s.dist/1000).toFixed(2),dur:Math.round(s.dur/60),cum:+(s.cumDist/1000).toFixed(1)})));
+}
+function renderTable(){
+  const th=$('tbl').querySelector('thead'), tb=$('tbl').querySelector('tbody');
+  if(!state.res){th.innerHTML='';tb.innerHTML='<tr><td class="small">Calculer une tournée pour afficher la fiche.</td></tr>';return;}
+  const multi=state.res.tours.length>1;
+  const cols=[...(multi?[['tour','Tournée']]:[]),['ordre','N°'],['label','Point'],...(F.commune?[['commune','Commune']]:[]),['heure','Passage'],['dist','Tronçon (km)'],['dur','Trajet (min)'],['cum','Cumul (km)']];
+  th.innerHTML='<tr>'+cols.map(([k,l])=>`<th data-k="${k}">${l}${state.sortKey===k?(state.sortAsc?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
+  th.querySelectorAll('th').forEach(h=>h.onclick=()=>{const k=h.dataset.k;state.sortAsc=state.sortKey===k?!state.sortAsc:true;state.sortKey=k;renderTable();});
+  const rows=rowsData().sort((a,b)=>{let x=a[state.sortKey],y=b[state.sortKey];if(state.sortKey==='tour'){x=a.tour*1000+a.ordre;y=b.tour*1000+b.ordre;}
+    if(state.sortKey==='ordre'){x=a.tour*1000+a.ordre;y=b.tour*1000+b.ordre;} return (x>y?1:x<y?-1:0)*(state.sortAsc?1:-1);});
+  const cell=(o,k)=>k==='tour'?`<span class="chip" style="display:inline-block;vertical-align:middle;background:${state.res.tours[o.tour].color}"></span> ${esc(o.tname)}`:esc(o[k]);
+  let html='';
+  if(!multi){const t=state.res.tours[0];html+=`<tr><td><b>D</b></td><td>Départ</td>${F.commune?'<td></td>':''}<td>${$('hDep').value}</td><td></td><td></td><td>0</td></tr>`;}
+  html+=rows.map(o=>`<tr data-i="${o.idx}" class="${state.sel===o.idx?'sel':''}">${cols.map(([k])=>`<td>${cell(o,k)}</td>`).join('')}</tr>`).join('');
+  if(!multi){const t=state.res.tours[0];html+=`<tr><td><b>E</b></td><td>Exutoire</td>${F.commune?'<td></td>':''}<td>${t.arrive}</td><td>${(t.last.dist/1000).toFixed(2)}</td><td>${Math.round(t.last.dur/60)}</td><td>${(t.km/1000).toFixed(1)}</td></tr>`;}
+  else html+=visTours().map(t=>`<tr><td><span class="chip" style="display:inline-block;vertical-align:middle;background:${t.color}"></span> ${esc(t.name)}</td><td>E</td><td>Arrivée exutoire</td>${F.commune?'<td></td>':''}<td>${t.arrive}</td><td>${(t.last.dist/1000).toFixed(2)}</td><td>${Math.round(t.last.dur/60)}</td><td>${(t.km/1000).toFixed(1)}</td></tr>`).join('');
+  tb.innerHTML=html;
+  tb.querySelectorAll('tr[data-i]').forEach(tr=>tr.onclick=()=>selectRow(+tr.dataset.i,true));
+}
+function selectRow(i,fromTable){
+  state.sel=i; const p=state.points[i];
+  if(fromTable){ drawPoints(); map.setView([p.coord[1],p.coord[0]],Math.max(map.getZoom(),16)); state.points[i].mk.openPopup(); }
+  document.querySelectorAll('#tbl tr.sel').forEach(t=>t.classList.remove('sel'));
+  const tr=document.querySelector(`#tbl tr[data-i="${i}"]`); if(tr){tr.classList.add('sel'); if(!fromTable) tr.scrollIntoView({block:'nearest'});}
+}
+function toggleTable(){const w=$('tablewrap');w.classList.toggle('open');$('btnTable').textContent=w.classList.contains('open')?'Masquer la fiche de tournée':'Afficher la fiche de tournée';setTimeout(()=>map.invalidateSize(),50);}
+$('btnTable').onclick=toggleTable;
+
+/* --- Exports --- */
+function download(name,content,type){const b=content instanceof Blob?content:new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+const base=()=>(state.fileName||'tournee')+'_'+(state.res?state.res.date:dateStr());
+$('exCsv').onclick=()=>{
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"', n=v=>String(v).replace('.',',');
+  const lines=[['Tournée','Ordre','Point','Commune','Passage estimé','Tronçon (km)','Trajet (min)','Cumul (km)','Fréquence','Groupe','Longitude','Latitude'].join(';')];
+  visTours().forEach(t=>{
+    lines.push([t.name,'D','Départ','',$('hDep').value,'','','0','','',t.coords[0][0].toFixed(6),t.coords[0][1].toFixed(6)].map(q).join(';'));
+    t.stops.forEach((s,i)=>lines.push([t.name,i+1,label(s.p),commune(s.p),s.heure,n((s.dist/1000).toFixed(2)),Math.round(s.dur/60),n((s.cumDist/1000).toFixed(1)),FREQS[s.p.freq],s.p.grp,s.p.coord[0].toFixed(6),s.p.coord[1].toFixed(6)].map(q).join(';')));
+    const e=t.coords[t.coords.length-1];
+    lines.push([t.name,'E','Exutoire','',t.arrive,n((t.last.dist/1000).toFixed(2)),Math.round(t.last.dur/60),n((t.km/1000).toFixed(1)),'','',e[0].toFixed(6),e[1].toFixed(6)].map(q).join(';'));
+    lines.push([q(t.name+' – total'),'','','',q('Durée totale '+fmtDur(t.total)),'',q('Conduite '+fmtDur(t.drive)),n((t.km/1000).toFixed(1))].join(';'));lines.push('');
+  });
+  download(base()+'.csv','﻿'+lines.join('\r\n'),'text/csv;charset=utf-8');
+};
+$('exGeo').onclick=()=>{
+  const r=state.res, feats=[];
+  state.points.forEach(p=>{
+    const si=stopInfo(p), pr={...p.props,_frequence:p.freq,_groupe:p.grp||null};
+    if(si){Object.assign(pr,{_tournee:si.t.name,_ordre:si.n,_passage:si.s.heure,_troncon_km:+(si.s.dist/1000).toFixed(3),_trajet_min:Math.round(si.s.dur/60),_cumul_km:+(si.s.cumDist/1000).toFixed(2)});}
+    else Object.assign(pr,{_tournee:null,_ordre:null,_exclu:p.excluded||undefined});
+    feats.push({type:'Feature',geometry:{type:'Point',coordinates:p.coord},properties:pr});
+  });
+  const t0=r.tours[0];
+  feats.push({type:'Feature',geometry:{type:'Point',coordinates:t0.coords[0]},properties:{_role:'depart'}});
+  feats.push({type:'Feature',geometry:{type:'Point',coordinates:t0.coords[t0.coords.length-1]},properties:{_role:'exutoire'}});
+  r.tours.forEach(t=>feats.push({type:'Feature',geometry:{type:'LineString',coordinates:t.line},properties:{_role:'trace',_tournee:t.name,_couleur:t.color,_nb_points:t.stops.length,_km:+(t.km/1000).toFixed(2),_conduite_min:Math.round(t.drive/60),_total_min:Math.round(t.total/60),_type:r.real?'poids lourd ORS':'vol oiseau'}}));
+  download(base()+'.geojson',JSON.stringify({type:'FeatureCollection',features:feats}),'application/geo+json');
+};
+$('exGpx').onclick=()=>{
+  const multi=state.res.tours.length>1;
+  let g='<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="NCPA optimisation tournee" xmlns="http://www.topografix.com/GPX/1/1">\n';
+  visTours().forEach((t,ti)=>{
+    const pre=multi?`T${t.i+1}-`:'';
+    if(ti===0) g+=`<wpt lat="${t.coords[0][1]}" lon="${t.coords[0][0]}"><name>D - Départ</name></wpt>\n`;
+    t.stops.forEach((s,i)=>g+=`<wpt lat="${s.p.coord[1]}" lon="${s.p.coord[0]}"><name>${pre}${String(i+1).padStart(2,'0')} - ${esc(label(s.p))}</name></wpt>\n`);
+    if(ti===0){const e=t.coords[t.coords.length-1]; g+=`<wpt lat="${e[1]}" lon="${e[0]}"><name>E - Exutoire</name></wpt>\n`;}
+  });
+  visTours().forEach(t=>{g+=`<trk><name>${esc(t.name)}</name><trkseg>\n`+t.line.map(c=>`<trkpt lat="${c[1]}" lon="${c[0]}"/>`).join('\n')+'\n</trkseg></trk>\n';});
+  g+='</gpx>';
+  download(base()+'.gpx',g,'application/gpx+xml');
+};
+$('exPrint').onclick=()=>window.print();
+
+/* --- PDF chauffeur --- */
+const waitMs=ms=>new Promise(r=>setTimeout(r,ms));
+async function waitBasemap(){
+  await waitMs(400);
+  if(map.hasLayer(plan)){
+    const gl=plan.getMaplibreMap&&plan.getMaplibreMap();
+    if(gl&&!gl.loaded()) await Promise.race([new Promise(r=>gl.once('idle',r)),waitMs(6000)]);
+    else await waitMs(600);
+  } else if(map.hasLayer(ortho)){
+    if(ortho.isLoading&&ortho.isLoading()) await Promise.race([new Promise(r=>ortho.once('load',r)),waitMs(8000)]);
+  }
+  await waitMs(300);
+}
+function drawOverlay(ctx,S,t,opts={}){
+  const r=state.res, P2=ll=>{const p=map.latLngToContainerPoint(ll);return [p.x*S,p.y*S];};
+  const line=t.line.map(c=>P2([c[1],c[0]]));
+  ctx.lineJoin='round';ctx.lineCap='round';
+  const path=()=>{ctx.beginPath();line.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));};
+  if(r.real){ path();ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=6*S;ctx.stroke();ctx.strokeStyle=t.color;ctx.lineWidth=3*S;ctx.stroke(); }
+  else { ctx.setLineDash([5*S,5*S]);path();ctx.strokeStyle=r.tours.length>1?t.color:'#555';ctx.lineWidth=2*S;ctx.stroke();ctx.setLineDash([]); }
+  const pin=(ll,txt,col,rad)=>{const [x,y]=P2(ll);ctx.beginPath();ctx.arc(x,y,rad*S,0,7);ctx.fillStyle=col;ctx.fill();ctx.lineWidth=2*S;ctx.strokeStyle='#fff';ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font=`bold ${(txt.length>1?8.5:10)*S}px Calibri, Arial, sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,x,y+0.5*S);return [x,y];};
+  const e=t.coords[t.coords.length-1];
+  pin([e[1],e[0]],'E','#222',12); pin([t.coords[0][1],t.coords[0][0]],'D','#6f7a4c',12);
+  t.stops.forEach((st,i)=>{
+    const hi=!opts.only||opts.only.has(st.p.idx);
+    ctx.globalAlpha=hi?1:.45;
+    const [x,y]=pin([st.p.coord[1],st.p.coord[0]],String(i+1),t.color,hi&&opts.only?12:10.5);
+    if(opts.labels&&hi){
+      const txt=label(st.p).slice(0,40); ctx.font=`bold ${10*S}px Calibri, Arial, sans-serif`;ctx.textAlign='left';ctx.textBaseline='middle';
+      const w=ctx.measureText(txt).width; ctx.fillStyle='rgba(255,255,255,.88)';ctx.fillRect(x+14*S,y-8*S,w+8*S,16*S);
+      ctx.fillStyle='#222';ctx.fillText(txt,x+18*S,y);
+    }
+    ctx.globalAlpha=1;
+  });
+  const sz=map.getSize(), y0=sz.y/2, m100=map.distance(map.containerPointToLatLng([0,y0]),map.containerPointToLatLng([100,y0]))/100;
+  const nice=[20,50,100,200,500,1000,2000,5000,10000].find(v=>v/m100>=70)||10000, px=nice/m100*S;
+  const bx=14*S, by=sz.y*S-16*S;
+  ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillRect(bx-6*S,by-16*S,px+12*S,22*S);
+  ctx.fillStyle='#222';ctx.fillRect(bx,by,px,3*S);ctx.font=`${10*S}px Arial`;ctx.textAlign='left';ctx.textBaseline='bottom';
+  ctx.fillText(nice>=1000?(nice/1000)+' km':nice+' m',bx,by-2*S);
+  const att=map.hasLayer(ortho)?'© IGN / Géoplateforme':'© OpenFreeMap © contributeurs OpenStreetMap';
+  ctx.font=`${9*S}px Arial`;const tw=ctx.measureText(att).width;ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillRect(sz.x*S-tw-10*S,sz.y*S-14*S,tw+10*S,14*S);
+  ctx.fillStyle='#444';ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText(att,sz.x*S-5*S,sz.y*S-2*S);
+}
+async function captureMap(t,bounds,boxW,boxH,opts={}){
+  const S=2, mapEl=$('map'), w=mapEl.clientWidth;
+  mapEl.style.flex='0 0 auto'; mapEl.style.height=Math.round(w*boxH/boxW)+'px';
+  map.invalidateSize({animate:false});
+  map.fitBounds(bounds,{animate:false,padding:[opts.pad||25,opts.pad||25],maxZoom:opts.maxZoom||18});
+  await waitBasemap();
+  const sz=map.getSize(), mr=map.getContainer().getBoundingClientRect();
+  const make=()=>{const c=document.createElement('canvas');c.width=sz.x*S;c.height=sz.y*S;const x=c.getContext('2d');x.fillStyle='#f3f3f1';x.fillRect(0,0,c.width,c.height);return [c,x];};
+  let [cv,ctx]=make(), baseOk=true;
+  try{
+    if(map.hasLayer(plan)){
+      const gl=plan.getMaplibreMap(); gl.triggerRepaint&&gl.triggerRepaint(); await waitMs(150);
+      const c=gl.getCanvas(), cr=c.getBoundingClientRect();
+      ctx.drawImage(c,(cr.left-mr.left)*S,(cr.top-mr.top)*S,cr.width*S,cr.height*S);
+    } else {
+      ortho.getContainer().querySelectorAll('img.leaflet-tile-loaded').forEach(img=>{const ir=img.getBoundingClientRect();ctx.drawImage(img,(ir.left-mr.left)*S,(ir.top-mr.top)*S,ir.width*S,ir.height*S);});
+    }
+    cv.toDataURL('image/png').slice(0,10);
+  }catch(e){ baseOk=false; [cv,ctx]=make(); console.warn('Fond de carte non capturé',e); }
+  drawOverlay(ctx,S,t,opts);
+  return {url:cv.toDataURL('image/jpeg',0.9),w:cv.width,h:cv.height,baseOk};
+}
+function communeGroups(t){
+  if(!F.commune) return [];
+  const g=new Map();
+  t.stops.forEach((s,i)=>{const c=commune(s.p)||'(sans commune)';if(!g.has(c))g.set(c,[]);g.get(c).push({s,n:i+1});});
+  return [...g.entries()].filter(([c,l])=>l.length>=P.zoomMin);
+}
+async function exportPdf(){
+  if(!window.jspdf){alert('Bibliothèque PDF non chargée (connexion internet nécessaire).');return;}
+  const btn=$('exPdf'), r=state.res; btn.disabled=true; const old=btn.textContent;
+  const view={c:map.getCenter(),z:map.getZoom()}, mapEl=$('map'), tw=$('tablewrap'), tableOpen=tw.classList.contains('open');
+  const saveView=state.view;
+  try{
+    if(tableOpen) tw.classList.remove('open');
+    const {jsPDF}=window.jspdf; let doc=null;
+    const RED=[185,30,39], dStr=new Date(r.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const multi=r.tours.length>1;
+    const head=(w,title,sub)=>{doc.setFillColor(...RED);doc.rect(0,0,w,2.5,'F');doc.setTextColor(...RED);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text('NCPA · DIRECTION DE LA MAÎTRISE DES DÉCHETS',10,8);
+      doc.setTextColor(30);doc.setFontSize(15);doc.text(title,10,15);if(sub){doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(60);doc.text(sub,10,21,{maxWidth:w-20});}};
+    const rgb=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+    const ts=visTours();
+    for(const t of ts){
+      state.view=t.i; drawPoints();
+      const title='Feuille de route – '+(multi?t.name:'tournée de collecte');
+      const info=[dStr&&('Date : '+dStr),$('driver').value&&('Chauffeur : '+$('driver').value),`${t.stops.length} points · ${(t.km/1000).toFixed(1)} km · conduite ${fmtDur(t.drive)} · total ${fmtDur(t.total)} (arrêts compris)`,`Départ ${$('hDep').value}, arrivée exutoire vers ${t.arrive}`].filter(Boolean).join('   |   ');
+      btn.textContent=`PDF : ${t.name}…`;
+      // 1. vue d'ensemble
+      const lb=L.latLngBounds(t.line.map(c=>[c[1],c[0]])); t.stops.forEach(st=>lb.extend([st.p.coord[1],st.p.coord[0]]));
+      const img=await captureMap(t,lb,277,178);
+      if(!doc) doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}); else doc.addPage('a4','landscape');
+      head(297,title,info);
+      const k=Math.min(277/img.w,178/img.h), iw=img.w*k, ih=img.h*k, ix=10+(277-iw)/2;
+      doc.addImage(img.url,'JPEG',ix,25,iw,ih); doc.setDrawColor(180);doc.rect(ix,25,iw,ih);
+      if(!img.baseOk){doc.setTextColor(120);doc.setFontSize(8);doc.text('Fond de carte non disponible à l\'export.',12,30);}
+      // 2. tableau
+      doc.addPage('a4','portrait'); head(210,title,dStr?('Date : '+dStr):'');
+      const body=[['D','Départ','',$('hDep').value,'','',`${t.coords[0][1].toFixed(5)}, ${t.coords[0][0].toFixed(5)}`,'']];
+      t.stops.forEach((st,i)=>{const nv=F.note&&st.p.props[F.note];
+        body.push([String(i+1),label(st.p)+(F.commune&&!label(st.p).includes(commune(st.p))?' ('+commune(st.p)+')':''),nv?String(nv):'',st.heure,(st.dist/1000).toFixed(1),(st.cumDist/1000).toFixed(1),`${st.p.coord[1].toFixed(5)}, ${st.p.coord[0].toFixed(5)}`,'']);});
+      const e=t.coords[t.coords.length-1];
+      body.push(['E','Exutoire','',t.arrive,(t.last.dist/1000).toFixed(1),(t.km/1000).toFixed(1),`${e[1].toFixed(5)}, ${e[0].toFixed(5)}`,'']);
+      doc.autoTable({startY:25,head:[['N°','Point','Consigne / remarque','Passage','km','Cumul','GPS (lat, lon)','Fait']],body,
+        theme:'grid',styles:{font:'helvetica',fontSize:8.5,cellPadding:1.6,valign:'middle',lineColor:[210,210,210]},
+        headStyles:{fillColor:rgb(t.color),textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[246,247,241]},
+        columnStyles:{0:{cellWidth:9,halign:'center',fontStyle:'bold'},1:{cellWidth:56},2:{cellWidth:38},3:{cellWidth:15,halign:'center'},4:{cellWidth:10,halign:'right'},5:{cellWidth:14,halign:'right'},6:{cellWidth:31},7:{cellWidth:11}},
+        margin:{left:10,right:10,top:14,bottom:14},
+        didDrawCell:d=>{if(d.section==='body'&&d.column.index===7){const s=3.6;doc.setDrawColor(90);doc.rect(d.cell.x+(d.cell.width-s)/2,d.cell.y+(d.cell.height-s)/2,s,s);}}
+      });
+      doc.setFontSize(8);doc.setTextColor(60);
+      const y=Math.min(doc.lastAutoTable.finalY+8,282);
+      doc.text('Remarques terrain :',10,y);doc.setDrawColor(200);for(let i=1;i<=3&&y+i*7<287;i++)doc.line(10,y+i*7,200,y+i*7);
+      // 3. zooms par commune
+      if(P.zoom){
+        for(const [cname,list] of communeGroups(t)){
+          btn.textContent=`PDF : ${cname}…`;
+          const cb=L.latLngBounds(list.map(o=>[o.s.p.coord[1],o.s.p.coord[0]]));
+          const zimg=await captureMap(t,cb,200,178,{only:new Set(list.map(o=>o.s.p.idx)),labels:P.zoomLabels,maxZoom:17,pad:60});
+          doc.addPage('a4','landscape');
+          head(297,`${multi?t.name+' – ':''}Zoom : ${cname}`,`${list.length} point(s) · n° ${list.map(o=>o.n).join(', ')}`);
+          const k2=Math.min(200/zimg.w,178/zimg.h), w2=zimg.w*k2, h2=zimg.h*k2;
+          doc.addImage(zimg.url,'JPEG',10,25,w2,h2); doc.setDrawColor(180);doc.rect(10,25,w2,h2);
+          doc.autoTable({startY:25,margin:{left:10+w2+5,right:10},head:[['N°','Point','Passage']],
+            body:list.map(o=>{const nv=F.note&&o.s.p.props[F.note];return [String(o.n),label(o.s.p)+(nv?'\n» '+nv:''),o.s.heure];}),
+            theme:'grid',styles:{fontSize:8,cellPadding:1.4,valign:'middle',lineColor:[210,210,210]},headStyles:{fillColor:rgb(t.color),textColor:255},
+            columnStyles:{0:{cellWidth:8,halign:'center',fontStyle:'bold'},2:{cellWidth:16,halign:'center'}}});
+        }
+      }
+    }
+    const n=doc.getNumberOfPages();
+    for(let i=1;i<=n;i++){doc.setPage(i);const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();doc.setFontSize(7.5);doc.setTextColor(130);
+      doc.text(`Tournée optimisée – ${r.real?'itinéraire poids lourd openrouteservice':'aperçu vol d\'oiseau (tracé indicatif)'} – page ${i}/${n}`,W/2,H-5,{align:'center'});}
+    doc.save(base()+(ts.length===1&&multi?'_'+ts[0].name.replace(/[^\w-]+/g,'_'):'')+'_chauffeur.pdf');
+  }catch(e){ alert('Export PDF impossible : '+e.message); console.error(e); }
+  finally{
+    state.view=saveView; mapEl.style.flex='';mapEl.style.height=''; if(tableOpen) tw.classList.add('open');
+    map.invalidateSize({animate:false}); map.setView(view.c,view.z,{animate:false}); drawPoints(); btn.disabled=false; btn.textContent=old;
+  }
+}
+$('exPdf').onclick=exportPdf;
+
+/* --- Restauration des réglages --- */
+(function init(){
+  const k=store.get('tournee_key'); if(k) $('apikey').value=k;
+  try{const d=store.get('tournee_dep'); if(d){const o=JSON.parse(d); setEndpoint('dep',L.latLng(o.lat,o.lng));}}catch(e){}
+  try{const x=store.get('tournee_exu'); if(x){const o=JSON.parse(x); setEndpoint('exu',L.latLng(o.lat,o.lng));}}catch(e){}
+  if(store.get('tournee_same')) $('sameEnd').checked=true;
+  $('hDate').value=new Date().toISOString().slice(0,10);
+  syncFieldSelects(); renderNames(); updDep(); updDue(); renderTable(); renderFreqTable();
+})();
+
+</script>
+</body>
+</html>
