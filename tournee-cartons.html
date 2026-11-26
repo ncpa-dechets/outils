@@ -36,7 +36,6 @@ nav.tabs button.active{background:var(--rouge);color:#fff;border-color:var(--rou
 #params .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;align-items:start}
 .sec{background:#fff;border:1px solid var(--bord);border-radius:6px;padding:8px 10px;margin-bottom:10px}
 .sec h2{font-size:13px;margin:0 0 6px;color:var(--rouge);text-transform:uppercase;letter-spacing:.05em}
-#params .sec{padding:12px 14px}
 #params .sec h2{font-size:15px}
 label{display:block;font-size:12px;margin:5px 0 2px;color:#555}
 input[type=text],input[type=password],input[type=number],input[type=time],input[type=date],select{width:100%;padding:4px 6px;border:1px solid #bbb;border-radius:4px;font:inherit}
@@ -95,6 +94,37 @@ tr.sel td{background:#fff4c2}
 #tourNames input{margin-bottom:4px}
 .counter{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin-top:6px}
 .counter span{background:var(--gris);border-radius:4px;padding:2px 6px}
+.dchips{display:inline-flex;gap:2px;white-space:nowrap}
+.dchip{display:inline-block;width:23px;border:1px solid #c4c4c4;border-radius:3px;font-size:10.5px;text-align:center;cursor:pointer;padding:1px 0;background:#fff;color:#777;user-select:none}
+.dchip:hover{border-color:var(--rouge)}
+.dchip.on{background:var(--rouge);color:#fff;border-color:var(--rouge);font-weight:700}
+.dchip.auto{background:#e4e9d3;color:#3f4a22;border-color:#b6bf96;cursor:default}
+#freqTbl td.nps{color:#555}
+#plan{overflow-y:auto;padding:14px 18px;background:var(--gris);flex-direction:column}
+#plan .sec,#params .sec{padding:12px 14px}
+#plan .sec h2{font-size:15px}
+#plan .grid{display:grid;grid-template-columns:minmax(330px,1fr) minmax(330px,1.3fr);gap:12px;align-items:start}
+@media (max-width:900px){#plan .grid{grid-template-columns:minmax(0,1fr)}#plan{padding:8px}}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:8px 0}
+.kpi div{background:var(--gris);border-radius:4px;padding:6px 8px}
+.kpi b{display:block;font-size:22px;color:var(--rouge);line-height:1.15}
+.kpi span{font-size:12px;color:#555}
+.headline{font-size:17px;margin:2px 0 4px}
+.headline b{color:var(--rouge)}
+#planGrid{overflow-x:auto}
+.plangrid{border-collapse:collapse;width:auto;min-width:100%}
+.plangrid th,.plangrid td{border:1px solid #e1e1e1;white-space:normal;vertical-align:top;padding:6px 8px;min-width:120px}
+.plangrid thead th{position:static;cursor:default;background:#fff;border-bottom:2px solid var(--vert)}
+.plangrid tbody th{background:#fff;text-align:left;min-width:80px}
+.plangrid td.k0{color:#aaa}
+.plangrid td.k1{background:#f4f6ee}.plangrid td.k2{background:#e6ebd6}.plangrid td.k3{background:#d6ddbd}.plangrid td.k4{background:#c8d1a7}
+.plangrid td.over{box-shadow:inset 0 0 0 2px #e0a000}
+.plangrid tr.tot td,.plangrid tr.tot th{background:#fff;border-top:2px solid var(--rouge)}
+.plangrid td button{font-size:11px;padding:2px 6px;margin-top:4px}
+.plangrid .tl{display:flex;align-items:center;gap:4px;font-size:11.5px;color:#333}
+.wd label{display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-size:13px;color:#222}
+.method{font-size:12.5px;color:#444;line-height:1.45}
+.method li{margin-bottom:3px}
 @media (max-width:840px){#app{flex-direction:column}#panel{width:100%;flex:0 0 auto;max-height:45vh;border-right:0;border-bottom:1px solid var(--bord)}#main{min-height:55vh}}
 @media print{#panel,#toolbar,header{display:none}#tablewrap{display:block;max-height:none}}
 </style>
@@ -107,6 +137,7 @@ tr.sel td{background:#fff4c2}
   </div>
   <nav class="tabs">
     <button data-v="app" class="active">Tournée</button>
+    <button data-v="plan">Planning semaine</button>
     <button data-v="params">Paramètres</button>
   </nav>
 </header>
@@ -193,7 +224,7 @@ tr.sel td{background:#fff4c2}
       <div><span class="lg" style="background:#222">E</span> Exutoire</div>
       <div><span class="lg" style="background:var(--rouge)">1</span> Point dans la tournée (couleur = tournée)</div>
       <div><span class="lg" style="background:#7d7d7d"></span> Point à collecter, pas encore calculé</div>
-      <div><span class="lg" style="background:#fff;border:2px dashed #999"></span> Pas à collecter ce jour (fréquence)</div>
+      <div><span class="lg" style="background:#fff;border:2px dashed #999"></span> Pas à collecter ce jour (fréquence ou jours de passage)</div>
       <div><span class="lg" style="background:#ccc"></span> Point exclu à la main</div>
       <div><span class="lgline"></span> Tracé poids lourd</div>
       <div><span class="lgline dash"></span> Aperçu vol d'oiseau</div>
@@ -217,6 +248,48 @@ tr.sel td{background:#fff4c2}
   </main>
 </div>
 
+<div id="plan" class="view">
+  <div class="grid">
+    <div>
+      <div class="sec">
+        <h2>Contraintes du planning</h2>
+        <div class="hint">Les jours fixes et le nombre de passages par semaine se règlent point par point dans l'onglet <b>Paramètres</b> (tableau « Fréquences et jours de passage »). Le planning reprend la clé openrouteservice, le départ, l'exutoire et le temps par arrêt de l'onglet Tournée.</div>
+        <label>Jours travaillés</label>
+        <div class="wd" id="wdays"></div>
+        <div class="row">
+          <div><label>Durée maxi d'une tournée (h)</label><input type="number" id="plMaxH" min="0.5" step="0.25"></div>
+          <div><label>Écart mini entre 2 passages d'un même point (jours)</label><input type="number" id="plGap" min="1" max="6" step="1"></div>
+        </div>
+        <label><input type="checkbox" id="plGrp"> Le planning choisit aussi la semaine (groupe A/B, S1…S4) des points « toutes les 2 ou 4 semaines »</label>
+        <div class="small">Décoché : les groupes saisis dans Paramètres sont conservés.</div>
+        <div class="row" style="margin-top:10px">
+          <button class="primary" id="btnPlan" style="flex:2">Calculer le planning et le nombre de tournées</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="btnPlanClear">Effacer les jours planifiés</button>
+          <button id="btnPlanCsv" disabled>Exporter le planning (CSV)</button>
+        </div>
+        <div id="planMsg"></div>
+      </div>
+      <div class="sec">
+        <h2>Méthode</h2>
+        <ol class="method">
+          <li><b>Points à jours fixes</b> : placés sur leurs jours, et sur les semaines prévues par leur fréquence.</li>
+          <li><b>Points à jours libres</b> : le planning leur choisit un jour (ou plusieurs, espacés de l'écart mini s'ils ont plusieurs passages par semaine) et, si la case est cochée, leur semaine dans le cycle de 2 ou 4 semaines.</li>
+          <li>Chaque point va dans la tournée où il ajoute le moins de trajet, sans dépasser la durée maxi. On n'ouvre une nouvelle tournée que si aucune n'a la place, de préférence un jour peu chargé.</li>
+          <li><b>Amélioration</b> : chaque point est retiré puis replacé au meilleur endroit, et on essaie de supprimer la plus petite tournée de chaque jour en redistribuant ses points, tant que cela réduit le total.</li>
+          <li>Chaque journée est enfin découpée en tournées avec le même calcul que l'onglet Tournée.</li>
+        </ol>
+        <div class="small">Ce que le calcul cherche à réduire, dans l'ordre : le nombre de tournées, le nombre de camions nécessaires le même jour, puis le temps total. Le « plancher théorique » est le nombre de tournées qu'il faudrait si elles étaient toutes remplies jusqu'à la durée maxi : on ne peut pas faire moins.</div>
+      </div>
+    </div>
+    <div class="sec">
+      <h2>Résultat</h2>
+      <div id="planRes"><div class="small">Charger les points, placer le départ et l'exutoire (onglet Tournée), régler les jours dans Paramètres, puis lancer le calcul.</div></div>
+    </div>
+  </div>
+</div>
+
 <div id="params" class="view">
   <div class="grid">
     <div class="sec">
@@ -233,6 +306,10 @@ tr.sel td{background:#fff4c2}
       <div class="row">
         <div><label>Fréquence (si présente)</label><select id="fFreq"></select></div>
         <div><label>Groupe (si présent)</label><select id="fGrp"></select></div>
+      </div>
+      <div class="row">
+        <div><label>Jours de passage fixes (si présent)</label><select id="fJours"></select></div>
+        <div></div>
       </div>
       <div id="fieldsMsg"></div>
       <div class="small" style="margin-top:6px">L'identifiant sert à retrouver les fréquences saisies ici quand vous rechargez le fichier (elles sont gardées dans ce navigateur, et dans l'export GeoJSON).</div>
@@ -264,8 +341,9 @@ tr.sel td{background:#fff4c2}
   </div>
 
   <div class="sec">
-    <h2>Fréquences de collecte par point</h2>
+    <h2>Fréquences et jours de passage par point</h2>
     <div class="hint" id="weekInfo"></div>
+    <div class="hint"><b>Jours fixes</b> : cliquer sur les jours où le point doit être collecté (ex. Lu + Je = 2 passages par semaine, toujours ces jours-là). <b>Passages / sem.</b> : pour un point sans jour fixe, nombre de passages par semaine. Le planning (onglet Planning semaine) lui choisit alors ses jours, affichés en vert. Un point sans jour fixe ni planifié est pris quel que soit le jour de la tournée.</div>
     <div class="toolsrow">
       <div><label>Filtrer</label><input type="text" id="qFilter" placeholder="libellé, identifiant…"></div>
       <div><label>Commune</label><select id="qCommune"><option value="">Toutes</option></select></div>
@@ -273,6 +351,11 @@ tr.sel td{background:#fff4c2}
       <div><label>groupe</label><select id="bGrp"><option value="">(auto)</option><option>A</option><option>B</option><option>S1</option><option>S2</option><option>S3</option><option>S4</option></select></div>
       <div><button id="bApply">Appliquer à la sélection</button></div>
       <div><button id="bAuto" title="Répartit les points « toutes les 2/4 semaines » en groupes équilibrés et géographiquement regroupés">Répartir les groupes automatiquement</button></div>
+    </div>
+    <div class="toolsrow" style="margin-top:6px">
+      <div><label>Pour la sélection : jours fixes</label><span class="dchips" id="bDays"></span></div>
+      <div><label>sinon, passages / semaine</label><select id="bNps"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+      <div><button id="bApplyDays" title="Avec des jours cochés : jours fixes. Sans jour coché : jours libres avec le nombre de passages choisi.">Appliquer les jours à la sélection</button></div>
     </div>
     <div class="counter" id="freqCount"></div>
     <div id="freqWrap"><table id="freqTbl"><thead></thead><tbody></tbody></table></div>
@@ -410,16 +493,143 @@ function weekIndex(dateStr){
 function weekInfo(dateStr){const w=weekIndex(dateStr);return {w,ab:(((w%2)+2)%2)===0?'A':'B',s:'S'+((((w%4)+4)%4)+1)};}
 const FREQS={hebdo:'Chaque semaine','2sem':'Toutes les 2 semaines','4sem':'Toutes les 4 semaines',demande:'À la demande',inactif:'Inactif (jamais)'};
 function groupsFor(f){return f==='2sem'?['A','B']:f==='4sem'?['S1','S2','S3','S4']:[];}
-function isDue(f,g,onDemand,dateStr){
-  const wi=weekInfo(dateStr);
+function dueInWeek(f,g,wi){
   switch(f){
     case '2sem': return !g||g===wi.ab;
     case '4sem': return !g||g===wi.s;
-    case 'demande': return !!onDemand;
-    case 'inactif': return false;
+    case 'demande': case 'inactif': return false;
     default: return true;
   }
 }
+function isDue(f,g,onDemand,dateStr){
+  if(f==='demande') return !!onDemand;
+  return dueInWeek(f,g,weekInfo(dateStr));
+}
+// Semaine n° w d'un cycle (0..3) -> groupes A/B et S1..S4 (cohérent avec weekInfo)
+function phaseInfo(w){return {ab:w%2===0?'A':'B',s:'S'+(w%4+1)};}
+
+/* ===== Jours de passage ===== 0 = lundi … 5 = samedi */
+const JOURS=['Lu','Ma','Me','Je','Ve','Sa'], JOURS_L=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function dayIndex(dateStr){const d=new Date(dateStr+'T12:00:00Z');return (d.getUTCDay()+6)%7;}
+// « lundi, jeudi », « L/J », « Lu-Me-Ve », « 1,4 »… -> [0,3]
+function parseJours(v){
+  if(v===null||v===undefined||v==='') return [];
+  const toks=Array.isArray(v)?v.map(x=>String(x)):String(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').split(/[^a-z0-9]+/);
+  const s=new Set(), K=[['lu',0],['l',0],['ma',1],['me',2],['je',3],['j',3],['ve',4],['v',4],['sa',5],['s',5]];
+  toks.forEach(t=>{
+    t=String(t).toLowerCase().trim(); if(!t) return;
+    if(/^[0-5]$/.test(t)&&Array.isArray(v)){s.add(+t);return;}
+    if(/^[1-6]$/.test(t)){s.add(+t-1);return;}
+    const m=K.find(([k])=>k.length===2?t.startsWith(k):t===k); if(m) s.add(m[1]);
+  });
+  return [...s].sort((a,b)=>a-b);
+}
+// Combinaisons de n jours parmi les jours travaillés, espacées d'au moins minGap jours
+// (écart calendaire, week-end compris : vendredi -> lundi = 3 jours). Si impossible, les plus espacées.
+function dayCombos(days,n,minGap){
+  days=[...new Set(days)].sort((a,b)=>a-b); n=Math.max(1,Math.min(n,days.length));
+  const all=[], cur=[];
+  (function rec(st){if(cur.length===n){all.push(cur.slice());return;}for(let i=st;i<days.length;i++){cur.push(days[i]);rec(i+1);cur.pop();}})(0);
+  const gap=c=>{if(c.length<2) return 7;let m=7;for(let i=0;i<c.length;i++){const b=i+1<c.length?c[i+1]:c[0]+7;m=Math.min(m,b-c[i]);}return m;};
+  if(!all.length) return [];
+  const need=Math.min(minGap,Math.max(...all.map(gap)));
+  return all.filter(c=>gap(c)>=need);
+}
+
+/* ===== Planification périodique (combien de tournées par semaine ?) =====
+   Problème de tournées périodiques (PVRP). Chaque point a des options de semaines (groupe du cycle A/B, S1…S4)
+   et des options de jours (ses jours fixes, ou des combinaisons de jours espacés). Chaque journée est un ensemble
+   de tournées dont la durée (trajets + arrêts) reste sous la durée maxi. On choisit une option par point pour
+   minimiser : temps total + pénalité par tournée + pénalité sur le nombre de tournées du jour le plus chargé
+   de chaque semaine (= nombre de camions/équipages nécessaires) + lissage des tournées entre les jours.
+   M = matrice des durées : nœud 0 = départ, nœud N-1 = exutoire.
+   items = [{node, wopts:[{g,weeks:[w…]}], dopts:[[d…]]}] ; cfg = {L, svc, maxSec, timeMs}. */
+function planAssign(M,items,cfg){
+  const end=M.length-1, L=cfg.L, svc=cfg.svc, cap=cfg.maxSec;
+  const FT=cfg.tourPenalty??cap*0.5, FW=cfg.truckPenalty??cap*0.5, FB=cfg.balancePenalty??cap*0.08;
+  let R=Array.from({length:L},()=>Array.from({length:7},()=>[])); // R[w][d] = [{seq,load}]
+  let asg=new Map();
+  const load=seq=>seq.length?tourCost(M,seq,svc,end):0;
+  const solo=x=>M[0][x]+M[x][end]+svc;
+  function insTour(t,x){
+    let best=Infinity,pos=0; const s=t.seq;
+    for(let i=0;i<=s.length;i++){const a=i?s[i-1]:0,b=i<s.length?s[i]:end,c=M[a][x]+M[x][b]-M[a][b];if(c<best){best=c;pos=i;}}
+    return {delta:best+svc,pos};
+  }
+  // meilleure insertion dans une tournée du jour qui reste sous la durée maxi, sinon ouverture d'une tournée
+  function insDay(day,x){
+    let b={cost:solo(x)+FT,ti:-1,pos:0};
+    day.forEach((t,ti)=>{const r=insTour(t,x);if(t.load+r.delta<=cap&&r.delta<b.cost)b={cost:r.delta,ti,pos:r.pos};});
+    return b;
+  }
+  const weekMax=(w,ex)=>{let m=0;for(let d=0;d<7;d++)m=Math.max(m,R[w][d].length+(ex&&ex.has(d)?1:0));return m;};
+  function optCost(it,o){
+    let c=0;
+    for(const w of it.wopts[o.wi].weeks){
+      const ex=new Set();
+      for(const d of it.dopts[o.di]){const b=insDay(R[w][d],it.node);c+=b.cost;if(b.ti<0)ex.add(d);}
+      if(ex.size){c+=FW*(weekMax(w,ex)-weekMax(w));ex.forEach(d=>c+=FB*(2*R[w][d].length+1));}
+    }
+    return c;
+  }
+  function apply(it,o){
+    for(const w of it.wopts[o.wi].weeks)for(const d of it.dopts[o.di]){
+      const day=R[w][d],b=insDay(day,it.node);
+      if(b.ti<0) day.push({seq:[it.node],load:solo(it.node)});
+      else {const t=day[b.ti];t.seq.splice(b.pos,0,it.node);t.load=load(t.seq);}
+    }
+    asg.set(it,o);
+  }
+  function remove(it){
+    const o=asg.get(it); if(!o) return;
+    for(const w of it.wopts[o.wi].weeks)for(const d of it.dopts[o.di]){
+      const day=R[w][d],ti=day.findIndex(t=>t.seq.includes(it.node)); if(ti<0) continue;
+      const t=day[ti]; t.seq.splice(t.seq.indexOf(it.node),1);
+      if(!t.seq.length) day.splice(ti,1); else t.load=load(t.seq);
+    }
+    asg.delete(it);
+  }
+  function bestOpt(it){let o=null,c=Infinity;it.wopts.forEach((_,wi)=>it.dopts.forEach((_,di)=>{const v=optCost(it,{wi,di});if(v<c-1e-9){c=v;o={wi,di};}}));return {o,c};}
+  const total=()=>{let c=0;for(let w=0;w<L;w++){let m=0;for(let d=0;d<7;d++){const day=R[w][d];m=Math.max(m,day.length);c+=FB*day.length*day.length;day.forEach(t=>c+=t.load+FT);}c+=FW*m;}return c;};
+  const clone=()=>R.map(wk=>wk.map(day=>day.map(t=>({seq:t.seq.slice(),load:t.load}))));
+  const nOpts=it=>it.wopts.length*it.dopts.length;
+  const visits=it=>it.wopts[0].weeks.length*it.dopts[0].length;
+  const far=it=>M[0][it.node]+M[it.node][end];
+  const valid=items.filter(it=>it.wopts.length&&it.dopts.length&&it.wopts[0].weeks.length);
+  const byNode=new Map(valid.map(it=>[it.node,it]));
+  const rank=(a,b)=>nOpts(a)-nOpts(b)||visits(b)-visits(a)||far(b)-far(a);
+  // 1) construction : points contraints d'abord (jours fixes), puis les plus visités, puis les plus éloignés
+  const order=valid.slice().sort(rank);
+  for(const it of order) apply(it,bestOpt(it).o);
+  // 2) amélioration
+  const t0=Date.now(), budget=cfg.timeMs||3000, out=()=>Date.now()-t0>budget;
+  let passes=0, moves=0, elim=0;
+  for(let pass=0;pass<(cfg.passes||12)&&!out();pass++){
+    // ordre de passage réoptimisé dans chaque tournée (libère de la place)
+    for(let w=0;w<L;w++)for(let d=0;d<7;d++)R[w][d].forEach(t=>{if(t.seq.length>2){t.seq=subTSP(M,t.seq,end,10);t.load=load(t.seq);}});
+    let moved=0;
+    // a) déplacement point par point vers sa meilleure option
+    for(const it of order){
+      if(out()) break;
+      const cur=asg.get(it); remove(it);
+      const cc=optCost(it,cur), b=bestOpt(it);
+      if(b.c<cc-1){apply(it,b.o);moved++;} else apply(it,cur);
+    }
+    // b) suppression de la plus petite tournée de chaque journée : ses points sont redistribués ailleurs
+    for(let w=0;w<L&&!out();w++)for(let d=0;d<7&&!out();d++){
+      const day=R[w][d]; if(!day.length) continue;
+      let ti=0; day.forEach((t,k)=>{if(t.load<day[ti].load)ti=k;});
+      const its=[...new Set(day[ti].seq)].map(n=>byNode.get(n)).filter(Boolean);
+      const before=total(), sR=clone(), sA=new Map(asg);
+      its.forEach(remove); its.sort(rank).forEach(it=>apply(it,bestOpt(it).o));
+      if(total()<before-1){moved++;elim++;} else {R=sR;asg=sA;}
+    }
+    passes++; moves+=moved;
+    if(!moved) break;
+  }
+  return {asg:items.map(it=>asg.get(it)||null), routes:R, passes, moves, elim, cost:total()};
+}
+
 function parseFreq(v){
   if(v===null||v===undefined||v==='') return null;
   const t=String(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
@@ -534,8 +744,8 @@ const ORS='https://api.heigit.org/openrouteservice';
 const $=id=>document.getElementById(id);
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 const COLORS=['#B91E27','#1f5fa8','#6f7a4c','#d97706','#7c3aed','#0f766e','#be185d','#4b5563','#0e7490','#92400e'];
-const F={id:'',label:'',commune:'',note:'',freq:'',grp:''};
-const state={points:[],dep:null,exu:null,picking:null,res:null,view:'all',sortKey:'ordre',sortAsc:true,sel:null,keys:[],freqSel:new Set()};
+const F={id:'',label:'',commune:'',note:'',freq:'',grp:'',jours:''};
+const state={points:[],dep:null,exu:null,picking:null,res:null,view:'all',sortKey:'ordre',sortAsc:true,sel:null,keys:[],freqSel:new Set(),plan:null,mcache:null,bDays:new Set()};
 let FREQSTORE={}; try{FREQSTORE=JSON.parse(store.get('tournee_freq_v1')||'{}')}catch(e){}
 
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -543,14 +753,24 @@ function label(p){const v=F.label&&p.props[F.label];return (v!==undefined&&v!==n
 function commune(p){const v=F.commune&&p.props[F.commune];return (v!==undefined&&v!==null&&v!=='')?String(v).trim():'';}
 function pkey(p){const v=F.id&&p.props[F.id];return (v!==undefined&&v!==null&&v!=='')?'id:'+v:'xy:'+p.coord[0].toFixed(5)+','+p.coord[1].toFixed(5);}
 function dateStr(){return $('hDate').value||new Date().toISOString().slice(0,10);}
-function dueToday(p){return isDue(p.freq,p.grp,p.dem,dateStr());}
+// Jours effectifs d'un point : jours fixes, sinon jours planifiés, sinon null (n'importe quel jour)
+function effDays(p){return p.jours&&p.jours.length?p.jours:(p.jauto&&p.jauto.length?p.jauto:null);}
+function dayOk(p,ds){if(p.freq==='demande') return true;const js=effDays(p);return !js||js.includes(dayIndex(ds));}
+function dueToday(p){return isDue(p.freq,p.grp,p.dem,dateStr())&&dayOk(p,dateStr());}
+const joursTxt=js=>js.map(d=>JOURS[d]).join(', ');
+function daysInfo(p){
+  if(p.freq==='demande'||p.freq==='inactif') return '';
+  if(p.jours.length) return `jours fixes : ${joursTxt(p.jours)}`;
+  if(p.jauto.length) return `jours planifiés : ${joursTxt(p.jauto)}`;
+  return p.nps>1?`${p.nps} passages/sem., jours pas encore planifiés`:'jour libre';
+}
 function inPlay(p){return !p.excluded && (!$('applyFreq').checked || dueToday(p));}
 
 /* --- Onglets --- */
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('active',x===b));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===b.dataset.v));
-  if(b.dataset.v==='app') setTimeout(()=>map.invalidateSize(),50); else renderFreqTable();
+  if(b.dataset.v==='app') setTimeout(()=>map.invalidateSize(),50); else if(b.dataset.v==='plan') renderPlan(); else renderFreqTable();
 });
 
 /* --- Carte --- */
@@ -584,15 +804,17 @@ function readFile(file){
     if(!points.length){$('dataMsg').innerHTML='<div class="err">Aucun point trouvé dans le fichier.</div>';return;}
     points.forEach(p=>{p.excluded=false;});
     state.points=points; state.fileName=file.name.replace(/\.(geo)?json$/i,'');
-    const keys=state.keys=[...new Set(points.flatMap(p=>Object.keys(p.props)))].filter(k=>!/^_(ordre|passage|troncon_km|trajet_min|cumul_km|tournee|exclu|role)$/.test(k));
+    const keys=state.keys=[...new Set(points.flatMap(p=>Object.keys(p.props)))].filter(k=>!/^_(ordre|passage|troncon_km|trajet_min|cumul_km|tournee|exclu|role|passages_sem|jours_planifies)$/.test(k));
     F.id=guess(keys,[/^id[ _]?unique$/i,/^(id|fid|identifiant|code)$/i,/^id/i,/identifiant/i]);
     F.label=guess(keys,[/^(nom|name|libel|label)/i,/^(adresse|address|lieu|site)/i,/(nom|libel|adress|lieu)/i])||F.id;
     F.commune=guess(keys,[/^commune$/i,/commune/i,/^(ville|nom_com)/i]);
     F.note=guess(keys,[/(consigne|remarq|observ|acc[eè]s|alerte)/i]);
     F.freq=guess(keys,[/^_frequence$/i,/fr[eé]quence/i,/^freq/i]);
     F.grp=guess(keys,[/^_groupe$/i,/^groupe/i]);
+    F.jours=guess(keys,[/^_jours$/i,/jours?.?(de.?)?(passage|collecte)/i,/^jours?$/i]);
     syncFieldSelects();
     applyFreqFromSources();
+    state.plan=null;
     let html=`<div class="ok">${points.length} point(s) chargé(s) depuis « ${esc(file.name)} ».</div>`;
     warnings.forEach(w=>html+=`<div class="warn">${esc(w)}</div>`);
     $('dataMsg').innerHTML=html;
@@ -606,14 +828,14 @@ function syncFieldSelects(){
   const k=state.keys;
   fillSelect('fId',k,F.id,'— aucun (position) —'); fillSelect('fLabel',k,F.label,'— numéro —');
   fillSelect('fCommune',k,F.commune,'— aucun —'); fillSelect('fNote',k,F.note,'— aucun —');
-  fillSelect('fFreq',k,F.freq,'— aucun —'); fillSelect('fGrp',k,F.grp,'— aucun —');
+  fillSelect('fFreq',k,F.freq,'— aucun —'); fillSelect('fGrp',k,F.grp,'— aucun —'); fillSelect('fJours',k,F.jours,'— aucun —');
   const c=$('qCommune'), cs=[...new Set(state.points.map(commune).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
   c.innerHTML='<option value="">Toutes</option>'+cs.map(x=>`<option>${esc(x)}</option>`).join('');
   $('fieldsSummary').innerHTML=state.points.length?`Libellé : <b>${esc(F.label||'numéro')}</b> · Commune : <b>${esc(F.commune||'—')}</b> · Identifiant : <b>${esc(F.id||'position')}</b><br>(modifiable dans l'onglet Paramètres)`:'';
 }
-[['fId','id'],['fLabel','label'],['fCommune','commune'],['fNote','note'],['fFreq','freq'],['fGrp','grp']].forEach(([id,k])=>$(id).onchange=e=>{
+[['fId','id'],['fLabel','label'],['fCommune','commune'],['fNote','note'],['fFreq','freq'],['fGrp','grp'],['fJours','jours']].forEach(([id,k])=>$(id).onchange=e=>{
   F[k]=e.target.value; syncFieldSelects(); checkFields();
-  if(k==='id'||k==='freq'||k==='grp'){applyFreqFromSources();updDue();clearRoute();}
+  if(k==='id'||k==='freq'||k==='grp'||k==='jours'){applyFreqFromSources();updDue();clearRoute();markPlanStale();}
   drawPoints(); renderTable(); renderFreqTable();
 });
 function checkFields(){
@@ -634,9 +856,16 @@ function applyFreqFromSources(){
     p.grp=fg||(ff?null:saved.g)||groupsFor(p.freq)[0]||'';
     if(!groupsFor(p.freq).includes(p.grp)) p.grp=groupsFor(p.freq)[0]||'';
     p.dem=!!saved.d;
+    // jours fixes : champ du fichier, sinon saisie du navigateur ; passages/semaine ; jours planifiés
+    const fj=F.jours?parseJours(p.props[F.jours]):[];
+    p.jours=fj.length?fj:(Array.isArray(saved.j)?saved.j.filter(d=>d>=0&&d<=5):[]);
+    const fn=parseInt(p.props._passages_sem,10);
+    p.nps=Math.max(1,Math.min(5,fn>0?fn:(saved.n||1)));
+    p.jauto=Array.isArray(saved.a)?saved.a.slice():parseJours(p.props._jours_planifies);
+    if(p.jours.length||p.jauto.length!==p.nps) p.jauto=[];
   });
 }
-function saveFreq(p){FREQSTORE[pkey(p)]={f:p.freq,g:p.grp,d:p.dem};store.set('tournee_freq_v1',JSON.stringify(FREQSTORE));}
+function saveFreq(p){FREQSTORE[pkey(p)]={f:p.freq,g:p.grp,d:p.dem,j:p.jours,n:p.nps,a:p.jauto};store.set('tournee_freq_v1',JSON.stringify(FREQSTORE));}
 
 /* --- Points sur la carte --- */
 function stopInfo(p){
@@ -664,7 +893,7 @@ function popupHtml(p,si){
   const g=p.grp?` · groupe ${p.grp}`:'';
   return `<div class="popup"><b>${si?(state.res.tours.length>1?esc(si.t.name)+' · ':'')+'n° '+si.n+' — ':''}${esc(label(p))}</b>
   ${si?`<div class="small">Passage estimé ${si.s.heure} · ${(si.s.dist/1000).toFixed(1)} km depuis le précédent</div>`:''}
-  <div class="small">Fréquence : ${FREQS[p.freq]}${g} — ${dueToday(p)?'à collecter ce jour':'pas à collecter ce jour'}</div>
+  <div class="small">Fréquence : ${FREQS[p.freq]}${g}${daysInfo(p)?' · '+daysInfo(p):''} — ${dueToday(p)?'à collecter ce jour':'pas à collecter ce jour'}</div>
   <table style="font-size:11px">${rows}</table>
   <button onclick="setFromPoint(${p.idx},'dep')">Départ ici</button><button onclick="setFromPoint(${p.idx},'exu')">Exutoire ici</button>
   <button onclick="toggleExcl(${p.idx})">${p.excluded?'Réintégrer':'Exclure de la tournée'}</button></div>`;
@@ -676,7 +905,7 @@ window.setFromPoint=(i,which)=>{const c=state.points[i].coord;setEndpoint(which,
 function setEndpoint(which,ll){
   if(which==='dep'){ if(depMk) depMk.setLatLng(ll); else {depMk=L.marker(ll,{icon:icon('dep','D',28),draggable:true,zIndexOffset:1000}).addTo(map).bindTooltip('Départ');depMk.on('dragend',()=>{state.dep=depMk.getLatLng();clearRoute();updDep();});} state.dep=ll; }
   else { if(exuMk) exuMk.setLatLng(ll); else {exuMk=L.marker(ll,{icon:icon('exu','E',28),draggable:true,zIndexOffset:1000}).addTo(map).bindTooltip('Exutoire');exuMk.on('dragend',()=>{state.exu=exuMk.getLatLng();clearRoute();updDep();});} state.exu=ll; $('sameEnd').checked=false; }
-  clearRoute(); updDep();
+  clearRoute(); updDep(); markPlanStale();
 }
 function updDep(){
   const f=ll=>ll?`${ll.lat.toFixed(5)}, ${ll.lng.toFixed(5)}`:'non placé';
@@ -696,11 +925,14 @@ map.on('click',e=>{if(state.picking){setEndpoint(state.picking,e.latlng);startPi
 /* --- Tournée du jour (fréquences) --- */
 function updDue(){
   const wi=weekInfo(dateStr());
-  const txt=`Semaine <b>${wi.ab}</b> (cycle 2 sem.) · <b>${wi.s}</b> (cycle 4 sem.)`;
+  const txt=`<b>${JOURS_L[dayIndex(dateStr())]}</b> · semaine <b>${wi.ab}</b> (cycle 2 sem.) · <b>${wi.s}</b> (cycle 4 sem.)`;
   $('weekInfo').innerHTML=`Pour la date de tournée choisie (${new Date(dateStr()+'T12:00').toLocaleDateString('fr-FR')}) : ${txt}. Un point « toutes les 2 semaines » du groupe A est collecté les semaines A, etc. Les cycles sont continus d'une année sur l'autre.`;
   if(!state.points.length){$('dueInfo').innerHTML=txt;return;}
   const n=state.points.filter(inPlay).length;
-  $('dueInfo').innerHTML=`${txt}<br><b>${n}</b> point(s) à collecter sur ${state.points.length}${$('applyFreq').checked?'':' (fréquences ignorées)'}`;
+  const free=state.points.filter(p=>!p.excluded&&p.freq!=='demande'&&p.freq!=='inactif'&&!effDays(p)).length;
+  const anyDays=state.points.some(p=>effDays(p));
+  $('dueInfo').innerHTML=`${txt}<br><b>${n}</b> point(s) à collecter sur ${state.points.length}${$('applyFreq').checked?'':' (fréquences ignorées)'}`
+    +(anyDays&&free&&$('applyFreq').checked?`<br><span class="small">dont ${free} sans jour fixe ni planifié (pris quel que soit le jour)</span>`:'');
 }
 $('hDate').onchange=()=>{updDue();clearRoute();renderFreqTable();};
 $('applyFreq').onchange=()=>{updDue();clearRoute();};
@@ -715,16 +947,22 @@ function renderFreqTable(){
   const th=$('freqTbl').querySelector('thead'), tb=$('freqTbl').querySelector('tbody');
   if(!state.points.length){th.innerHTML='';tb.innerHTML='<tr><td class="small">Charger un fichier de points dans l\'onglet Tournée.</td></tr>';$('freqCount').innerHTML='';return;}
   const rows=freqRows();
-  th.innerHTML=`<tr><th><input type="checkbox" id="selAll"></th><th>N°</th><th>Identifiant</th><th>Point</th><th>Commune</th><th>Fréquence</th><th>Groupe</th><th>Ce jour</th></tr>`;
+  th.innerHTML=`<tr><th><input type="checkbox" id="selAll"></th><th>N°</th><th>Identifiant</th><th>Point</th><th>Commune</th><th>Fréquence</th><th>Groupe</th><th>Jours fixes</th><th>Passages / sem.</th><th>Jours planifiés</th><th>Ce jour</th></tr>`;
   tb.innerHTML=rows.map(p=>{
-    const gs=groupsFor(p.freq);
+    const gs=groupsFor(p.freq), noDays=p.freq==='demande'||p.freq==='inactif';
     const grp=p.freq==='demande'?`<label style="margin:0;color:#222"><input type="checkbox" data-dem="${p.idx}" ${p.dem?'checked':''}> à collecter</label>`
       :gs.length?`<select data-grp="${p.idx}">${gs.map(g=>`<option ${g===p.grp?'selected':''}>${g}</option>`).join('')}</select>`:'–';
+    const chips=noDays?'–':`<span class="dchips">${JOURS.map((j,d)=>`<span class="dchip ${p.jours.includes(d)?'on':''}" data-day="${p.idx}:${d}" title="${JOURS_L[d]}">${j}</span>`).join('')}</span>`;
+    const nps=noDays?'–':p.jours.length?`${p.jours.length} (jours fixes)`:`<select data-nps="${p.idx}">${[1,2,3,4,5].map(n=>`<option ${n===p.nps?'selected':''}>${n}</option>`).join('')}</select>`;
+    const auto=noDays||p.jours.length?'–':p.jauto.length?`<span class="dchips">${p.jauto.map(d=>`<span class="dchip auto" title="${JOURS_L[d]} (choisi par le planning)">${JOURS[d]}</span>`).join('')}</span>`:'<span class="small">à planifier</span>';
     const d=dueToday(p);
     return `<tr><td><input type="checkbox" data-sel="${p.idx}" ${state.freqSel.has(p.idx)?'checked':''}></td><td>${p.idx+1}</td><td>${esc(F.id?p.props[F.id]:'')}</td><td>${esc(label(p))}</td><td>${esc(commune(p))}</td>
       <td><select data-freq="${p.idx}">${Object.entries(FREQS).map(([k,v])=>`<option value="${k}" ${k===p.freq?'selected':''}>${v}</option>`).join('')}</select></td>
-      <td>${grp}</td><td class="${d?'yes':'no'}">${p.excluded?'exclu':d?'✓ oui':'non'}</td></tr>`;
+      <td>${grp}</td><td>${chips}</td><td class="nps">${nps}</td><td>${auto}</td><td class="${d?'yes':'no'}">${p.excluded?'exclu':d?'✓ oui':'non'}</td></tr>`;
   }).join('');
+  tb.querySelectorAll('[data-day]').forEach(s=>s.onclick=()=>{const [i,d]=s.dataset.day.split(':').map(Number),p=state.points[i];
+    p.jours=p.jours.includes(d)?p.jours.filter(x=>x!==d):[...p.jours,d].sort((a,b)=>a-b);p.jauto=[];saveFreq(p);freqChanged();});
+  tb.querySelectorAll('[data-nps]').forEach(s=>s.onchange=()=>{const p=state.points[+s.dataset.nps];p.nps=+s.value;p.jauto=[];saveFreq(p);freqChanged();});
   tb.querySelectorAll('[data-freq]').forEach(s=>s.onchange=()=>{const p=state.points[+s.dataset.freq];p.freq=s.value;p.grp=groupsFor(p.freq)[0]||'';saveFreq(p);freqChanged();});
   tb.querySelectorAll('[data-grp]').forEach(s=>s.onchange=()=>{const p=state.points[+s.dataset.grp];p.grp=s.value;saveFreq(p);freqChanged();});
   tb.querySelectorAll('[data-dem]').forEach(s=>s.onchange=()=>{const p=state.points[+s.dataset.dem];p.dem=s.checked;saveFreq(p);freqChanged();});
@@ -733,9 +971,22 @@ function renderFreqTable(){
   $('selAll').onchange=e=>{rows.forEach(p=>e.target.checked?state.freqSel.add(p.idx):state.freqSel.delete(p.idx));renderFreqTable();};
   // compteurs
   const cnt={};state.points.forEach(p=>{const k=FREQS[p.freq]+(p.grp?' '+p.grp:'');cnt[k]=(cnt[k]||0)+1;});
-  $('freqCount').innerHTML=Object.entries(cnt).map(([k,v])=>`<span>${esc(k)} : <b>${v}</b></span>`).join('')+`<span>À collecter le ${new Date(dateStr()+'T12:00').toLocaleDateString('fr-FR')} : <b>${state.points.filter(inPlay).length}</b></span>`;
+  const act=state.points.filter(p=>p.freq!=='demande'&&p.freq!=='inactif');
+  const nFix=act.filter(p=>p.jours.length).length, nMulti=act.filter(p=>(p.jours.length||p.nps)>1).length, nPl=act.filter(p=>!p.jours.length&&p.jauto.length).length;
+  $('freqCount').innerHTML=Object.entries(cnt).map(([k,v])=>`<span>${esc(k)} : <b>${v}</b></span>`).join('')
+    +`<span>Jours fixes : <b>${nFix}</b></span><span>Plusieurs passages/sem. : <b>${nMulti}</b></span><span>Jours planifiés : <b>${nPl}</b></span>`
+    +`<span>À collecter le ${new Date(dateStr()+'T12:00').toLocaleDateString('fr-FR')} : <b>${state.points.filter(inPlay).length}</b></span>`;
 }
-function freqChanged(){clearRoute();drawPoints();updDue();renderFreqTable();}
+function freqChanged(){clearRoute();drawPoints();updDue();renderFreqTable();markPlanStale();}
+// jours fixes / passages pour la sélection
+$('bDays').innerHTML=JOURS.map((j,d)=>`<span class="dchip" data-bd="${d}" title="${JOURS_L[d]}">${j}</span>`).join('');
+$('bDays').querySelectorAll('[data-bd]').forEach(s=>s.onclick=()=>{const d=+s.dataset.bd;state.bDays.has(d)?state.bDays.delete(d):state.bDays.add(d);s.classList.toggle('on',state.bDays.has(d));});
+$('bApplyDays').onclick=()=>{
+  const sel=state.points.filter(p=>state.freqSel.has(p.idx)); if(!sel.length){alert('Cocher au moins un point dans le tableau.');return;}
+  const js=[...state.bDays].sort((a,b)=>a-b), n=+$('bNps').value||1;
+  sel.forEach(p=>{p.jours=js.slice();if(!js.length)p.nps=n;p.jauto=[];saveFreq(p);});
+  freqChanged();
+};
 $('qFilter').oninput=renderFreqTable; $('qCommune').onchange=renderFreqTable;
 $('bApply').onclick=()=>{
   const sel=state.points.filter(p=>state.freqSel.has(p.idx)); if(!sel.length){alert('Cocher au moins un point dans le tableau.');return;}
@@ -758,7 +1009,7 @@ $('bAuto').onclick=()=>{
 };
 
 /* --- Paramètres : plusieurs tournées --- */
-const P={mode:'single',K:2,maxH:3.5,names:[],zoom:true,zoomMin:2,zoomLabels:true};
+const P={mode:'single',K:2,maxH:3.5,names:[],zoom:true,zoomMin:2,zoomLabels:true,wdays:[0,1,2,3,4],minGap:2,pickGrp:true};
 try{Object.assign(P,JSON.parse(store.get('tournee_params')||'{}'));}catch(e){}
 function saveParams(){store.set('tournee_params',JSON.stringify(P));}
 function renderNames(){
@@ -771,7 +1022,14 @@ function renderNames(){
 }
 document.querySelectorAll('input[name=mmode]').forEach(r=>{r.checked=r.value===P.mode;r.onchange=()=>{P.mode=r.value;saveParams();renderNames();clearRoute();};});
 $('mK').value=P.K; $('mK').onchange=()=>{P.K=Math.max(2,Math.min(10,+$('mK').value||2));$('mK').value=P.K;saveParams();renderNames();clearRoute();};
-$('mMax').value=P.maxH; $('mMax').onchange=()=>{P.maxH=Math.max(0.5,+$('mMax').value||3.5);saveParams();renderNames();clearRoute();};
+$('mMax').value=P.maxH; $('mMax').onchange=()=>{P.maxH=Math.max(0.5,+$('mMax').value||3.5);$('mMax').value=$('plMaxH').value=P.maxH;saveParams();renderNames();clearRoute();markPlanStale();};
+// réglages du planning (la durée maxi est la même que « Autant que nécessaire, durée maxi par tournée »)
+$('plMaxH').value=P.maxH; $('plMaxH').onchange=()=>{P.maxH=Math.max(0.5,+$('plMaxH').value||3.5);$('mMax').value=$('plMaxH').value=P.maxH;saveParams();renderNames();clearRoute();markPlanStale();};
+$('plGap').value=P.minGap; $('plGap').onchange=()=>{P.minGap=Math.max(1,Math.min(6,Math.round(+$('plGap').value||2)));$('plGap').value=P.minGap;saveParams();markPlanStale();};
+$('plGrp').checked=P.pickGrp; $('plGrp').onchange=()=>{P.pickGrp=$('plGrp').checked;saveParams();markPlanStale();};
+$('wdays').innerHTML=JOURS_L.slice(0,6).map((j,d)=>`<label><input type="checkbox" data-wd="${d}" ${P.wdays.includes(d)?'checked':''}> ${j}</label>`).join('');
+$('wdays').querySelectorAll('[data-wd]').forEach(c=>c.onchange=()=>{P.wdays=[...$('wdays').querySelectorAll('[data-wd]:checked')].map(x=>+x.dataset.wd);saveParams();markPlanStale();});
+$('svc').onchange=()=>{clearRoute();markPlanStale();};
 $('pZoom').checked=P.zoom; $('pZoom').onchange=()=>{P.zoom=$('pZoom').checked;saveParams();};
 $('pZoomMin').value=P.zoomMin; $('pZoomMin').onchange=()=>{P.zoomMin=Math.max(1,+$('pZoomMin').value||1);saveParams();};
 $('pLabels').checked=P.zoomLabels; $('pLabels').onchange=()=>{P.zoomLabels=$('pLabels').checked;saveParams();};
@@ -851,7 +1109,7 @@ async function run(){
   try{
     let mat;
     if(bird){ const d=locs.map(a=>locs.map(b=>haversine(a,b)*1.3)); mat={dist:d,dur:d.map(r=>r.map(v=>v/(30/3.6)))}; }
-    else mat=await getMatrix(locs,key,progress);
+    else mat=cachedMatrix(locs)||await getMatrix(locs,key,progress);
     progress('Recherche du meilleur ordre de passage…'); await sleep(30);
     const M=$('metric').value==='distance'?mat.dist:mat.dur;
     const svc=(+$('svc').value||0)*60;
@@ -936,6 +1194,176 @@ function renderStats(){
   $('sEnd').textContent=ts.length===1?`Départ ${$('hDep').value} → arrivée exutoire vers ${ts[0].arrive}`:ts.length?`${ts.length} tournées · la plus longue : ${fmtDur(Math.max(...ts.map(t=>t.total)))}`:'';
 }
 
+/* --- Planning semaine --- */
+// Matrice gardée en mémoire après le calcul du planning : les tournées du jour la réutilisent sans rappeler l'API.
+const ckey=c=>c[0].toFixed(6)+','+c[1].toFixed(6);
+function cachedMatrix(locs){
+  const c=state.mcache; if(!c) return null;
+  const ix=locs.map(l=>c.key2i.get(ckey(l))); if(ix.some(i=>i===undefined)) return null;
+  return {dur:ix.map(a=>ix.map(b=>c.dur[a][b])),dist:ix.map(a=>ix.map(b=>c.dist[a][b]))};
+}
+function cacheMatrix(locs,mat){const key2i=new Map();locs.forEach((l,i)=>{if(!key2i.has(ckey(l)))key2i.set(ckey(l),i);});state.mcache={key2i,dur:mat.dur,dist:mat.dist};}
+function markPlanStale(){if(state.plan) state.plan.stale=true; if($('plan').classList.contains('active')) renderPlan();}
+const weekLabel=(w,L)=>L===1?'Chaque semaine':L===2?`Semaine ${phaseInfo(w).ab}`:`Semaine ${phaseInfo(w).s} (${phaseInfo(w).ab})`;
+const f1=v=>Number.isInteger(v)?String(v):v.toFixed(1).replace('.',',');
+
+$('btnPlan').onclick=runPlan;
+async function runPlan(){
+  const msg=$('planMsg'), fail=t=>{msg.innerHTML=`<div class="err">${esc(t)}</div>`;};
+  const key=$('apikey').value.trim(), bird=$('volOiseau').checked, same=$('sameEnd').checked;
+  if(!state.points.length) return fail('Charger d\'abord un fichier de points (onglet Tournée).');
+  if(!state.dep) return fail('Placer le point de départ (onglet Tournée).');
+  if(!same&&!state.exu) return fail('Placer l\'exutoire, ou cocher « Exutoire = départ » (onglet Tournée).');
+  if(!bird&&!key) return fail('Coller une clé openrouteservice, ou cocher l\'aperçu à vol d\'oiseau (onglet Tournée).');
+  const wd=[...P.wdays].sort((a,b)=>a-b); if(!wd.length) return fail('Cocher au moins un jour travaillé.');
+  const pts=state.points.filter(p=>!p.excluded&&p.freq!=='demande'&&p.freq!=='inactif');
+  if(!pts.length) return fail('Aucun point à planifier (tous à la demande, inactifs ou exclus).');
+  const L=pts.some(p=>p.freq==='4sem')?4:pts.some(p=>p.freq==='2sem')?2:1;
+  const end=same?state.dep:state.exu;
+  const locs=[[state.dep.lng,state.dep.lat],...pts.map(p=>p.coord),[end.lng,end.lat]];
+  if(!bird&&locs.length>3500) return fail('Trop de points pour la matrice openrouteservice (3 500 maximum).');
+  if(!bird) store.set('tournee_key',key);
+  const btn=$('btnPlan'); btn.disabled=true;
+  const progress=t=>msg.innerHTML=`<div class="ok">${esc(t)}</div>`;
+  try{
+    let mat;
+    if(bird){const d=locs.map(a=>locs.map(b=>haversine(a,b)*1.3));mat={dist:d,dur:d.map(r=>r.map(v=>v/(30/3.6)))};}
+    else {
+      mat=cachedMatrix(locs);
+      if(!mat){const nReq=Math.ceil(locs.length/Math.max(1,Math.floor(3500/locs.length)));
+        progress(`Matrice des temps de trajet poids lourd : ${nReq} requête(s), environ ${Math.ceil(nReq*1.8)} s…`);
+        mat=await getMatrix(locs,key,progress); cacheMatrix(locs,mat);}
+    }
+    const svc=(+$('svc').value||0)*60, cap=P.maxH*3600, M=mat.dur, E=M.length-1;
+    const warns=[], extra=new Set();
+    const items=pts.map((p,k)=>{
+      const gs=groupsFor(p.freq), weeksOf=g=>[...Array(L).keys()].filter(w=>dueInWeek(p.freq,g,phaseInfo(w)));
+      const wopts=gs.length&&P.pickGrp?gs.map(g=>({g,weeks:weeksOf(g)})):[{g:p.grp||'',weeks:weeksOf(p.grp)}];
+      let dopts;
+      if(p.jours.length){dopts=[p.jours.slice()];p.jours.forEach(d=>{if(!wd.includes(d))extra.add(d);});}
+      else dopts=dayCombos(wd,p.nps,P.minGap);
+      return {node:k+1,p,wopts,dopts};
+    });
+    if(extra.size) warns.push(`Des points ont un jour fixe non travaillé (${[...extra].map(d=>JOURS_L[d]).join(', ')}) : ce jour est ajouté au planning.`);
+    const tooMany=pts.filter(p=>!p.jours.length&&p.nps>wd.length).length;
+    if(tooMany) warns.push(`${tooMany} point(s) demandent plus de passages que de jours travaillés : limités à ${wd.length} par semaine.`);
+    const big=pts.filter((p,k)=>M[0][k+1]+M[k+1][E]+svc>cap);
+    if(big.length) warns.push(`${big.length} point(s) demandent à eux seuls plus de ${f1(P.maxH)} h aller-retour (${big.slice(0,5).map(label).map(esc).join(', ')}${big.length>5?'…':''}) : leurs tournées dépasseront la durée maxi.`);
+    const tight=pts.filter(p=>!p.jours.length&&p.nps>1&&dayCombos(wd,p.nps,7).length&&dayCombos(wd,p.nps,P.minGap).every(c=>{let m=7;for(let i=0;i<c.length;i++){const b=i+1<c.length?c[i+1]:c[0]+7;m=Math.min(m,b-c[i]);}return m<P.minGap;})).length;
+    if(tight) warns.push(`${tight} point(s) ont trop de passages pour respecter un écart de ${P.minGap} jours : jours les plus espacés possible.`);
+
+    progress('Répartition des points sur les jours de la semaine…'); await sleep(30);
+    const r=planAssign(M,items,{L,svc,maxSec:cap,timeMs:Math.min(15000,1500+pts.length*25)});
+    items.forEach((it,k)=>{const o=r.asg[k]; if(!o) return; const p=it.p;
+      if(groupsFor(p.freq).length&&P.pickGrp) p.grp=it.wopts[o.wi].g;
+      p.jauto=p.jours.length?[]:it.dopts[o.di].slice(); saveFreq(p);});
+    // découpage final de chaque journée (même calcul que l'onglet Tournée, gardé s'il fait moins de tournées)
+    const days=[...new Set([...wd,...extra])].sort((a,b)=>a-b), cells=[];
+    for(let w=0;w<L;w++){
+      cells.push({});
+      for(const d of days){
+        const ts=r.routes[w][d]; if(!ts.length){cells[w][d]=null;continue;}
+        progress(`Découpage en tournées : ${weekLabel(w,L)}, ${JOURS_L[d].toLowerCase()}…`); await sleep(0);
+        let tours=ts.map(t=>t.seq.length>2?subTSP(M,t.seq,E,120):t.seq.slice());
+        if(tours.length>1){
+          const nodes=tours.flat(), idx=[0,...nodes,E], sub=idx.map(a=>idx.map(b=>M[a][b]));
+          const alt=planToursMaxDur(sub,svc,cap,{timeMs:Math.min(1500,200+nodes.length*15),subMs:80,kMax:tours.length-1});
+          if(alt&&alt.ok) tours=alt.tours.map(t=>t.map(k=>idx[k]));
+        }
+        const tt=tours.map(seq=>({pts:seq.map(n=>pts[n-1].idx),dur:tourCost(M,seq,svc,E),km:pathCost(mat.dist,[0,...seq,E])/1000})).sort((a,b)=>b.dur-a.dur);
+        cells[w][d]={tours:tt,n:seq0(tt),dur:tt.reduce((a,t)=>a+t.dur,0)};
+      }
+    }
+    const ign={demande:state.points.filter(p=>p.freq==='demande').length,inactif:state.points.filter(p=>p.freq==='inactif').length,exclu:state.points.filter(p=>p.excluded&&p.freq!=='demande'&&p.freq!=='inactif').length};
+    state.plan={L,days,cells,cap,maxH:P.maxH,real:!bird,stale:false,warns,ign,nPts:pts.length,nFix:pts.filter(p=>p.jours.length).length,passes:r.passes};
+    clearRoute(); renderPlan(); updDue(); renderFreqTable();
+    msg.innerHTML=`<div class="ok">Planning calculé${bird?' à vol d\'oiseau (estimation grossière : préférer la clé openrouteservice)':' sur le réseau poids lourd'}. Jours et semaines enregistrés pour chaque point : l'onglet Tournée ne prend plus que les points prévus le jour choisi.</div>`;
+  }catch(e){ fail(e.message||String(e)); console.error(e); }
+  finally{ btn.disabled=false; }
+}
+const seq0=tt=>tt.reduce((a,t)=>a+t.pts.length,0);
+
+function planWeeks(pl){
+  return [...Array(pl.L).keys()].map(w=>{let T=0,H=0,V=0,mx=0;pl.days.forEach(d=>{const c=pl.cells[w][d];if(c){T+=c.tours.length;H+=c.dur;V+=c.n;mx=Math.max(mx,c.tours.length);}});return {w,T,H,V,mx,floor:Math.ceil(H/pl.cap-1e-9)};});
+}
+function renderPlan(){
+  const el=$('planRes'), pl=state.plan;
+  $('btnPlanCsv').disabled=!pl;
+  if(!pl){el.innerHTML='<div class="small">Charger les points, placer le départ et l\'exutoire (onglet Tournée), régler les jours dans Paramètres, puis lancer le calcul.</div>';return;}
+  const wk=planWeeks(pl), L=pl.L, mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  const Ts=wk.map(x=>x.T), tMin=Math.min(...Ts), tMax=Math.max(...Ts), avg=mean(Ts);
+  const trucks=Math.max(...wk.map(x=>x.mx)), hAvg=mean(wk.map(x=>x.H)), vAvg=mean(wk.map(x=>x.V)), flAvg=mean(wk.map(x=>x.floor));
+  const fill=avg?hAvg/(avg*pl.cap):0;
+  let h='';
+  if(pl.stale) h+='<div class="warn">Des réglages ont changé depuis ce calcul (jours, fréquences, départ, durée…) : relancer le calcul pour mettre à jour.</div>';
+  h+=`<p class="headline">${tMin===tMax?`<b>${tMin}</b> tournée${tMin>1?'s':''} par semaine`:`<b>${tMin} à ${tMax}</b> tournées par semaine selon la semaine du cycle (<b>${f1(Math.round(avg*10)/10)}</b> en moyenne)`}</p>`;
+  h+=`<div class="small">Sur ${pl.days.length} jours (${pl.days.map(d=>JOURS[d]).join(', ')}), tournées de ${f1(pl.maxH)} h maxi, au plus <b>${trucks}</b> tournée${trucks>1?'s':''} le même jour, donc ${trucks} camion${trucks>1?'s':''} ou équipage${trucks>1?'s':''} si elles roulent en même temps.${L>1?` Cycle de ${L} semaines.`:''}</div>`;
+  h+=`<div class="kpi">
+    <div><b>${tMin===tMax?tMin:tMin+'–'+tMax}</b><span>tournées / semaine</span></div>
+    <div><b>${trucks}</b><span>tournées maxi le même jour</span></div>
+    <div><b>${fmtDur(hAvg)}</b><span>de collecte / semaine${L>1?' (moyenne)':''}</span></div>
+    <div><b>${Math.round(fill*100)} %</b><span>remplissage moyen des tournées</span></div>
+    <div><b>${f1(Math.round(vAvg*10)/10)}</b><span>passages / semaine</span></div>
+    <div><b>${f1(Math.round(flAvg*10)/10)}</b><span>plancher théorique (tournées pleines)</span></div>
+  </div>`;
+  // grille jours x semaines
+  h+='<div id="planGrid"><table class="plangrid"><thead><tr><th></th>'+wk.map(x=>`<th>${weekLabel(x.w,L)}</th>`).join('')+'</tr></thead><tbody>';
+  pl.days.forEach(d=>{
+    h+=`<tr><th>${JOURS_L[d]}</th>`+wk.map(({w})=>{
+      const c=pl.cells[w][d]; if(!c) return '<td class="k0">–</td>';
+      const K=c.tours.length, over=c.tours.some(t=>t.dur>pl.cap+60);
+      return `<td class="k${Math.min(4,K)}${over?' over':''}"${over?' title="Une tournée dépasse la durée maxi"':''}><b>${K} tournée${K>1?'s':''}</b> · ${c.n} pts`
+        +c.tours.map((t,i)=>`<div class="tl"><span class="chip" style="background:${COLORS[i%COLORS.length]}"></span>${fmtDur(t.dur)} · ${t.pts.length} pts · ${f1(Math.round(t.km))} km</div>`).join('')
+        +`<button data-go="${w}:${d}">Voir ce jour</button></td>`;
+    }).join('')+'</tr>';
+  });
+  h+='<tr class="tot"><th>Semaine</th>'+wk.map(x=>`<td><b>${x.T} tournée${x.T>1?'s':''}</b><br><span class="small">${x.V} passages · ${fmtDur(x.H)}<br>plancher ${x.floor} · ${x.mx} maxi le même jour</span></td>`).join('')+'</tr>';
+  h+='</tbody></table></div>';
+  h+=`<div class="small" style="margin-top:8px">${pl.nPts} point(s) planifiés, dont ${pl.nFix} à jours fixes. Non planifiés : ${pl.ign.demande} à la demande, ${pl.ign.inactif} inactif(s), ${pl.ign.exclu} exclu(s) à la main.
+    Durées ${pl.real?'issues de la matrice poids lourd openrouteservice':'estimées à vol d\'oiseau (×1,3 à 30 km/h)'}, arrêts compris. « Voir ce jour » règle la date dans l'onglet Tournée pour calculer le tracé détaillé.</div>`;
+  pl.warns.forEach(w=>h+=`<div class="warn">${esc(w)}</div>`);
+  el.innerHTML=h;
+  el.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const [w,d]=b.dataset.go.split(':').map(Number);goToPlanDay(w,d);});
+}
+function goToPlanDay(w,d){
+  const pl=state.plan, now=new Date(); let ds=null;
+  for(let k=0;k<7*(pl.L+1)&&!ds;k++){const s=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()+k)).toISOString().slice(0,10);
+    if(dayIndex(s)===d&&(((weekIndex(s)%pl.L)+pl.L)%pl.L)===w) ds=s;}
+  if(!ds) return;
+  $('hDate').value=ds; $('applyFreq').checked=true;
+  const c=pl.cells[w][d], K=c?c.tours.length:1;
+  let note='';
+  if(K>1&&P.mode==='single'){P.mode='max';saveParams();document.querySelectorAll('input[name=mmode]').forEach(r=>r.checked=r.value==='max');renderNames();note=' Répartition passée en « autant que nécessaire, durée maxi » (onglet Paramètres).';}
+  updDue(); clearRoute(); renderFreqTable();
+  document.querySelector('nav.tabs button[data-v="app"]').click();
+  $('runMsg').innerHTML=`<div class="ok">Date réglée au ${new Date(ds+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} (${weekLabel(w,pl.L)}) : ${state.points.filter(inPlay).length} point(s) à collecter, ${K} tournée(s) prévue(s) au planning. Cliquer sur « Calculer la tournée ».${note}</div>`;
+}
+$('btnPlanClear').onclick=()=>{
+  const n=state.points.filter(p=>p.jauto.length).length;
+  if(!n&&!state.plan){alert('Aucun jour planifié à effacer.');return;}
+  if(n&&!confirm(`Effacer les jours planifiés de ${n} point(s) ? Les jours fixes, fréquences et groupes sont conservés.`)) return;
+  state.points.forEach(p=>{if(p.jauto.length){p.jauto=[];saveFreq(p);}});
+  state.plan=null; $('planMsg').innerHTML=''; freqChanged(); renderPlan();
+};
+$('btnPlanCsv').onclick=()=>{
+  const pl=state.plan; if(!pl) return;
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"', n=v=>String(v).replace('.',',');
+  const where=new Map();
+  for(let w=0;w<pl.L;w++) pl.days.forEach(d=>{const c=pl.cells[w][d]; if(c) c.tours.forEach((t,ti)=>t.pts.forEach(i=>{if(!where.has(i))where.set(i,[]);where.get(i).push({w,d,ti});}));});
+  const wl=w=>weekLabel(w,pl.L);
+  const lines=[['Identifiant','Point','Commune','Fréquence','Groupe','Jours fixes','Passages / sem.','Jours planifiés',...[...Array(pl.L).keys()].map(wl)].map(q).join(';')];
+  state.points.filter(p=>where.has(p.idx)).forEach(p=>{
+    const per=[...Array(pl.L).keys()].map(w=>where.get(p.idx).filter(x=>x.w===w).sort((a,b)=>a.d-b.d).map(x=>`${JOURS_L[x.d]} T${x.ti+1}`).join(', '));
+    lines.push([F.id?p.props[F.id]:'',label(p),commune(p),FREQS[p.freq],p.grp,joursTxt(p.jours),p.jours.length||p.nps,joursTxt(p.jauto),...per].map(q).join(';'));
+  });
+  lines.push('');
+  lines.push(['Semaine','Jour','Tournée','Points','Durée (min)','Km'].map(q).join(';'));
+  for(let w=0;w<pl.L;w++) pl.days.forEach(d=>{const c=pl.cells[w][d]; if(c) c.tours.forEach((t,ti)=>lines.push([wl(w),JOURS_L[d],'T'+(ti+1),t.pts.length,Math.round(t.dur/60),n(t.km.toFixed(1))].map(q).join(';')));});
+  lines.push('');
+  planWeeks(pl).forEach(x=>lines.push([q(wl(x.w)+' – total'),'',q(x.T+' tournées'),x.V,Math.round(x.H/60),''].join(';')));
+  download((state.fileName||'tournee')+'_planning.csv','﻿'+lines.join('\r\n'),'text/csv;charset=utf-8');
+};
+
 /* --- Fiche de tournée (tableau) --- */
 function rowsData(){
   const multi=state.res&&state.res.tours.length>1;
@@ -973,12 +1401,12 @@ function download(name,content,type){const b=content instanceof Blob?content:new
 const base=()=>(state.fileName||'tournee')+'_'+(state.res?state.res.date:dateStr());
 $('exCsv').onclick=()=>{
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"', n=v=>String(v).replace('.',',');
-  const lines=[['Tournée','Ordre','Point','Commune','Passage estimé','Tronçon (km)','Trajet (min)','Cumul (km)','Fréquence','Groupe','Longitude','Latitude'].join(';')];
+  const lines=[['Tournée','Ordre','Point','Commune','Passage estimé','Tronçon (km)','Trajet (min)','Cumul (km)','Fréquence','Groupe','Jours','Longitude','Latitude'].join(';')];
   visTours().forEach(t=>{
-    lines.push([t.name,'D','Départ','',$('hDep').value,'','','0','','',t.coords[0][0].toFixed(6),t.coords[0][1].toFixed(6)].map(q).join(';'));
-    t.stops.forEach((s,i)=>lines.push([t.name,i+1,label(s.p),commune(s.p),s.heure,n((s.dist/1000).toFixed(2)),Math.round(s.dur/60),n((s.cumDist/1000).toFixed(1)),FREQS[s.p.freq],s.p.grp,s.p.coord[0].toFixed(6),s.p.coord[1].toFixed(6)].map(q).join(';')));
+    lines.push([t.name,'D','Départ','',$('hDep').value,'','','0','','','',t.coords[0][0].toFixed(6),t.coords[0][1].toFixed(6)].map(q).join(';'));
+    t.stops.forEach((s,i)=>lines.push([t.name,i+1,label(s.p),commune(s.p),s.heure,n((s.dist/1000).toFixed(2)),Math.round(s.dur/60),n((s.cumDist/1000).toFixed(1)),FREQS[s.p.freq],s.p.grp,joursTxt(effDays(s.p)||[]),s.p.coord[0].toFixed(6),s.p.coord[1].toFixed(6)].map(q).join(';')));
     const e=t.coords[t.coords.length-1];
-    lines.push([t.name,'E','Exutoire','',t.arrive,n((t.last.dist/1000).toFixed(2)),Math.round(t.last.dur/60),n((t.km/1000).toFixed(1)),'','',e[0].toFixed(6),e[1].toFixed(6)].map(q).join(';'));
+    lines.push([t.name,'E','Exutoire','',t.arrive,n((t.last.dist/1000).toFixed(2)),Math.round(t.last.dur/60),n((t.km/1000).toFixed(1)),'','','',e[0].toFixed(6),e[1].toFixed(6)].map(q).join(';'));
     lines.push([q(t.name+' – total'),'','','',q('Durée totale '+fmtDur(t.total)),'',q('Conduite '+fmtDur(t.drive)),n((t.km/1000).toFixed(1))].join(';'));lines.push('');
   });
   download(base()+'.csv','﻿'+lines.join('\r\n'),'text/csv;charset=utf-8');
@@ -986,7 +1414,7 @@ $('exCsv').onclick=()=>{
 $('exGeo').onclick=()=>{
   const r=state.res, feats=[];
   state.points.forEach(p=>{
-    const si=stopInfo(p), pr={...p.props,_frequence:p.freq,_groupe:p.grp||null};
+    const si=stopInfo(p), pr={...p.props,_frequence:p.freq,_groupe:p.grp||null,_jours:p.jours.length?joursTxt(p.jours):null,_passages_sem:p.jours.length||p.nps,_jours_planifies:p.jauto.length?joursTxt(p.jauto):null};
     if(si){Object.assign(pr,{_tournee:si.t.name,_ordre:si.n,_passage:si.s.heure,_troncon_km:+(si.s.dist/1000).toFixed(3),_trajet_min:Math.round(si.s.dur/60),_cumul_km:+(si.s.cumDist/1000).toFixed(2)});}
     else Object.assign(pr,{_tournee:null,_ordre:null,_exclu:p.excluded||undefined});
     feats.push({type:'Feature',geometry:{type:'Point',coordinates:p.coord},properties:pr});
