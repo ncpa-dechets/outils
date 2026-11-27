@@ -1860,16 +1860,56 @@ function construireColonne() {
   marquer();
 }
 
+// Personnage de 1,75 m aux proportions moyennes d'un adulte (unités : m, face vers +z)
 function placerSilhouette() {
-  if (silhouette) { scene.remove(silhouette); silhouette = null; }
+  if (silhouette) {
+    scene.remove(silhouette);
+    silhouette.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    silhouette = null;
+  }
   if (!state.silhouette) return;
-  const m = new THREE.MeshStandardMaterial({color: 0x9aa39a, roughness: .9});
+  const mat = c => new THREE.MeshStandardMaterial({color: c, roughness: .85});
+  const peau = mat(0xc9a78c), haut = mat(0x8f9a84), bas = mat(0x3c424a), chaussure = mat(0x2b2b2d), cheveux = mat(0x3a2e26);
   silhouette = new THREE.Group();
-  const add = (geo, y) => { const o = new THREE.Mesh(geo, m); o.position.y = y; o.castShadow = true; silhouette.add(o); };
-  add(new THREE.CylinderGeometry(.13, .11, .82, 20), .41);
-  add(new THREE.CylinderGeometry(.19, .15, .62, 24), 1.13);
-  add(new THREE.SphereGeometry(.105, 24, 16), 1.645);
-  silhouette.position.set(-(LARG() / 2000 + .55), 0, -.25);
+  const ajouter = (geo, m, pos, echelle) => {
+    const o = new THREE.Mesh(geo, m); o.position.set(...pos); if (echelle) o.scale.set(...echelle);
+    o.castShadow = o.receiveShadow = true; silhouette.add(o); return o;
+  };
+  // segment arrondi de a vers b, rayons répartis le long du segment
+  const segment = (a, b, rayons, m) => {
+    const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), L = A.distanceTo(B), n = rayons.length, pts = [];
+    for (let i = 0; i <= 6; i++) { const t = -Math.PI / 2 + i / 6 * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(t) * rayons[0], Math.sin(t) * rayons[0])); }
+    for (let i = 1; i < n - 1; i++) pts.push(new THREE.Vector2(rayons[i], L * i / (n - 1)));
+    for (let i = 0; i <= 6; i++) { const t = i / 6 * Math.PI / 2; pts.push(new THREE.Vector2(Math.max(Math.cos(t) * rayons[n - 1], 1e-4), L + Math.sin(t) * rayons[n - 1])); }
+    const o = ajouter(new THREE.LatheGeometry(pts, 20), m, a);
+    o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize());
+  };
+  // volume de révolution aplati (bassin, buste) : profil [rayon, hauteur]
+  const tronc = (profil, m, prof) => ajouter(new THREE.LatheGeometry(profil.map(([r, y]) => new THREE.Vector2(Math.max(r, 1e-4), y)), 32), m, [0, 0, 0], [1, 1, prof]);
+  const ellipsoide = (pos, r, m) => ajouter(new THREE.SphereGeometry(1, 24, 16), m, pos, r);
+
+  for (const s of [1, -1]) {
+    // jambes : cuisse, genou, mollet, cheville
+    segment([s * .095, .90, 0], [s * .10, .50, .012], [.088, .082, .068, .054], bas);
+    segment([s * .10, .50, .012], [s * .10, .095, -.005], [.053, .058, .05, .038, .033], bas);
+    ellipsoide([s * .102, .045, .055], [.052, .045, .135], chaussure);
+    // bras : épaule, coude, poignet, main
+    ellipsoide([s * .185, 1.405, 0], [.062, .06, .062], haut);
+    segment([s * .2, 1.4, 0], [s * .235, 1.105, -.012], [.047, .044, .04], haut);
+    segment([s * .235, 1.105, -.012], [s * .245, .845, .03], [.039, .037, .03], haut);
+    ellipsoide([s * .25, .765, .036], [.026, .085, .046], peau);
+    ellipsoide([s * .079, 1.64, .002], [.012, .03, .02], peau);   // oreilles
+  }
+  tronc([[0, .83], [.12, .845], [.172, .92], [.17, .99], [.152, 1.05], [0, 1.06]], bas, .66);
+  tronc([[0, 1.0], [.155, 1.0], [.152, 1.06], [.16, 1.15], [.178, 1.27], [.192, 1.37], [.198, 1.42], [.16, 1.465], [.07, 1.49], [0, 1.495]], haut, .62);
+  segment([0, 1.45, -.005], [0, 1.545, .005], [.054, .05, .048], peau);
+  ellipsoide([0, 1.632, .008], [.078, .112, .1], peau);                                  // tête
+  ellipsoide([0, 1.575, .03], [.06, .055, .07], peau);                                   // mâchoire
+  ellipsoide([0, 1.622, .104], [.012, .022, .016], peau);                                // nez
+  ajouter(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * .52), cheveux, [0, 1.632, .006], [.084, .118, .108])
+    .rotation.x = -.4;                                                                   // chevelure : front dégagé, nuque couverte
+  silhouette.position.set(-(LARG() / 2000 + .5), 0, PROF() / 2000 + .15);              // à côté de l'angle avant gauche, visible en vue 3/4
+  silhouette.rotation.y = .45;                                                           // tournée vers la colonne
   scene.add(silhouette);
 }
 
