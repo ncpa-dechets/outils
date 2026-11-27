@@ -1,0 +1,48 @@
+# Régénère exemples-covering/galerie.json et les vignettes
+# à chaque push qui ajoute, modifie ou retire une photo du dossier.
+name: Galerie covering
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'exemples-covering/**'
+      - '.github/scripts/galerie_covering.py'
+      - '.github/workflows/galerie-covering.yml'
+  workflow_dispatch:        # bouton « Run workflow » dans l'onglet Actions
+
+permissions:
+  contents: write           # pour enregistrer la liste et les vignettes
+
+concurrency:
+  group: galerie-covering
+  cancel-in-progress: false
+
+jobs:
+  galerie:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer Pillow
+        run: pip install "Pillow>=11"
+
+      - name: Mettre à jour la galerie
+        run: python .github/scripts/galerie_covering.py
+
+      - name: Enregistrer les changements
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A exemples-covering/galerie.json exemples-covering/vignettes
+          if git diff --cached --quiet; then
+            echo "Galerie déjà à jour."
+            exit 0
+          fi
+          git commit -m "Galerie covering : mise à jour automatique"
+          git pull --rebase origin main
+          git push origin HEAD:main

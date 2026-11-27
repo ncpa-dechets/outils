@@ -1,0 +1,235 @@
+{
+  "_aide": "Liste mise à jour automatiquement à chaque push. Vous pouvez modifier « titre », « credit » et « description » (et l'ordre des photos) : ces valeurs ne sont jamais écrasées.",
+  "photos": [
+    {
+      "fichier": "Dunes_de_sables_et_oyats-Eyes_of_GD_-__Normandie_Pays_d_Auge-51389.JPG",
+      "titre": "Dunes de sables et oyats",
+      "credit": "Eyes of GD / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Dunes_de_sables_et_oyats-Eyes_of_GD_-__Normandie_Pays_d_Auge-51389.jpg",
+      "largeur": 5822,
+      "hauteur": 3881,
+      "empreinte": "9c5d0cbe5700"
+    },
+    {
+      "fichier": "Dunes_et_oyats_sur_la_plage-Normandie_Pays_d_Auge-44719.JPG",
+      "titre": "Dunes et oyats sur la plage",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Dunes_et_oyats_sur_la_plage-Normandie_Pays_d_Auge-44719.jpg",
+      "largeur": 5927,
+      "hauteur": 3951,
+      "empreinte": "8932c70f447f"
+    },
+    {
+      "fichier": "Dunes_sur_la_plage-Normandie_Pays_d_Auge-44716.JPG",
+      "titre": "Dunes sur la plage",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Dunes_sur_la_plage-Normandie_Pays_d_Auge-44716.jpg",
+      "largeur": 6000,
+      "hauteur": 4000,
+      "empreinte": "bb9c0fe6d5f6"
+    },
+    {
+      "fichier": "Estuaire_de_l_Orne-Eyes_of_GD_-__Normandie_Pays_d_Auge-41462.JPG",
+      "titre": "Estuaire de l'Orne",
+      "credit": "Eyes of GD / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Estuaire_de_l_Orne-Eyes_of_GD_-__Normandie_Pays_d_Auge-41462.jpg",
+      "largeur": 7943,
+      "hauteur": 5592,
+      "empreinte": "9fec0f19ddc9"
+    },
+    {
+      "fichier": "Famille_qui_se_balade-Camille_Plichard_-__Normandie_Pays_d_Auge-35633.JPG",
+      "titre": "Famille qui se balade",
+      "credit": "Camille Plichard / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Famille_qui_se_balade-Camille_Plichard_-__Normandie_Pays_d_Auge-35633.jpg",
+      "largeur": 6612,
+      "hauteur": 4408,
+      "empreinte": "f02e37292e8f"
+    },
+    {
+      "fichier": "Grandes_marees-Normandie_Pays_d_Auge-44388.JPG",
+      "titre": "Grandes marées",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Grandes_marees-Normandie_Pays_d_Auge-44388.jpg",
+      "largeur": 8064,
+      "hauteur": 6048,
+      "empreinte": "f2eee8b23a06"
+    },
+    {
+      "fichier": "Grandes_marees-Normandie_Pays_d_Auge-44390.JPG",
+      "titre": "Grandes marées (2)",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Grandes_marees-Normandie_Pays_d_Auge-44390.jpg",
+      "largeur": 8064,
+      "hauteur": 6048,
+      "empreinte": "85291d8e7367"
+    },
+    {
+      "fichier": "Houlgate-Eyes_of_GD_-__Normandie_Pays_d_Auge-41450.JPG",
+      "titre": "Houlgate",
+      "credit": "Eyes of GD / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Houlgate-Eyes_of_GD_-__Normandie_Pays_d_Auge-41450.jpg",
+      "largeur": 7914,
+      "hauteur": 5936,
+      "empreinte": "2f3053a3a7b7"
+    },
+    {
+      "fichier": "Les_marais-Eyes_of_GD_-__Normandie_Pays_d_Auge-41456.JPG",
+      "titre": "Les marais",
+      "credit": "Eyes of GD / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Les_marais-Eyes_of_GD_-__Normandie_Pays_d_Auge-41456.jpg",
+      "largeur": 8043,
+      "hauteur": 6032,
+      "empreinte": "b149f5fe06f0"
+    },
+    {
+      "fichier": "Les_marais-Eyes_of_GD_-__Normandie_Pays_d_Auge-41460.JPG",
+      "titre": "Les marais (2)",
+      "credit": "Eyes of GD / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Les_marais-Eyes_of_GD_-__Normandie_Pays_d_Auge-41460.jpg",
+      "largeur": 8000,
+      "hauteur": 5632,
+      "empreinte": "6d1bacbe8f9a"
+    },
+    {
+      "fichier": "Museau_de_vache_brune-Normandie_Pays_d_Auge-44666.JPG",
+      "titre": "Museau de vache brune",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Museau_de_vache_brune-Normandie_Pays_d_Auge-44666.jpg",
+      "largeur": 6000,
+      "hauteur": 4000,
+      "empreinte": "1116006fc405"
+    },
+    {
+      "fichier": "Normandie_Pays_d_Auge-52365.JPG",
+      "titre": "Jument et poulain au pré",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Normandie_Pays_d_Auge-52365.jpg",
+      "largeur": 5815,
+      "hauteur": 3877,
+      "empreinte": "d85221887b68"
+    },
+    {
+      "fichier": "Normandie_Pays_d_Auge-52367.JPG",
+      "titre": "Jument et poulain au pré (2)",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Normandie_Pays_d_Auge-52367.jpg",
+      "largeur": 5017,
+      "hauteur": 3345,
+      "empreinte": "4c096a9b6a06"
+    },
+    {
+      "fichier": "Normandie_Pays_d_Auge-52373.JPG",
+      "titre": "Jument et poulain au pré (3)",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Normandie_Pays_d_Auge-52373.jpg",
+      "largeur": 6000,
+      "hauteur": 4000,
+      "empreinte": "77dd3a747594"
+    },
+    {
+      "fichier": "Pommiers_en_fleurs-Normandie_Pays_d_Auge-44647.JPG",
+      "titre": "Pommiers en fleurs",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Pommiers_en_fleurs-Normandie_Pays_d_Auge-44647.jpg",
+      "largeur": 5673,
+      "hauteur": 3782,
+      "empreinte": "f75755058109"
+    },
+    {
+      "fichier": "Port_de_plaisance_de_Merville-Franceville-Plage-Eyes_of_GD_-__Normandie_Pays_d_Auge-41471.JPG",
+      "titre": "Port de plaisance de Merville-Franceville-Plage",
+      "credit": "Eyes of GD / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Port_de_plaisance_de_Merville-Franceville-Plage-Eyes_of_GD_-__Normandie_Pays_d_Auge-41471.jpg",
+      "largeur": 7953,
+      "hauteur": 5965,
+      "empreinte": "ae0eacb1c33a"
+    },
+    {
+      "fichier": "Promenade_Roland_Garros-Chloe_Baeyaert_-__Normandie_Pays_d_Auge-39629.JPG",
+      "titre": "Promenade Roland Garros",
+      "credit": "Chloe Baeyaert / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Promenade_Roland_Garros-Chloe_Baeyaert_-__Normandie_Pays_d_Auge-39629.jpg",
+      "largeur": 5791,
+      "hauteur": 3861,
+      "empreinte": "ecdd818f1d3e"
+    },
+    {
+      "fichier": "Table_d_orientation_a_Houlgate-Eyes_of_GD_-__Normandie_Pays_d_Auge-41436.JPG",
+      "titre": "Table d'orientation à Houlgate",
+      "credit": "Eyes of GD / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Table_d_orientation_a_Houlgate-Eyes_of_GD_-__Normandie_Pays_d_Auge-41436.jpg",
+      "largeur": 8064,
+      "hauteur": 6048,
+      "empreinte": "a72795d5bf38"
+    },
+    {
+      "fichier": "Troupeau_de_vaches_blanches-Normandie_Pays_d_Auge-44677.JPG",
+      "titre": "Troupeau de vaches blanches",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Troupeau_de_vaches_blanches-Normandie_Pays_d_Auge-44677.jpg",
+      "largeur": 6000,
+      "hauteur": 4000,
+      "empreinte": "da04f221ff71"
+    },
+    {
+      "fichier": "Vache_noire_et_blanche_sous_les_pommiers-Normandie_Pays_d_Auge-44602.JPG",
+      "titre": "Vache noire et blanche sous les pommiers",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Vache_noire_et_blanche_sous_les_pommiers-Normandie_Pays_d_Auge-44602.jpg",
+      "largeur": 5828,
+      "hauteur": 3885,
+      "empreinte": "2dc23c4b32a4"
+    },
+    {
+      "fichier": "Vaches-Normandie_Pays_d_Auge-50557.JPG",
+      "titre": "Vaches",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Vaches-Normandie_Pays_d_Auge-50557.jpg",
+      "largeur": 6000,
+      "hauteur": 4000,
+      "empreinte": "13c122696b92"
+    },
+    {
+      "fichier": "Vaches_sous_les_pommiers-Normandie_Pays_d_Auge-44628.JPG",
+      "titre": "Vaches sous les pommiers",
+      "credit": "Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Vaches_sous_les_pommiers-Normandie_Pays_d_Auge-44628.jpg",
+      "largeur": 6000,
+      "hauteur": 4000,
+      "empreinte": "26172b8fc44c"
+    },
+    {
+      "fichier": "Vue_aerienne_des_falaises_des_Vaches_Noires-Eyes_of_GD_-__Normandie_Pays_d_Auge-51709.JPG",
+      "titre": "Vue aérienne des falaises des Vaches Noires",
+      "credit": "Eyes of GD / Normandie Pays d'Auge",
+      "description": "",
+      "vignette": "vignettes/Vue_aerienne_des_falaises_des_Vaches_Noires-Eyes_of_GD_-__Normandie_Pays_d_Auge-51709.jpg",
+      "largeur": 3745,
+      "hauteur": 2809,
+      "empreinte": "26db42045210"
+    }
+  ]
+}

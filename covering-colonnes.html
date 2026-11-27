@@ -81,6 +81,15 @@ table.dims td:last-child{text-align:right;white-space:nowrap}
 .alerte.ok{background:#e8f3ea;color:#1f5a2c}.alerte.ko{background:#fbe9ea;color:#7c1218}
 .drop{position:absolute;inset:0;border:3px dashed var(--rouge);background:rgba(185,30,39,.06);display:none;align-items:center;justify-content:center;color:var(--rouge);font-size:18px;font-weight:700;pointer-events:none}
 .v2d.over .drop{display:flex}
+.galerie{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;max-height:204px;overflow-y:auto;padding:2px}
+.galerie:empty{display:none}
+.galerie button{position:relative;aspect-ratio:4/3;border:1px solid var(--bord);border-radius:5px;padding:0;overflow:hidden;background:var(--vert-clair);cursor:pointer;font:inherit;font-size:10.5px;line-height:1.15;color:var(--gris)}
+.galerie button img{display:block;width:100%;height:100%;object-fit:cover}
+.galerie button:hover{border-color:var(--vert);filter:brightness(1.06)}
+.galerie button.on{outline:3px solid var(--rouge);outline-offset:-3px}
+.galerie button.charge img{opacity:.45}
+.galerie button.charge::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border:3px solid rgba(255,255,255,.8);border-top-color:var(--rouge);border-radius:50%;animation:tourne .8s linear infinite}
+@keyframes tourne{to{transform:rotate(360deg)}}
 @media (max-width:860px){
   .layout{grid-template-columns:1fr;height:auto}
   .views{grid-template-rows:none}
@@ -121,7 +130,6 @@ table.dims td:last-child{text-align:right;white-space:nowrap}
   </div>
   <div style="margin-top:6px">
     <button class="btn prim" id="btnCharger">Choisir une photo…</button>
-    <button class="btn" id="btnExemple" title="Image de démonstration générée">Photo d'exemple</button>
     <button class="btn" id="btnRetirer">Retirer</button>
     <input type="file" id="fichier" accept="image/*" hidden>
   </div>
@@ -129,6 +137,10 @@ table.dims td:last-child{text-align:right;white-space:nowrap}
     <button class="btn" id="btnCopieOpp">Copier sur la face opposée</button>
     <button class="btn" id="btnCopieTout">Copier sur les 4 faces</button>
   </div>
+
+  <h2>Photos d'exemple</h2>
+  <div class="galerie" id="galerie"></div>
+  <div class="note" id="galerieNote">Chargement de la galerie…</div>
 
   <h2>Cadrage</h2>
   <div class="row"><label>Zoom</label><input type="range" id="zoom" min="-1.2" max="1.4" step="0.005" value="0"><span class="val" id="zoomVal">100 %</span></div>
@@ -2163,6 +2175,7 @@ function majUI() {
     : `<b>Face ${NOM_FACE[state.faceSel].toLowerCase()}</b> — ${p.nom} (plan ${p.plan})`;
   majZoom(); majResolution();
   $('btnZoneAjout').textContent = `+ Ajouter un emplacement (face ${NOM_FACE[state.faceSel].toLowerCase()})`;
+  majGalerie();
 }
 function majTableDims() {
   const pa = PANNEAUX[state.modele], pl = PANNEAUX.LAT, m = MOD(), K = CONSTRUCTION, o = ORIFICES[FLUX[state.flux].orifice];
@@ -2192,27 +2205,74 @@ async function lireFichier(file) {
   catch (e) { alert('Impossible de lire cette image.'); }
   finally { URL.revokeObjectURL(url); }
 }
-function appliquerImage(img) {
-  const t = cible(); t.img = img; t.place = null; remplir(t, state.mode, state.faceSel); majUI(); marquer();
+function appliquerImage(img, mode = state.mode, face = state.faceSel) {
+  const t = mode === 'pano' ? state.pano : state.faces[face];
+  t.img = img; t.place = null; remplir(t, mode, face); majUI(); marquer();
 }
-function imageExemple() {
-  const c = document.createElement('canvas'); c.width = 6000; c.height = 3000; const g = c.getContext('2d');
-  const ciel = g.createLinearGradient(0, 0, 0, 1800); ciel.addColorStop(0, '#7fb2d6'); ciel.addColorStop(1, '#dcebf2');
-  g.fillStyle = ciel; g.fillRect(0, 0, 6000, 1800);
-  g.fillStyle = '#4f86a6'; g.fillRect(0, 1650, 6000, 380);
-  g.fillStyle = '#e4d3ab'; g.fillRect(0, 2000, 6000, 1000);
-  g.fillStyle = 'rgba(255,255,255,.55)';
-  for (let i = 0; i < 40; i++) { g.fillRect(i * 160, 1990 + Math.sin(i) * 8, 110, 10); }
-  g.fillStyle = '#B1B993'; g.beginPath(); g.moveTo(0, 1660); for (let x = 0; x <= 6000; x += 100) g.lineTo(x, 1520 + Math.sin(x / 520) * 60 + Math.sin(x / 170) * 18); g.lineTo(6000, 1660); g.fill();
-  for (let i = 0; i < 6; i++) { // cabines de plage
-    const x = 700 + i * 820; g.fillStyle = i % 2 ? '#B91E27' : '#ffffff'; g.fillRect(x, 1880, 300, 360);
-    g.fillStyle = '#ffffff'; for (let k = 0; k < 4; k++) if (i % 2) g.fillRect(x + 30 + k * 70, 1880, 30, 360);
-    g.fillStyle = '#5c4033'; g.beginPath(); g.moveTo(x - 30, 1880); g.lineTo(x + 150, 1780); g.lineTo(x + 330, 1880); g.fill();
+
+/* Galerie de photos d'exemple : exemples-covering/galerie.json (vignettes légères,
+   photo pleine définition chargée seulement au clic) */
+const GALERIE = {base: new URL('exemples-covering/', location.href), photos: [], etat: 'attente', msg: '', jeton: 0, cache: new Map()};
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const urlGalerie = chemin => new URL(String(chemin).split('/').map(encodeURIComponent).join('/'), GALERIE.base).href;
+async function initGalerie() {
+  if (location.protocol === 'file:') { GALERIE.etat = 'local'; majGalerie(); return; }
+  try {
+    const r = await fetch(new URL('galerie.json', GALERIE.base), {cache: 'no-cache'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    GALERIE.photos = (Array.isArray(d) ? d : d.photos || []).filter(p => p && p.fichier);
+    GALERIE.etat = GALERIE.photos.length ? 'ok' : 'vide';
+  } catch (e) { GALERIE.photos = []; GALERIE.etat = 'erreur'; console.warn('Galerie indisponible :', e); }
+  construireGalerie(); majGalerie();
+}
+function construireGalerie() {
+  const box = $('galerie'); box.innerHTML = '';
+  for (const p of GALERIE.photos) {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.fichier = p.fichier;
+    b.title = [p.titre || p.fichier, p.credit && '© ' + p.credit, p.description, p.largeur && `${p.largeur} × ${p.hauteur} px`].filter(Boolean).join('\n');
+    b.setAttribute('aria-label', p.titre || p.fichier);
+    const im = new Image(); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+    im.onerror = () => { im.remove(); b.textContent = p.titre || p.fichier; };
+    im.src = urlGalerie(p.vignette || p.fichier);
+    b.appendChild(im);
+    b.onclick = () => appliquerExemple(p, b);
+    box.appendChild(b);
   }
-  g.fillStyle = '#B91E27'; g.font = 'bold 300px Calibri, Arial, sans-serif'; g.textAlign = 'center';
-  g.fillText('Ici, on trie !', 3000, 900);
-  g.fillStyle = '#ffffff'; g.font = '150px Calibri, Arial, sans-serif'; g.fillText('Normandie Cabourg Pays d’Auge', 3000, 1150);
-  return {el: c, wPx: 6000, hPx: 3000, nom: 'exemple'};
+}
+async function appliquerExemple(p, bouton) {
+  const mode = state.mode, face = state.faceSel, jeton = ++GALERIE.jeton;   // cible figée au moment du clic
+  $('galerie').querySelectorAll('.charge').forEach(x => x.classList.remove('charge'));
+  bouton.classList.add('charge'); GALERIE.msg = '';
+  try {
+    let img = GALERIE.cache.get(p.fichier);
+    if (!img) {
+      img = await chargerImage(urlGalerie(p.fichier), p.titre || p.fichier);   // pleine définition : dpi réels
+      img.galerie = p.fichier;
+      GALERIE.cache.set(p.fichier, img);
+      if (GALERIE.cache.size > 4) GALERIE.cache.delete(GALERIE.cache.keys().next().value);
+    }
+    if (jeton === GALERIE.jeton) appliquerImage(img, mode, face);
+  } catch (e) {
+    if (jeton === GALERIE.jeton) { GALERIE.msg = `Impossible de charger « ${p.titre || p.fichier} ».`; majGalerie(); }
+  } finally { bouton.classList.remove('charge'); }
+}
+function majGalerie() {
+  const t = cible(), src = t.img && t.img.galerie;
+  $('galerie').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.fichier === src));
+  let txt;
+  if (GALERIE.etat === 'attente') txt = 'Chargement de la galerie…';
+  else if (GALERIE.etat === 'local') txt = 'Galerie indisponible quand l’outil est ouvert depuis l’ordinateur : utilisez la version en ligne. « Choisir une photo… » reste utilisable.';
+  else if (GALERIE.etat === 'erreur') txt = 'Galerie indisponible (liste exemples-covering/galerie.json introuvable ou illisible). « Choisir une photo… » reste utilisable.';
+  else if (GALERIE.etat === 'vide') txt = 'Aucune photo d’exemple pour l’instant.';
+  else {
+    const ici = state.mode === 'pano' ? 'tout le tour' : `la face ${NOM_FACE[state.faceSel].toLowerCase()}`;
+    const p = src && GALERIE.photos.find(x => x.fichier === src);
+    txt = `Un clic applique la photo à ${ici}.`;
+    if (p) txt += `<br>Sur ${ici} : <b>${esc(p.titre || p.fichier)}</b>${p.credit ? ' · © ' + esc(p.credit) : ''}${p.description ? '<br>' + esc(p.description) : ''}`;
+  }
+  if (GALERIE.msg) txt = `<span style="color:#7c1218">${esc(GALERIE.msg)}</span><br>` + txt;
+  $('galerieNote').innerHTML = txt;
 }
 
 // Câblage
@@ -2231,7 +2291,6 @@ $('couleurParoi').oninput = e => { state.paroi = e.target.value; marquer(); };
 $('segMode').querySelectorAll('button').forEach(b => b.onclick = () => { state.mode = b.dataset.v; majUI(); marquer(); });
 $('btnCharger').onclick = () => $('fichier').click();
 $('fichier').onchange = e => { const f = e.target.files[0]; if (f) lireFichier(f); e.target.value = ''; };
-$('btnExemple').onclick = () => appliquerImage(imageExemple());
 $('btnRetirer').onclick = () => { const t = cible(); t.img = null; t.place = null; majUI(); marquer(); };
 $('btnRemplir').onclick = () => { const t = cible(); const m = t.place && t.place.miroir; remplir(t, state.mode, state.faceSel); t.place.miroir = m; majUI(); marquer(); };
 $('btnCentrer').onclick = () => { const t = cible(); if (!t.place) return; const z = zoneEspace(state.mode, state.faceSel); t.place.cx = (z.x0 + z.x1) / 2; t.place.cy = (z.y0 + z.y1) / 2; marquer(); };
@@ -2389,6 +2448,7 @@ construireBoutonsFaces();
 construireColonne();
 majZones();
 majTableDims(); majUI();
+initGalerie();
 redim3D(); vue('34');
 new ResizeObserver(() => { redim3D(); marquer(); }).observe(v3d);
 new ResizeObserver(marquer).observe(v2d);
