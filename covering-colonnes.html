@@ -4,106 +4,144 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulateur d'habillage 3D — colonnes aériennes — NCPA</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Crect width=%2724%27 height=%2724%27 rx=%276%27 fill=%27%23B91E27%27/%3E%3Cpath d=%27M5 20V9.5Q12 5.5 19 9.5V20Z%27 fill=%27none%27 stroke=%27%23fff%27 stroke-width=%271.8%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E">
 <style>
 :root{
-  --rouge:#B91E27; --vert:#B1B993; --vert-clair:#e7e9dc; --noir:#1d1f21;
-  --gris:#6b7076; --bord:#d9dbd2; --fond:#f6f6f2;
+  --rouge:#B91E27; --rouge-f:#9c1820; --vert:#B1B993; --vert-clair:#eef0e5; --vert-f:#6c7650; --noir:#1d1f21;
+  --gris:#646a70; --bord:#e2e4db; --fond:#f2f3ee; --carte:#fff;
+  --ombre:0 1px 2px rgba(29,31,33,.05),0 6px 18px -6px rgba(29,31,33,.10);
+  --anneau:0 0 0 3px rgba(185,30,39,.18);
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{font-family:Calibri,"Segoe UI",Carlito,Arial,sans-serif;color:var(--noir);background:var(--fond);font-size:14px}
-header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#fff;border-bottom:3px solid var(--rouge)}
-header h1{margin:0;font-size:19px;color:var(--rouge);font-weight:700}
-header .sous{color:var(--gris);font-size:13px}
-.badge{margin-left:auto;background:#fff4e5;color:#8a4b00;border:1px solid #f0c98c;border-radius:12px;padding:3px 10px;font-size:12px;white-space:nowrap}
-.layout{display:grid;grid-template-columns:330px 1fr;height:calc(100% - 56px)}
-aside{background:#fff;border-right:1px solid var(--bord);overflow-y:auto;padding:12px 14px 30px}
-aside h2{font-size:13px;text-transform:none;color:var(--rouge);margin:16px 0 6px;font-weight:700;border-bottom:1px solid var(--vert-clair);padding-bottom:3px}
-aside h2:first-child{margin-top:2px}
-.seg{display:flex;border:1px solid var(--bord);border-radius:6px;overflow:hidden}
-.seg button{flex:1;border:0;background:#fff;padding:7px 4px;font:inherit;font-size:13px;cursor:pointer;border-right:1px solid var(--bord)}
-.seg button:last-child{border-right:0}
-.seg button.on{background:var(--rouge);color:#fff}
-.faces{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
-.faces button{border:1px solid var(--bord);background:#fff;border-radius:6px;padding:6px 2px;font:inherit;font-size:12.5px;cursor:pointer;position:relative}
-.faces button.on{border-color:var(--rouge);box-shadow:inset 0 0 0 1px var(--rouge);font-weight:700}
-.faces button .pt{position:absolute;top:3px;right:4px;width:7px;height:7px;border-radius:50%;background:#ccc}
-.faces button .pt.ok{background:#3c8d4f}
-.btn{display:inline-block;border:1px solid var(--bord);background:#fff;border-radius:6px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer;margin:3px 3px 0 0}
-.btn:hover{border-color:var(--vert)}
-.btn.prim{background:var(--rouge);border-color:var(--rouge);color:#fff}
-.btn.prim:hover{filter:brightness(1.08)}
-.btn:disabled{opacity:.45;cursor:default}
-.row{display:flex;align-items:center;gap:8px;margin:6px 0}
+body{font-family:Calibri,"Segoe UI",Carlito,Arial,sans-serif;color:var(--noir);background:var(--fond);font-size:14px;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}
+:focus-visible{outline:none;box-shadow:var(--anneau)}
+input[type=range],input[type=checkbox]{accent-color:var(--rouge)}
+
+/* En-tête */
+header{position:relative;display:flex;align-items:center;gap:12px;height:62px;padding:0 18px;background:#fff;box-shadow:0 1px 0 var(--bord)}
+header::after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:3px;background:linear-gradient(90deg,var(--rouge) 0 72%,var(--vert) 72%)}
+.logo{flex:0 0 38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#cf2c36,var(--rouge-f));box-shadow:0 4px 10px -3px rgba(185,30,39,.55)}
+header h1{margin:0;font-size:19px;line-height:1.15;color:var(--noir);font-weight:700;letter-spacing:-.01em}
+header h1 b{color:var(--rouge);font-weight:700}
+header .sous{color:var(--gris);font-size:12.5px;margin-top:1px}
+.badge{margin-left:auto;background:#fff6e9;color:#8a4b00;border:1px solid #f2d6a6;border-radius:999px;padding:4px 12px;font-size:12px;white-space:nowrap}
+
+/* Mise en page */
+.layout{display:grid;grid-template-columns:340px 1fr;height:calc(100% - 65px)}
+aside{overflow-y:auto;padding:14px 10px 30px 14px;scrollbar-width:thin;scrollbar-color:#cfd2c6 transparent}
+aside::-webkit-scrollbar{width:8px}
+aside::-webkit-scrollbar-thumb{background:#cfd2c6;border-radius:8px}
+.carte{background:var(--carte);border:1px solid var(--bord);border-radius:14px;padding:12px 14px 13px;margin-bottom:10px;box-shadow:var(--ombre)}
+aside h2{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--rouge)}
+aside h2::before{content:"";width:4px;height:14px;border-radius:2px;background:var(--rouge)}
+
+/* Contrôles */
+.seg{display:flex;gap:3px;padding:3px;background:#eff0ea;border-radius:10px}
+.seg button{flex:1;border:0;background:transparent;padding:6px 6px;border-radius:7px;font-size:13px;color:#43474b;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}
+.seg button:hover{background:rgba(255,255,255,.75)}
+.seg button.on{background:var(--rouge);color:#fff;box-shadow:0 2px 6px -1px rgba(185,30,39,.45)}
+.faces{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.faces button{border:1px solid var(--bord);background:#fff;border-radius:9px;padding:7px 2px;font-size:12.5px;cursor:pointer;position:relative;transition:border-color .15s,background .15s}
+.faces button:hover{background:#fafaf7;border-color:#cfd3c4}
+.faces button.on{border-color:var(--rouge);background:#fdf3f3;color:var(--rouge-f);font-weight:700}
+.faces button .pt{position:absolute;top:4px;right:5px;width:7px;height:7px;border-radius:50%;background:#d5d7d0}
+.faces button .pt.ok{background:#3c8d4f;box-shadow:0 0 0 2px #e3f1e6}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bord);background:#fff;border-radius:9px;padding:6px 12px;font-size:13px;cursor:pointer;margin:4px 4px 0 0;color:var(--noir);box-shadow:0 1px 1px rgba(0,0,0,.03);transition:background .15s,border-color .15s,box-shadow .15s,transform .1s}
+.btn:hover{background:#f8f9f4;border-color:#c9cdbd}
+.btn:active{transform:translateY(1px)}
+.btn.prim{background:linear-gradient(180deg,#c6252f,var(--rouge));border-color:var(--rouge-f);color:#fff;box-shadow:0 3px 8px -3px rgba(185,30,39,.6)}
+.btn.prim:hover{background:linear-gradient(180deg,#d02a35,#a91b24)}
+.btn:disabled{opacity:.42;cursor:default;box-shadow:none;transform:none}
+.btn:disabled:hover{background:#fff;border-color:var(--bord)}
+.btn.prim:disabled:hover{background:linear-gradient(180deg,#c6252f,var(--rouge))}
+.row{display:flex;align-items:center;gap:8px;margin:8px 0}
 .row label{flex:0 0 92px;color:var(--gris);font-size:13px}
-.row input[type=range]{flex:1}
-.row .val{width:46px;text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px}
-.chk{display:flex;align-items:center;gap:7px;margin:4px 0;font-size:13px;cursor:pointer}
+.row input[type=range]{flex:1;min-width:0}
+.row .val{width:46px;text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--gris)}
+.chk{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:13px;cursor:pointer}
+.chk input{width:15px;height:15px;margin:0}
 .swatches{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.sw{width:24px;height:24px;border-radius:5px;border:1px solid #999;cursor:pointer}
-.sw.on{outline:2px solid var(--rouge);outline-offset:1px}
-input[type=color]{width:30px;height:26px;border:1px solid var(--bord);border-radius:5px;padding:0;background:#fff;cursor:pointer}
-.reso{border-radius:6px;padding:8px 10px;font-size:13px;background:#f1f1ec;line-height:1.35}
-.reso b{font-size:15px}
-.reso.ko{background:#fbe9ea;color:#7c1218}
-.reso.ok{background:#e8f3ea;color:#1f5a2c}
-.reso.top{background:#e4f0f7;color:#164a66}
-.note{font-size:12px;color:var(--gris);line-height:1.35;margin-top:6px}
-details{margin-top:6px;font-size:12.5px}
+.sw{width:24px;height:24px;border-radius:7px;border:1px solid rgba(0,0,0,.25);cursor:pointer;transition:transform .12s}
+.sw:hover{transform:scale(1.08)}
+.sw.on{outline:2px solid var(--rouge);outline-offset:2px}
+input[type=color]{width:32px;height:28px;border:1px solid var(--bord);border-radius:8px;padding:2px;background:#fff;cursor:pointer}
+.reso{border-radius:10px;padding:9px 12px;font-size:13px;background:#f3f4ef;line-height:1.4;border-left:4px solid #cfd2c6}
+.reso b{font-size:16px}
+.reso.ko{background:#fcecec;color:#7c1218;border-left-color:#c8333c}
+.reso.ok{background:#eaf4ec;color:#1f5a2c;border-left-color:#3c8d4f}
+.reso.top{background:#e7f1f7;color:#164a66;border-left-color:#2f7ea8}
+.note{font-size:12px;color:var(--gris);line-height:1.4;margin-top:7px}
+details{margin-top:2px;font-size:12.5px}
 details summary{cursor:pointer;color:var(--noir);font-weight:700}
-table.dims{border-collapse:collapse;width:100%;margin-top:6px;font-size:12px}
-table.dims td{border-bottom:1px solid #eee;padding:3px 2px;vertical-align:top}
-table.dims td:last-child{text-align:right;white-space:nowrap}
+table.dims{border-collapse:collapse;width:100%;margin-top:8px;font-size:12px}
+table.dims td{border-bottom:1px solid #eef0ea;padding:4px 2px;vertical-align:top}
+table.dims td:last-child{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .tag{font-size:10.5px;border-radius:8px;padding:0 6px;margin-left:4px}
 .tag.reel{background:#e8f3ea;color:#1f5a2c}
 .tag.fictif{background:#fff4e5;color:#8a4b00}
-.views{display:grid;grid-template-rows:1.25fr 1fr;min-height:0}
-.v3d{position:relative;min-height:0;background:linear-gradient(#dfe6ea 0%,#f3f4ef 62%,#e6e7df 100%)}
+
+/* Vues 3D et 2D */
+.views{display:grid;grid-template-rows:1.25fr 1fr;gap:12px;padding:14px 14px 14px 4px;min-height:0}
+.v3d,.v2d{position:relative;min-height:0;border:1px solid var(--bord);border-radius:16px;overflow:hidden;box-shadow:var(--ombre)}
+.v3d{background:radial-gradient(120% 90% at 50% 0%,#eef2f4 0%,#e1e8eb 45%,#eceee6 70%,#e4e6dd 100%)}
 .v3d canvas{display:block;width:100%;height:100%;touch-action:none}
-.toolbar{position:absolute;left:10px;top:10px;display:flex;gap:4px;flex-wrap:wrap;z-index:2}
-.toolbar button{border:1px solid rgba(0,0,0,.15);background:rgba(255,255,255,.92);border-radius:5px;padding:4px 8px;font:inherit;font-size:12.5px;cursor:pointer}
-.toolbar button:hover{border-color:var(--rouge)}
-.legend3d{position:absolute;right:10px;bottom:8px;font-size:11.5px;color:#555;background:rgba(255,255,255,.75);padding:3px 8px;border-radius:5px}
-.v2d{position:relative;min-height:0;border-top:1px solid var(--bord);background:#eceee8}
+.toolbar{position:absolute;left:12px;top:12px;display:flex;gap:2px;flex-wrap:wrap;z-index:2;padding:4px;border-radius:12px;background:rgba(255,255,255,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 2px 10px -4px rgba(0,0,0,.18)}
+.toolbar button{border:0;background:transparent;border-radius:8px;padding:5px 10px;font-size:12.5px;cursor:pointer;color:#3c4044;transition:background .15s,color .15s}
+.toolbar button:hover{background:#fff;color:var(--rouge)}
+.legend3d,.info2d,.leg2d{background:rgba(255,255,255,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:9px;box-shadow:0 1px 6px -2px rgba(0,0,0,.15)}
+.legend3d{position:absolute;right:12px;bottom:10px;font-size:11.5px;color:#555;padding:4px 10px}
+.v2d{background:#eef0ea}
 .v2d canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
 .v2d canvas.drag{cursor:grabbing}
-.info2d{position:absolute;left:10px;top:8px;font-size:12.5px;background:rgba(255,255,255,.88);padding:3px 9px;border-radius:5px;max-width:calc(100% - 20px)}
-.leg2d{position:absolute;right:10px;bottom:8px;font-size:11.5px;background:rgba(255,255,255,.88);padding:3px 9px;border-radius:5px;display:flex;gap:10px;flex-wrap:wrap}
+.info2d{position:absolute;left:12px;top:10px;font-size:12.5px;padding:4px 10px;max-width:calc(100% - 24px)}
+.leg2d{position:absolute;right:12px;bottom:10px;font-size:11.5px;padding:4px 10px;display:flex;gap:10px;flex-wrap:wrap}
 .leg2d i{display:inline-block;width:16px;height:0;border-top:2px solid;vertical-align:middle;margin-right:4px}
-.zones{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
-.zones button{border:1px solid var(--bord);background:#fff;border-radius:14px;padding:3px 10px;font:inherit;font-size:12.5px;cursor:pointer}
-.zones button.on{background:#1f6fb2;border-color:#1f6fb2;color:#fff}
-.edZone{border:1px solid #cfe0ef;background:#f4f8fc;border-radius:7px;padding:8px 9px;margin-top:4px}
-.edZone .row label{flex-basis:70px}
-.edZone input[type=number]{width:68px;font:inherit;font-size:13px;padding:3px 4px;border:1px solid var(--bord);border-radius:4px}
-.edZone input[type=text],.edZone select{flex:1;font:inherit;font-size:13px;padding:4px 5px;border:1px solid var(--bord);border-radius:4px;min-width:0}
-.alerte{font-size:12.5px;border-radius:5px;padding:5px 8px;margin-top:6px}
-.alerte.ok{background:#e8f3ea;color:#1f5a2c}.alerte.ko{background:#fbe9ea;color:#7c1218}
-.drop{position:absolute;inset:0;border:3px dashed var(--rouge);background:rgba(185,30,39,.06);display:none;align-items:center;justify-content:center;color:var(--rouge);font-size:18px;font-weight:700;pointer-events:none}
+.drop{position:absolute;inset:6px;border:3px dashed var(--rouge);border-radius:12px;background:rgba(185,30,39,.06);display:none;align-items:center;justify-content:center;color:var(--rouge);font-size:18px;font-weight:700;pointer-events:none}
 .v2d.over .drop{display:flex}
-.galerie{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;max-height:204px;overflow-y:auto;padding:2px}
+
+/* Emplacements de consignes */
+.zones{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.zones:empty{display:none}
+.zones button{border:1px solid var(--bord);background:#fff;border-radius:999px;padding:3px 11px;font-size:12.5px;cursor:pointer}
+.zones button.on{background:#1f6fb2;border-color:#1f6fb2;color:#fff}
+.edZone{border:1px solid #d3e3f1;background:#f5f9fd;border-radius:11px;padding:9px 10px;margin-top:6px}
+.edZone .row label{flex-basis:70px}
+.edZone input[type=number]{width:68px;font-size:13px;padding:4px 6px;border:1px solid var(--bord);border-radius:7px;background:#fff}
+.edZone input[type=text],.edZone select{flex:1;font-size:13px;padding:5px 7px;border:1px solid var(--bord);border-radius:7px;min-width:0;background:#fff}
+.alerte{font-size:12.5px;border-radius:8px;padding:6px 9px;margin-top:7px}
+.alerte:empty{display:none}
+.alerte.ok{background:#e8f3ea;color:#1f5a2c}.alerte.ko{background:#fbe9ea;color:#7c1218}
+
+/* Galerie de photos d'exemple */
+.galerie{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:212px;overflow-y:auto;padding:4px;scrollbar-width:thin}
 .galerie:empty{display:none}
-.galerie button{position:relative;aspect-ratio:4/3;border:1px solid var(--bord);border-radius:5px;padding:0;overflow:hidden;background:var(--vert-clair);cursor:pointer;font:inherit;font-size:10.5px;line-height:1.15;color:var(--gris)}
-.galerie button img{display:block;width:100%;height:100%;object-fit:cover}
-.galerie button:hover{border-color:var(--vert);filter:brightness(1.06)}
-.galerie button.on{outline:3px solid var(--rouge);outline-offset:-3px}
+.galerie button{position:relative;aspect-ratio:4/3;border:0;border-radius:8px;padding:0;overflow:hidden;background:var(--vert-clair);cursor:pointer;font-size:10.5px;line-height:1.15;color:var(--gris);box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);transition:box-shadow .15s}
+.galerie button img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .25s}
+.galerie button:hover img{transform:scale(1.06)}
+.galerie button.on{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--rouge)}
 .galerie button.charge img{opacity:.45}
-.galerie button.charge::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border:3px solid rgba(255,255,255,.8);border-top-color:var(--rouge);border-radius:50%;animation:tourne .8s linear infinite}
+.galerie button.charge::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border:3px solid rgba(255,255,255,.85);border-top-color:var(--rouge);border-radius:50%;animation:tourne .8s linear infinite}
 @keyframes tourne{to{transform:rotate(360deg)}}
+
 @media (max-width:860px){
   .layout{grid-template-columns:1fr;height:auto}
-  .views{grid-template-rows:none}
+  .views{grid-template-rows:none;padding:12px 12px 0}
   .v3d{height:58vh}
   .v2d{height:44vh}
-  aside{order:2;border-right:0;border-top:1px solid var(--bord)}
+  aside{order:2;padding:12px}
+  header{padding:0 12px}
   header .sous{display:none}
+  .badge{display:none}
 }
 </style>
 </head>
 <body>
 <header>
+  <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M5 20V9.5Q12 5.5 19 9.5V20Z"/><circle cx="9.5" cy="11" r="1.3" fill="#fff" stroke="none"/><circle cx="14.5" cy="11" r="1.3" fill="#fff" stroke="none"/><path d="M3 20h18M8 15.5h8"/></svg></div>
   <div>
-    <h1>Simulateur d'habillage 3D — colonnes aériennes</h1>
+    <h1>Simulateur d'habillage 3D <b>· colonnes aériennes</b></h1>
     <div class="sous">NCPA · Direction de la Maîtrise des Déchets · aperçu de covering sur colonnes Astech</div>
   </div>
   <span class="badge" title="Cotes du cadre de réponse technique Astech ; quelques détails de construction déduits des plans">V2 · cotes Astech Eco-City</span>
@@ -111,6 +149,7 @@ table.dims td:last-child{text-align:right;white-space:nowrap}
 
 <div class="layout">
 <aside>
+  <div class="carte">
   <h2>Colonne</h2>
   <div class="seg" id="segFlux">
     <button data-v="verre" class="on">Verre</button>
@@ -119,7 +158,9 @@ table.dims td:last-child{text-align:right;white-space:nowrap}
   </div>
   <div class="note" id="noteModele"></div>
   <div class="row"><label>Paroi d'orifice</label><input type="color" id="couleurParoi" value="#3e8e3a"><span class="note" style="margin:0">couleur du bandeau haut</span></div>
+  </div>
 
+  <div class="carte">
   <h2>Photo</h2>
   <div class="seg" id="segMode">
     <button data-v="face" class="on">Une photo par face</button>
@@ -137,11 +178,15 @@ table.dims td:last-child{text-align:right;white-space:nowrap}
     <button class="btn" id="btnCopieOpp">Copier sur la face opposée</button>
     <button class="btn" id="btnCopieTout">Copier sur les 4 faces</button>
   </div>
+  </div>
 
+  <div class="carte">
   <h2>Photos d'exemple</h2>
   <div class="galerie" id="galerie"></div>
   <div class="note" id="galerieNote">Chargement de la galerie…</div>
+  </div>
 
+  <div class="carte">
   <h2>Cadrage</h2>
   <div class="row"><label>Zoom</label><input type="range" id="zoom" min="-1.2" max="1.4" step="0.005" value="0"><span class="val" id="zoomVal">100 %</span></div>
   <div>
@@ -150,7 +195,9 @@ table.dims td:last-child{text-align:right;white-space:nowrap}
     <button class="btn" id="btnMiroir">Miroir</button>
   </div>
   <div class="note">Dans le gabarit 2D : glisser pour déplacer, molette (ou pincer) pour zoomer.</div>
+  </div>
 
+  <div class="carte">
   <h2>Consignes de tri</h2>
   <div class="note" style="margin-top:0">Réserver des emplacements sur les panneaux : taille, forme et position au choix.</div>
   <button class="btn prim" id="btnZoneAjout">+ Ajouter un emplacement</button>
@@ -186,11 +233,15 @@ table.dims td:last-child{text-align:right;white-space:nowrap}
   </div>
   <label class="chk"><input type="checkbox" id="chkZones3D" checked> Afficher les emplacements dans la vue 3D</label>
   <div class="note">Dans le gabarit 2D : glisser un emplacement pour le déplacer, poignée bleue pour le redimensionner.</div>
+  </div>
 
+  <div class="carte">
   <h2>Qualité d'impression</h2>
   <div class="reso" id="reso">Aucune photo sur cette face.</div>
   <div class="note" id="resoNote"></div>
+  </div>
 
+  <div class="carte">
   <h2>Apparence</h2>
   <div class="row"><label>Montants et toit</label>
     <div class="swatches" id="swCorps"></div>
@@ -200,18 +251,23 @@ table.dims td:last-child{text-align:right;white-space:nowrap}
   <label class="chk"><input type="checkbox" id="chkSilhouette"> Silhouette à l'échelle (1,75 m)</label>
   <label class="chk"><input type="checkbox" id="chkRotation"> Rotation automatique</label>
   <label class="chk"><input type="checkbox" id="chkReperes" checked> Repères dans le gabarit 2D</label>
+  </div>
 
+  <div class="carte">
   <h2>Exports</h2>
   <button class="btn" id="btnCapture">Capture de la vue 3D</button>
   <button class="btn prim" id="btnPlanche">Planche récapitulative</button>
   <div class="note">PNG. La planche réunit la vue 3D et les 4 panneaux calés : support pour échanger avec un graphiste ou présenter un projet. Ce n'est pas le fichier d'impression (à produire en .ai CMJN selon le cahier des charges Astech).</div>
+  </div>
 
+  <div class="carte">
   <h2>Dimensions utilisées</h2>
   <details>
     <summary>Voir le détail (réel / fictif)</summary>
     <table class="dims" id="tabDims"></table>
     <div class="note">« CRT » : cadre de réponse technique Astech. « déduit » : relevé sur les vues cotées, à ±10 mm. Astech annonce ±2 % sur les dimensions.</div>
   </details>
+  </div>
 </aside>
 
 <section class="views">
@@ -1861,6 +1917,7 @@ function construireColonne() {
 }
 
 // Personnage de 1,75 m aux proportions moyennes d'un adulte (unités : m, face vers +z)
+// Posture détendue : appui sur la jambe droite, sac de tri dans la main gauche.
 function placerSilhouette() {
   if (silhouette) {
     scene.remove(silhouette);
@@ -1868,12 +1925,15 @@ function placerSilhouette() {
     silhouette = null;
   }
   if (!state.silhouette) return;
-  const mat = c => new THREE.MeshStandardMaterial({color: c, roughness: .85});
-  const peau = mat(0xc9a78c), haut = mat(0x8f9a84), bas = mat(0x3c424a), chaussure = mat(0x2b2b2d), cheveux = mat(0x3a2e26);
+  const mat = (c, r = .85) => new THREE.MeshStandardMaterial({color: new THREE.Color(c).convertSRGBToLinear(), roughness: r});   // teintes réelles (sortie sRGB)
+  const peau = mat(0xc69a7a, .7), pull = mat(0x41606a, .95), col = mat(0x37525b, .95), jean = mat(0x34506e, .9),
+    basket = mat(0x3a3c40, .6), semelle = mat(0xefeee8, .7), cheveux = mat(0x2f241d, .9), yeux = mat(0x1e1b19, .4),
+    sac = mat(0xa9b28a, .95), anse = mat(0x7d865f, .9), verre = new THREE.MeshStandardMaterial({color: new THREE.Color(0x2f6b3a).convertSRGBToLinear(), roughness: .2, metalness: .1});
   silhouette = new THREE.Group();
-  const ajouter = (geo, m, pos, echelle) => {
-    const o = new THREE.Mesh(geo, m); o.position.set(...pos); if (echelle) o.scale.set(...echelle);
-    o.castShadow = o.receiveShadow = true; silhouette.add(o); return o;
+  let parent = silhouette;
+  const ajouter = (geo, m, pos, echelle, rot) => {
+    const o = new THREE.Mesh(geo, m); o.position.set(...pos); if (echelle) o.scale.set(...echelle); if (rot) o.rotation.set(...rot);
+    o.castShadow = o.receiveShadow = true; parent.add(o); return o;
   };
   // segment arrondi de a vers b, rayons répartis le long du segment
   const segment = (a, b, rayons, m) => {
@@ -1886,28 +1946,61 @@ function placerSilhouette() {
   };
   // volume de révolution aplati (bassin, buste) : profil [rayon, hauteur]
   const tronc = (profil, m, prof) => ajouter(new THREE.LatheGeometry(profil.map(([r, y]) => new THREE.Vector2(Math.max(r, 1e-4), y)), 32), m, [0, 0, 0], [1, 1, prof]);
-  const ellipsoide = (pos, r, m) => ajouter(new THREE.SphereGeometry(1, 24, 16), m, pos, r);
+  const ellipsoide = (pos, r, m, rot) => ajouter(new THREE.SphereGeometry(1, 24, 16), m, pos, r, rot);
+  const anneau = (y, r, ep, m, prof) => ajouter(new THREE.TorusGeometry(r, ep, 8, 40), m, [0, y, 0], [1, prof, 1], [Math.PI / 2, 0, 0]);
 
-  for (const s of [1, -1]) {
-    // jambes : cuisse, genou, mollet, cheville
-    segment([s * .095, .90, 0], [s * .10, .50, .012], [.088, .082, .068, .054], bas);
-    segment([s * .10, .50, .012], [s * .10, .095, -.005], [.053, .058, .05, .038, .033], bas);
-    ellipsoide([s * .102, .045, .055], [.052, .045, .135], chaussure);
-    // bras : épaule, coude, poignet, main
-    ellipsoide([s * .185, 1.405, 0], [.062, .06, .062], haut);
-    segment([s * .2, 1.4, 0], [s * .235, 1.105, -.012], [.047, .044, .04], haut);
-    segment([s * .235, 1.105, -.012], [s * .245, .845, .03], [.039, .037, .03], haut);
-    ellipsoide([s * .25, .765, .036], [.026, .085, .046], peau);
-    ellipsoide([s * .079, 1.64, .002], [.012, .03, .02], peau);   // oreilles
+  // Jambes (jean droit) : droite d'appui, gauche relâchée genou fléchi
+  const jambes = [
+    {hanche: [-.092, .905, 0], genou: [-.098, .505, .005], cheville: [-.10, .095, -.01], pied: -.12},
+    {hanche: [.092, .89, 0], genou: [.115, .50, .065], cheville: [.125, .098, .025], pied: .32}
+  ];
+  for (const j of jambes) {
+    segment(j.hanche, j.genou, [.09, .084, .072, .06], jean);
+    segment(j.genou, j.cheville, [.058, .06, .056, .053, .054], jean);
+    const [x, , z] = j.cheville, a = j.pied, cx = x + .045 * Math.sin(a), cz = z + .045 * Math.cos(a);
+    ellipsoide([cx, .055, cz], [.048, .048, .128], basket, [0, a, 0]);                 // baskets
+    ellipsoide([cx, .016, cz], [.053, .018, .135], semelle, [0, a, 0]);
   }
-  tronc([[0, .83], [.12, .845], [.172, .92], [.17, .99], [.152, 1.05], [0, 1.06]], bas, .66);
-  tronc([[0, 1.0], [.155, 1.0], [.152, 1.06], [.16, 1.15], [.178, 1.27], [.192, 1.37], [.198, 1.42], [.16, 1.465], [.07, 1.49], [0, 1.495]], haut, .62);
-  segment([0, 1.45, -.005], [0, 1.545, .005], [.054, .05, .048], peau);
-  ellipsoide([0, 1.632, .008], [.078, .112, .1], peau);                                  // tête
-  ellipsoide([0, 1.575, .03], [.06, .055, .07], peau);                                   // mâchoire
-  ellipsoide([0, 1.622, .104], [.012, .022, .016], peau);                                // nez
-  ajouter(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * .52), cheveux, [0, 1.632, .006], [.084, .118, .108])
-    .rotation.x = -.4;                                                                   // chevelure : front dégagé, nuque couverte
+  tronc([[0, .84], [.11, .848], [.152, .9], [.16, .96], [.158, 1.0], [.152, 1.04], [0, 1.045]], jean, .68);
+
+  // Pull : buste, bord-côte, col, épaules, manches
+  tronc([[0, .965], [.165, .965], [.167, .99], [.158, 1.05], [.162, 1.14], [.176, 1.25], [.186, 1.33], [.186, 1.375],
+    [.172, 1.41], [.135, 1.448], [.075, 1.472], [0, 1.48]], pull, .6);
+  anneau(.975, .165, .011, col, .6);
+  anneau(1.468, .058, .016, col, .85);
+  for (const s of [1, -1]) ellipsoide([s * .178, 1.385, 0], [.052, .05, .056], pull);
+  // bras gauche : tient le sac, presque tendu
+  segment([.185, 1.40, 0], [.225, 1.11, -.005], [.05, .047, .042], pull);
+  segment([.225, 1.11, -.005], [.24, .845, .02], [.041, .039, .034], pull);
+  ellipsoide([.245, .792, .025], [.03, .048, .042], peau);                               // poing fermé sur les anses
+  // bras droit : relâché, coude légèrement fléchi
+  segment([-.185, 1.40, 0], [-.215, 1.115, -.035], [.05, .047, .042], pull);
+  segment([-.215, 1.115, -.035], [-.205, .87, .06], [.041, .039, .034], pull);
+  ellipsoide([-.203, .814, .082], [.024, .055, .042], peau, [-.37, 0, 0]);
+  ellipsoide([-.188, .835, .108], [.012, .03, .012], peau, [-.6, 0, 0]);                 // pouce
+
+  // Sac de tri (cabas) avec une bouteille
+  const sx = .262, sz = .03;
+  ajouter(new THREE.BoxGeometry(.11, .34, .30), sac, [sx, .52, sz]);
+  for (const dx of [-.035, .035]) ajouter(new THREE.TorusGeometry(.075, .008, 6, 16, Math.PI), anse, [sx + dx, .69, sz], null, [0, Math.PI / 2, 0]);
+  ajouter(new THREE.CylinderGeometry(.012, .03, .14, 16), verre, [sx, .70, sz + .085], null, [.12, 0, 0]);
+
+  // Cou et tête, légèrement tournée vers la colonne
+  segment([0, 1.45, -.01], [0, 1.54, .012], [.052, .048, .046], peau);
+  const tete = new THREE.Group(); tete.position.set(0, 1.53, .01); tete.rotation.set(.05, .25, 0); silhouette.add(tete); parent = tete;
+  ellipsoide([0, .102, 0], [.077, .111, .097], peau);                                    // crâne
+  ellipsoide([0, .045, .022], [.059, .054, .068], peau);                                 // mâchoire
+  ellipsoide([0, .027, .058], [.03, .025, .026], peau);                                  // menton
+  ellipsoide([0, .092, .096], [.011, .021, .016], peau);                                 // nez
+  for (const s of [1, -1]) {
+    ellipsoide([s * .077, .11, -.005], [.012, .03, .02], peau);                          // oreilles
+    ellipsoide([s * .03, .118, .088], [.009, .006, .005], yeux);
+    ellipsoide([s * .031, .134, .09], [.02, .005, .008], cheveux, [0, 0, s * -.12]);     // sourcils
+  }
+  ajouter(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * .52), cheveux, [0, .102, -.004], [.084, .118, .106], [-.4, 0, 0]);
+  ellipsoide([0, .165, -.012], [.08, .052, .095], cheveux);                              // volume de la coiffure
+  parent = silhouette;
+
   silhouette.position.set(-(LARG() / 2000 + .5), 0, PROF() / 2000 + .15);              // à côté de l'angle avant gauche, visible en vue 3/4
   silhouette.rotation.y = .45;                                                           // tournée vers la colonne
   scene.add(silhouette);
